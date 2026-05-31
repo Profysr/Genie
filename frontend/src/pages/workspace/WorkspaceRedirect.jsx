@@ -12,19 +12,24 @@ export default function WorkspaceRedirect() {
   });
 
   useEffect(() => {
+    if (isError) {
+      navigate("/login", { replace: true });
+      return;
+    }
     if (!data) return;
     if (data.length > 0) {
       navigate(`/w/${data[0].slug}`, { replace: true });
     } else {
       navigate("/onboarding", { replace: true });
     }
-  }, [data, navigate]);
-
-  if (isError) navigate("/login", { replace: true });
+  }, [data, isError, navigate]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-muted-foreground text-sm">Loading...</div>
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        <p className="text-sm text-muted-foreground">Loading your workspace…</p>
+      </div>
     </div>
   );
 }

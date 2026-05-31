@@ -1,14 +1,39 @@
+# Python / cache
 __pycache__/
 *.py[cod]
 *.pyo
-.env
+*.pyd
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+coverage/
+htmlcov/
+.coverage
+
+# Virtualenv
 .venv/
 venv/
-*.egg-info/
-dist/
-build/
+env/
+
+# Secrets / local config
+.env
+.env.*
+
+# Django generated
 staticfiles/
 media/
 db.sqlite3
+local_settings.py
+
+# Git
 .git/
 .gitignore
+
+# Docs / meta
+*.md
+Dockerfile
+.dockerignore
+
+# Logs
+*.log

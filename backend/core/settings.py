@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     # Our apps
     "accounts",    # custom User model, profile
     "workspaces",  # workspaces, members, invites
+    "projects",    # projects, tasks, subtasks, comments
 ]
 
 MIDDLEWARE = [

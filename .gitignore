@@ -1,29 +1,60 @@
-# Python
+# ── Python ────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *.pyo
-.env
+*.pyd
 *.egg-info/
+*.egg
 dist/
 build/
+wheels/
 .venv/
 venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+coverage/
+htmlcov/
+.coverage
+*.cover
 
-# Django
+# ── Django ────────────────────────────────────────────────
 backend/staticfiles/
 backend/media/
 backend/db.sqlite3
+backend/local_settings.py
 
-# Node
+# ── Environment / secrets ─────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Node ──────────────────────────────────────────────────
 node_modules/
 frontend/dist/
-frontend/.env.local
+frontend/build/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-# Docker
+# ── Docker ────────────────────────────────────────────────
 .docker/
 
-# Editor
+# ── Editor / OS ───────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
+*.swo
+*~
 .DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ── Misc ──────────────────────────────────────────────────
+*.bak
+*.tmp
+*.orig
