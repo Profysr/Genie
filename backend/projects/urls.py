@@ -5,6 +5,7 @@ from .views import (
     TaskListCreateView, TaskDetailView, TaskMoveView,
     SubTaskListCreateView, SubTaskDetailView,
     TaskCommentListCreateView, TaskCommentDetailView,
+    TaskActivityListView,
 )
 
 urlpatterns = [
@@ -27,4 +28,7 @@ urlpatterns = [
     # Comments
     path("workspaces/<slug:workspace_slug>/projects/<uuid:project_id>/tasks/<uuid:task_id>/comments/", TaskCommentListCreateView.as_view()),
     path("workspaces/<slug:workspace_slug>/projects/<uuid:project_id>/tasks/<uuid:task_id>/comments/<uuid:comment_id>/", TaskCommentDetailView.as_view()),
+
+    # Activity log
+    path("workspaces/<slug:workspace_slug>/projects/<uuid:project_id>/tasks/<uuid:task_id>/activity/", TaskActivityListView.as_view()),
 ]

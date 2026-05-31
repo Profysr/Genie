@@ -101,3 +101,28 @@ class TaskComment(models.Model):
 
     def __str__(self):
         return f"Comment by {self.author.email} on {self.task.title}"
+
+
+class TaskActivity(models.Model):
+    """Immutable audit log — one row per event on a task."""
+    class Verb(models.TextChoices):
+        CREATED    = "created",        "created the task"
+        UPDATED    = "updated",        "updated the task"
+        STATUS     = "status_changed", "changed status"
+        PRIORITY   = "priority_changed", "changed priority"
+        ASSIGNED   = "assigned",       "assigned the task"
+        COMMENTED  = "commented",      "added a comment"
+        SUBTASK    = "subtask_added",  "added a subtask"
+
+    id        = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    task      = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="activities")
+    actor     = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="task_activities")
+    verb      = models.CharField(max_length=30, choices=Verb.choices)
+    meta      = models.JSONField(default=dict)   # {"from": "Backlog", "to": "In Progress"}
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.actor} {self.verb} on {self.task}"

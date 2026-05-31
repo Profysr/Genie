@@ -10,7 +10,7 @@ const PRIORITY_CONFIG = {
   no_priority: { label: "No priority", icon: Minus,       className: "text-muted-foreground" },
 };
 
-export default function TaskCard({ task, index, onClick }) {
+export default function TaskCard({ task, index, onClick, isSelected }) {
   const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.no_priority;
   const PriorityIcon = priority.icon;
 
@@ -24,7 +24,8 @@ export default function TaskCard({ task, index, onClick }) {
           onClick={() => onClick?.(task)}
           className={cn(
             "bg-card border rounded-lg p-3 cursor-pointer hover:border-primary/50 transition-all select-none",
-            snapshot.isDragging && "shadow-lg rotate-1 border-primary/50"
+            snapshot.isDragging && "shadow-lg rotate-1 border-primary/50",
+            isSelected && "border-primary ring-1 ring-primary/30"
           )}
         >
           <p className="text-sm font-medium leading-snug mb-2">{task.title}</p>

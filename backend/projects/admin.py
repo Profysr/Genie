@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Project, TaskStatus, Task, SubTask, TaskComment
+from .models import Project, TaskStatus, Task, SubTask, TaskComment, TaskActivity
 
 
 @admin.register(Project)
@@ -29,3 +29,9 @@ class SubTaskAdmin(admin.ModelAdmin):
 @admin.register(TaskComment)
 class TaskCommentAdmin(admin.ModelAdmin):
     list_display = ["task", "author", "created_at"]
+
+
+@admin.register(TaskActivity)
+class TaskActivityAdmin(admin.ModelAdmin):
+    list_display = ["task", "actor", "verb", "created_at"]
+    list_filter = ["verb"]

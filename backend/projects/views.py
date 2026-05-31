@@ -5,11 +5,11 @@ from django.shortcuts import get_object_or_404
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from workspaces.models import Workspace, WorkspaceMember
-from .models import Project, TaskStatus, Task, SubTask, TaskComment
+from .models import Project, TaskStatus, Task, SubTask, TaskComment, TaskActivity
 from .serializers import (
     ProjectSerializer, TaskStatusSerializer,
     TaskSerializer, TaskDetailSerializer,
-    SubTaskSerializer, TaskCommentSerializer,
+    SubTaskSerializer, TaskCommentSerializer, TaskActivitySerializer,
 )
 
 
@@ -24,6 +24,10 @@ def broadcast(workspace_slug, event_type, data):
         f"workspace_{workspace_slug}",
         {"type": "workspace.event", "data": {"type": event_type, "payload": data}},
     )
+
+
+def log_activity(task, actor, verb, meta=None):
+    TaskActivity.objects.create(task=task, actor=actor, verb=verb, meta=meta or {})
 
 
 # ── Projects ──────────────────────────────────────────────────────────────────
@@ -113,6 +117,7 @@ class TaskListCreateView(APIView):
         serializer = TaskSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         task = serializer.save(project=project)
+        log_activity(task, request.user, TaskActivity.Verb.CREATED)
         data = TaskSerializer(task, context={"request": request}).data
         broadcast(workspace_slug, "task.created", data)
         return Response(data, status=status.HTTP_201_CREATED)
@@ -125,7 +130,7 @@ class TaskDetailView(APIView):
         workspace = get_workspace_for_user(workspace_slug, user)
         project = get_object_or_404(Project, id=project_id, workspace=workspace)
         return get_object_or_404(
-            Task.objects.select_related("status", "assignee", "created_by").prefetch_related("subtasks", "comments__author"),
+            Task.objects.select_related("status", "assignee", "created_by").prefetch_related("subtasks", "comments__author", "activities__actor"),
             id=task_id, project=project,
         )
 
@@ -135,9 +140,32 @@ class TaskDetailView(APIView):
 
     def patch(self, request, workspace_slug, project_id, task_id):
         task = self.get_task(workspace_slug, project_id, task_id, request.user)
+        old_status = task.status
+        old_priority = task.priority
+        old_assignee = task.assignee
+
         serializer = TaskSerializer(task, data=request.data, partial=True, context={"request": request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        task.refresh_from_db()
+
+        # Log what actually changed
+        if "status_id" in request.data and task.status != old_status:
+            log_activity(task, request.user, TaskActivity.Verb.STATUS, {
+                "from": old_status.name if old_status else None,
+                "to": task.status.name if task.status else None,
+            })
+        elif "priority" in request.data and task.priority != old_priority:
+            log_activity(task, request.user, TaskActivity.Verb.PRIORITY, {
+                "from": old_priority, "to": task.priority,
+            })
+        elif "assignee_id" in request.data and task.assignee != old_assignee:
+            log_activity(task, request.user, TaskActivity.Verb.ASSIGNED, {
+                "to": task.assignee.full_name if task.assignee else None,
+            })
+        else:
+            log_activity(task, request.user, TaskActivity.Verb.UPDATED)
+
         data = TaskSerializer(task, context={"request": request}).data
         broadcast(workspace_slug, "task.updated", data)
         return Response(data)
@@ -163,6 +191,7 @@ class TaskMoveView(APIView):
 
         status_id = request.data.get("status_id")
         order = request.data.get("order")
+        old_status = task.status
 
         if status_id is not None:
             task_status = get_object_or_404(TaskStatus, id=status_id, project=project)
@@ -171,6 +200,13 @@ class TaskMoveView(APIView):
             task.order = order
 
         task.save(update_fields=["status", "order", "updated_at"])
+
+        if task.status != old_status:
+            log_activity(task, request.user, TaskActivity.Verb.STATUS, {
+                "from": old_status.name if old_status else None,
+                "to": task.status.name if task.status else None,
+            })
+
         data = TaskSerializer(task, context={"request": request}).data
         broadcast(workspace_slug, "task.moved", data)
         return Response(data)
@@ -194,8 +230,9 @@ class SubTaskListCreateView(APIView):
         task = self.get_task(workspace_slug, project_id, task_id, request.user)
         serializer = SubTaskSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(task=task)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        subtask = serializer.save(task=task)
+        log_activity(task, request.user, TaskActivity.Verb.SUBTASK, {"title": subtask.title})
+        return Response(SubTaskSerializer(subtask).data, status=status.HTTP_201_CREATED)
 
 
 class SubTaskDetailView(APIView):
@@ -238,8 +275,15 @@ class TaskCommentListCreateView(APIView):
         task = self.get_task(workspace_slug, project_id, task_id, request.user)
         serializer = TaskCommentSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
-        serializer.save(task=task)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        comment = serializer.save(task=task)
+        log_activity(task, request.user, TaskActivity.Verb.COMMENTED)
+        data = TaskCommentSerializer(comment, context={"request": request}).data
+        broadcast(workspace_slug, "comment.created", {
+            "task_id": str(task.id),
+            "project_id": str(task.project_id),
+            "comment": data,
+        })
+        return Response(data, status=status.HTTP_201_CREATED)
 
 
 class TaskCommentDetailView(APIView):
@@ -264,5 +308,24 @@ class TaskCommentDetailView(APIView):
         comment = self.get_comment(workspace_slug, project_id, task_id, comment_id, request.user)
         if comment.author != request.user:
             return Response({"detail": "You can only delete your own comments."}, status=status.HTTP_403_FORBIDDEN)
+        comment_id_str = str(comment.id)
         comment.delete()
+        broadcast(workspace_slug, "comment.deleted", {
+            "task_id": str(task_id),
+            "project_id": str(project_id),
+            "comment_id": comment_id_str,
+        })
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ── Activity ──────────────────────────────────────────────────────────────────
+
+class TaskActivityListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, workspace_slug, project_id, task_id):
+        workspace = get_workspace_for_user(workspace_slug, request.user)
+        project = get_object_or_404(Project, id=project_id, workspace=workspace)
+        task = get_object_or_404(Task, id=task_id, project=project)
+        activities = task.activities.select_related("actor").all()
+        return Response(TaskActivitySerializer(activities, many=True).data)

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Project, TaskStatus, Task, SubTask, TaskComment
+from .models import Project, TaskStatus, Task, SubTask, TaskComment, TaskActivity
 from accounts.serializers import UserSerializer
 
 
@@ -26,6 +26,14 @@ class TaskCommentSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data["author"] = self.context["request"].user
         return super().create(validated_data)
+
+
+class TaskActivitySerializer(serializers.ModelSerializer):
+    actor = UserSerializer(read_only=True)
+
+    class Meta:
+        model = TaskActivity
+        fields = ["id", "actor", "verb", "meta", "created_at"]
 
 
 class TaskSerializer(serializers.ModelSerializer):
@@ -64,12 +72,13 @@ class TaskSerializer(serializers.ModelSerializer):
 
 
 class TaskDetailSerializer(TaskSerializer):
-    """Full task with subtasks and comments — used in the task detail panel."""
+    """Full task with subtasks, comments, and activity — used in the task detail panel."""
     subtasks = SubTaskSerializer(many=True, read_only=True)
     comments = TaskCommentSerializer(many=True, read_only=True)
+    activities = TaskActivitySerializer(many=True, read_only=True)
 
     class Meta(TaskSerializer.Meta):
-        fields = TaskSerializer.Meta.fields + ["subtasks", "comments"]
+        fields = TaskSerializer.Meta.fields + ["subtasks", "comments", "activities"]
 
 
 class ProjectSerializer(serializers.ModelSerializer):
@@ -93,12 +102,11 @@ class ProjectSerializer(serializers.ModelSerializer):
             created_by=request.user,
             **validated_data,
         )
-        # Create default Kanban columns
         defaults = [
-            {"name": "Backlog", "color": "#94a3b8", "order": 0},
+            {"name": "Backlog",     "color": "#94a3b8", "order": 0},
             {"name": "In Progress", "color": "#6366f1", "order": 1},
-            {"name": "In Review", "color": "#f59e0b", "order": 2},
-            {"name": "Done", "color": "#22c55e", "order": 3},
+            {"name": "In Review",   "color": "#f59e0b", "order": 2},
+            {"name": "Done",        "color": "#22c55e", "order": 3},
         ]
         TaskStatus.objects.bulk_create([
             TaskStatus(project=project, **s) for s in defaults
