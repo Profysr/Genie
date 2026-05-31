@@ -1,0 +1,131 @@
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { useUpdateWorkspace, useDeleteWorkspace } from "@/hooks/useMembers";
+import { useAuthStore } from "@/store/authStore";
+import api from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { AlertTriangle } from "lucide-react";
+
+export default function SettingsPage() {
+  const { workspaceSlug } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
+
+  const { data: workspace, isLoading } = useQuery({
+    queryKey: ["workspace", workspaceSlug],
+    queryFn: () => api.get(`/api/workspaces/${workspaceSlug}/`).then((r) => r.data),
+  });
+
+  const updateWorkspace = useUpdateWorkspace(workspaceSlug);
+  const deleteWorkspace = useDeleteWorkspace(workspaceSlug);
+
+  const [form, setForm] = useState({ name: "", description: "" });
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+
+  useEffect(() => {
+    if (workspace) setForm({ name: workspace.name || "", description: workspace.description || "" });
+  }, [workspace]);
+
+  const isOwner = workspace?.owner?.email === user?.email;
+
+  const handleSave = (e) => {
+    e.preventDefault();
+    setSaveSuccess(false);
+    updateWorkspace.mutate(form, {
+      onSuccess: () => setSaveSuccess(true),
+    });
+  };
+
+  const handleDelete = () => {
+    if (deleteConfirm !== workspace?.name) return;
+    deleteWorkspace.mutate(undefined, {
+      onSuccess: () => navigate("/"),
+    });
+  };
+
+  if (isLoading) {
+    return <div className="p-8 text-sm text-muted-foreground">Loading…</div>;
+  }
+
+  return (
+    <div className="p-8 max-w-2xl space-y-10">
+      <div>
+        <h1 className="text-2xl font-semibold">Workspace Settings</h1>
+        <p className="text-muted-foreground text-sm mt-0.5">Manage your workspace configuration</p>
+      </div>
+
+      {/* General settings */}
+      <section className="rounded-xl border bg-card p-6">
+        <h2 className="text-base font-medium mb-5">General</h2>
+        <form onSubmit={handleSave} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="ws-name">Workspace name</Label>
+            <Input
+              id="ws-name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="ws-desc">Description <span className="text-muted-foreground font-normal">(optional)</span></Label>
+            <textarea
+              id="ws-desc"
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring resize-none"
+              rows={3}
+              placeholder="What is this workspace for?"
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <Button type="submit" disabled={updateWorkspace.isPending}>
+              {updateWorkspace.isPending ? "Saving…" : "Save changes"}
+            </Button>
+            {saveSuccess && <span className="text-sm text-green-600">Saved!</span>}
+            {updateWorkspace.isError && (
+              <span className="text-sm text-destructive">Failed to save.</span>
+            )}
+          </div>
+        </form>
+      </section>
+
+      {/* Danger zone — owner only */}
+      {isOwner && (
+        <section className="rounded-xl border border-destructive/40 bg-card p-6">
+          <div className="flex items-center gap-2 mb-1">
+            <AlertTriangle className="w-4 h-4 text-destructive" />
+            <h2 className="text-base font-medium text-destructive">Danger Zone</h2>
+          </div>
+          <p className="text-sm text-muted-foreground mb-5">
+            Deleting the workspace is permanent. All projects, tasks, and members will be removed immediately.
+          </p>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="delete-confirm">
+                Type <span className="font-semibold text-foreground">{workspace?.name}</span> to confirm
+              </Label>
+              <Input
+                id="delete-confirm"
+                placeholder={workspace?.name}
+                value={deleteConfirm}
+                onChange={(e) => setDeleteConfirm(e.target.value)}
+              />
+            </div>
+            <Button
+              variant="destructive"
+              disabled={deleteConfirm !== workspace?.name || deleteWorkspace.isPending}
+              onClick={handleDelete}
+            >
+              {deleteWorkspace.isPending ? "Deleting…" : "Delete this workspace"}
+            </Button>
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}

@@ -61,5 +61,27 @@
 
 ---
 
-## v0.3.0 — Collaboration + Public API (Week 3)
-> Status: PLANNED 📋
+## v0.3.0 — Collaboration (Week 3)
+> Status: COMPLETE ✅
+
+### Backend
+- `TaskActivity` model — immutable audit log per task event (created, status_changed, priority_changed, assigned, commented, subtask_added)
+- `TaskActivitySerializer` + `TaskActivityListView` — `/tasks/<id>/activity/` endpoint
+- `TaskDetailSerializer` extended with nested `activities`
+- `broadcast()` now fires `comment.created` / `comment.deleted` WebSocket events
+- Activity auto-logged in all task mutation views (create, update, move, comment, subtask add)
+
+### Frontend
+- `TaskDetailPanel` — right-side slide panel, opens on task card click
+  - Inline title + description editing (click to edit, blur to save)
+  - Status, priority, due date dropdowns — updates persist immediately
+  - Subtasks checklist: add, toggle done, delete
+  - Comments thread: post with Enter / Send button, delete own comments
+  - Activity log: timestamped event feed showing all field changes
+- Selected task card gets a blue ring highlight
+- `useTaskDetail` + `useWorkspaceSocket` handle comment real-time updates across tabs
+
+---
+
+## v0.4.0 — Members, Settings & Workspace Management (Week 4)
+> Status: IN PROGRESS 🔨

@@ -103,6 +103,49 @@ class InviteMemberView(APIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
+class WorkspaceInviteListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, slug):
+        workspace = get_object_or_404(Workspace, slug=slug, members__user=request.user)
+        invites = workspace.invites.filter(status=WorkspaceInvite.Status.PENDING).select_related("invited_by")
+        return Response(WorkspaceInviteSerializer(invites, many=True).data)
+
+    def delete(self, request, slug):
+        """Cancel all pending invites for a given email (bulk cancel not used — see token endpoint)."""
+        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+class WorkspaceInviteCancelView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, slug, token):
+        workspace = get_object_or_404(Workspace, slug=slug, members__user=request.user)
+        is_admin = WorkspaceMember.objects.filter(
+            workspace=workspace, user=request.user, role=WorkspaceMember.Role.ADMIN
+        ).exists()
+        if not is_admin:
+            return Response({"detail": "Only admins can cancel invites."}, status=status.HTTP_403_FORBIDDEN)
+        invite = get_object_or_404(WorkspaceInvite, token=token, workspace=workspace)
+        invite.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class InviteDetailView(APIView):
+    """Public endpoint — returns invite info so the accept page can display it before login."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, token):
+        invite = get_object_or_404(WorkspaceInvite, token=token, status=WorkspaceInvite.Status.PENDING)
+        return Response({
+            "token": str(invite.token),
+            "email": invite.email,
+            "role": invite.role,
+            "workspace": {"name": invite.workspace.name, "slug": invite.workspace.slug},
+            "invited_by": invite.invited_by.full_name or invite.invited_by.email,
+        })
+
+
 class AcceptInviteView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 

@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/authStore";
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,7 @@ export default function AppLayout() {
   const { workspaceSlug } = useParams();
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const qc = useQueryClient();
 
   const { data: workspace } = useQuery({
     queryKey: ["workspace", workspaceSlug],
@@ -27,6 +28,7 @@ export default function AppLayout() {
 
   const handleLogout = async () => {
     await logout();
+    qc.clear();
     navigate("/login");
   };
 

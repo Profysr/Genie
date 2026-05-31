@@ -56,15 +56,14 @@ class WorkspaceInviteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = WorkspaceInvite
-        fields = ["id", "email", "role", "invited_by", "status", "created_at"]
-        read_only_fields = ["id", "invited_by", "status", "created_at"]
+        fields = ["id", "token", "email", "role", "invited_by", "status", "created_at"]
+        read_only_fields = ["id", "token", "invited_by", "status", "created_at"]
 
-    def validate_email(self):
+    def validate_email(self, value):
         workspace = self.context["workspace"]
-        email = self.validated_data.get("email")
-        if WorkspaceMember.objects.filter(workspace=workspace, user__email=email).exists():
+        if WorkspaceMember.objects.filter(workspace=workspace, user__email=value).exists():
             raise serializers.ValidationError("This user is already a member.")
-        return email
+        return value
 
     def create(self, validated_data):
         validated_data["workspace"] = self.context["workspace"]

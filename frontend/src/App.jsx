@@ -8,6 +8,9 @@ import WorkspaceRedirect from "@/pages/workspace/WorkspaceRedirect";
 import DashboardPage from "@/pages/dashboard/DashboardPage";
 import ProjectsPage from "@/pages/projects/ProjectsPage";
 import KanbanPage from "@/pages/projects/KanbanPage";
+import MembersPage from "@/pages/workspace/MembersPage";
+import SettingsPage from "@/pages/workspace/SettingsPage";
+import AcceptInvitePage from "@/pages/invite/AcceptInvitePage";
 
 export default function App() {
   return (
@@ -15,6 +18,7 @@ export default function App() {
       {/* Public */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/invites/:token" element={<AcceptInvitePage />} />
 
       {/* Protected */}
       <Route element={<ProtectedRoute />}>
@@ -25,8 +29,8 @@ export default function App() {
           <Route index element={<DashboardPage />} />
           <Route path="projects" element={<ProjectsPage />} />
           <Route path="projects/:projectId" element={<KanbanPage />} />
-          <Route path="members" element={<div className="p-8 text-muted-foreground">Members — coming soon</div>} />
-          <Route path="settings" element={<div className="p-8 text-muted-foreground">Settings — coming soon</div>} />
+          <Route path="members" element={<MembersPage />} />
+          <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Route>
 
