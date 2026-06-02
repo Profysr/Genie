@@ -16,9 +16,10 @@ import FilterBar from "@/components/tasks/FilterBar";
 import ListView from "@/components/tasks/ListView";
 import SprintPanel from "@/components/projects/SprintPanel";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowLeft, LayoutGrid, List, Zap, Download } from "lucide-react";
+import { Plus, ArrowLeft, LayoutGrid, List, Zap, Download, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import BulkActionBar from "@/components/tasks/BulkActionBar";
+import BoardSettingsModal from "@/components/projects/BoardSettingsModal";
 import { useBulkUpdateTasks } from "@/hooks/useBulkActions";
 import api from "@/lib/api";
 
@@ -44,6 +45,7 @@ export default function KanbanPage() {
   const deleteView  = useDeleteSavedView(workspaceSlug, projectId);
 
   const [createModal, setCreateModal]   = useState({ open: false, statusId: null });
+  const [boardSettings, setBoardSettings] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState(() => searchParams.get("task") || null);
   const [view, setView]     = useState("kanban"); // "kanban" | "list" | "sprint"
   const [filters, setFilters] = useState(EMPTY_FILTERS);
@@ -160,6 +162,13 @@ export default function KanbanPage() {
                 </button>
               ))}
             </div>
+            <button
+              onClick={() => setBoardSettings(true)}
+              className="p-1.5 rounded-md border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              title="Board settings"
+            >
+              <Settings2 className="w-3.5 h-3.5" />
+            </button>
             <button
               onClick={handleExport}
               className="p-1.5 rounded-md border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
@@ -284,6 +293,16 @@ export default function KanbanPage() {
         workspaceSlug={workspaceSlug}
         projectId={projectId}
         defaultStatusId={createModal.statusId}
+        statuses={project?.statuses || []}
+        members={members}
+      />
+
+      <BoardSettingsModal
+        open={boardSettings}
+        onClose={() => setBoardSettings(false)}
+        workspaceSlug={workspaceSlug}
+        projectId={projectId}
+        statuses={project?.statuses || []}
       />
     </div>
   );

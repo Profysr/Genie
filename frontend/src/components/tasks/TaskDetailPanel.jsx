@@ -3,8 +3,9 @@ import { useParams } from "react-router-dom";
 import { format } from "date-fns";
 import {
   X, Flag, Calendar, User, CheckSquare, MessageSquare,
-  ChevronDown, Trash2, Plus, Check, Activity, Tag, Paperclip, Link2,
+  ChevronDown, Trash2, Plus, Check, Activity, Tag, Paperclip, Link2, Layers,
 } from "lucide-react";
+import { TASK_TYPES, getTaskType } from "@/lib/taskTypes";
 import { useTaskDetail, useUpdateTaskDetail, useCreateComment, useDeleteComment, useCreateSubtask, useToggleSubtask, useDeleteSubtask } from "@/hooks/useTaskDetail";
 import { useUpsertFieldValue } from "@/hooks/useCustomFields";
 import { useMembers } from "@/hooks/useMembers";
@@ -139,6 +140,35 @@ export default function TaskDetailPanel({ taskId, projectStatuses = [], projectL
               >
                 {PRIORITY_OPTIONS.map((p) => (
                   <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </select>
+            </MetaField>
+
+            {/* Type */}
+            <MetaField label="Type" icon={<Layers className="w-3.5 h-3.5" />}>
+              <select
+                className="w-full bg-transparent outline-none text-sm"
+                value={task.task_type || "task"}
+                onChange={(e) => update.mutate({ task_type: e.target.value })}
+              >
+                {TASK_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
+            </MetaField>
+
+            {/* Assignee */}
+            <MetaField label="Assignee" icon={<User className="w-3.5 h-3.5" />}>
+              <select
+                className="w-full bg-transparent outline-none text-sm"
+                value={task.assignee?.id || ""}
+                onChange={(e) => update.mutate({ assignee_id: e.target.value || null })}
+              >
+                <option value="">Unassigned</option>
+                {members.map((m) => (
+                  <option key={m.user?.id} value={m.user?.id}>
+                    {m.user?.full_name || m.user?.email}
+                  </option>
                 ))}
               </select>
             </MetaField>

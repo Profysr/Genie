@@ -1,6 +1,7 @@
 import { Draggable } from "@hello-pangea/dnd";
 import { cn } from "@/lib/utils";
 import { AlertCircle, ArrowUp, ArrowDown, Minus, Calendar, MessageSquare, CheckSquare } from "lucide-react";
+import { getTaskType } from "@/lib/taskTypes";
 
 const PRIORITY_CONFIG = {
   urgent:      { icon: AlertCircle, dot: "bg-red-500",    label: "Urgent" },
@@ -12,6 +13,8 @@ const PRIORITY_CONFIG = {
 
 export default function TaskCard({ task, index, onClick, isSelected, isBulkSelected, onToggleSelect }) {
   const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.no_priority;
+  const typeConfig = getTaskType(task.task_type);
+  const TypeIcon = typeConfig.icon;
 
   const subtaskPct = task.subtask_count > 0
     ? Math.round((task.done_subtask_count / task.subtask_count) * 100)
@@ -53,12 +56,15 @@ export default function TaskCard({ task, index, onClick, isSelected, isBulkSelec
             </button>
           )}
 
-          {/* Priority dot + Labels row */}
-          <div className={cn("flex items-center gap-1.5 mb-2", onToggleSelect && "pl-5")}>
+          {/* Type + Priority dot + Labels row */}
+          <div className={cn("flex items-center gap-1.5 mb-2 flex-wrap", onToggleSelect && "pl-5")}>
             <span
-              className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", priority.dot)}
-              title={priority.label}
-            />
+              className={cn("inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold leading-none flex-shrink-0", typeConfig.bg, typeConfig.color)}
+            >
+              <TypeIcon className="w-2.5 h-2.5" />
+              {task.task_type !== "task" && typeConfig.label}
+            </span>
+            <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", priority.dot)} />
             {task.labels?.map((l) => (
               <span
                 key={l.id}

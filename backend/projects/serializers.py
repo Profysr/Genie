@@ -9,8 +9,8 @@ from accounts.serializers import UserSerializer
 
 class TaskStatusSerializer(serializers.ModelSerializer):
     class Meta:
-        model = TaskStatus
-        fields = ["id", "name", "color", "order"]
+        model  = TaskStatus
+        fields = ["id", "name", "color", "order", "is_done"]
 
 
 class LabelSerializer(serializers.ModelSerializer):
@@ -110,7 +110,7 @@ class TaskSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
         fields = [
-            "id", "title", "description", "priority", "order", "due_date",
+            "id", "title", "description", "priority", "task_type", "order", "due_date",
             "status_id", "status_detail",
             "assignee_id", "assignee",
             "labels", "label_ids",
@@ -220,17 +220,27 @@ class ProjectSearchSerializer(serializers.ModelSerializer):
 
 
 class ProjectSerializer(serializers.ModelSerializer):
-    created_by = UserSerializer(read_only=True)
-    statuses   = TaskStatusSerializer(many=True, read_only=True)
-    task_count = serializers.SerializerMethodField()
+    created_by      = UserSerializer(read_only=True)
+    statuses        = TaskStatusSerializer(many=True, read_only=True)
+    task_count      = serializers.SerializerMethodField()
+    done_task_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Project
-        fields = ["id", "name", "description", "status", "created_by", "statuses", "task_count", "created_at", "updated_at"]
+        fields = ["id", "name", "description", "status", "created_by", "statuses",
+                  "task_count", "done_task_count", "created_at", "updated_at"]
         read_only_fields = ["id", "created_by", "statuses", "created_at", "updated_at"]
 
     def get_task_count(self, obj):
         return obj.tasks.count()
+
+    def get_done_task_count(self, obj):
+        # Use is_done flag; fall back to last status by order for legacy projects
+        done_statuses = obj.statuses.filter(is_done=True)
+        if done_statuses.exists():
+            return obj.tasks.filter(status__in=done_statuses).count()
+        last = obj.statuses.order_by("-order").first()
+        return obj.tasks.filter(status=last).count() if last else 0
 
     def create(self, validated_data):
         request   = self.context["request"]
@@ -238,10 +248,10 @@ class ProjectSerializer(serializers.ModelSerializer):
         project   = Project.objects.create(workspace=workspace, created_by=request.user, **validated_data)
         TaskStatus.objects.bulk_create([
             TaskStatus(project=project, **s) for s in [
-                {"name": "Backlog",      "color": "#94a3b8", "order": 0},
-                {"name": "In Progress",  "color": "#6366f1", "order": 1},
-                {"name": "In Review",    "color": "#f59e0b", "order": 2},
-                {"name": "Done",         "color": "#22c55e", "order": 3},
+                {"name": "Backlog",     "color": "#94a3b8", "order": 0, "is_done": False},
+                {"name": "In Progress", "color": "#6366f1", "order": 1, "is_done": False},
+                {"name": "In Review",   "color": "#f59e0b", "order": 2, "is_done": False},
+                {"name": "Done",        "color": "#22c55e", "order": 3, "is_done": True},
             ]
         ])
         return project

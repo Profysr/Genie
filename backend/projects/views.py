@@ -140,8 +140,37 @@ class TaskStatusListCreateView(APIView):
         project = self.get_project(workspace_slug, project_id, request.user)
         serializer = TaskStatusSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(project=project)
+        # Auto-assign next order
+        max_order = project.statuses.order_by("-order").values_list("order", flat=True).first() or 0
+        serializer.save(project=project, order=max_order + 1)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class TaskStatusDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get_status(self, workspace_slug, project_id, status_id, user):
+        workspace = get_workspace_for_user(workspace_slug, user)
+        project   = get_object_or_404(Project, id=project_id, workspace=workspace)
+        return get_object_or_404(TaskStatus, id=status_id, project=project)
+
+    def patch(self, request, workspace_slug, project_id, status_id):
+        task_status = self._get_status(workspace_slug, project_id, status_id, request.user)
+        serializer  = TaskStatusSerializer(task_status, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        broadcast(workspace_slug, "status.updated", serializer.data)
+        return Response(serializer.data)
+
+    def delete(self, request, workspace_slug, project_id, status_id):
+        task_status = self._get_status(workspace_slug, project_id, status_id, request.user)
+        if task_status.tasks.exists():
+            return Response(
+                {"error": "Cannot delete a column that still has tasks. Move tasks first."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        task_status.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ── Tasks ─────────────────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import (
     ProjectListCreateView, ProjectDetailView,
-    TaskStatusListCreateView,
+    TaskStatusListCreateView, TaskStatusDetailView,
     TaskListCreateView, TaskDetailView, TaskMoveView,
     SubTaskListCreateView, SubTaskDetailView,
     TaskCommentListCreateView, TaskCommentDetailView,
@@ -27,7 +27,8 @@ urlpatterns = [
     path(f"{_pr}/",                    ProjectDetailView.as_view()),
 
     # Kanban columns
-    path(f"{_pr}/statuses/",           TaskStatusListCreateView.as_view()),
+    path(f"{_pr}/statuses/",                               TaskStatusListCreateView.as_view()),
+    path(f"{_pr}/statuses/<uuid:status_id>/",              TaskStatusDetailView.as_view()),
 
     # Tasks
     path(f"{_pr}/tasks/",              TaskListCreateView.as_view()),

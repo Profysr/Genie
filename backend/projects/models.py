@@ -25,11 +25,12 @@ class Project(models.Model):
 
 class TaskStatus(models.Model):
     """Configurable Kanban columns — each project defines its own."""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id      = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="statuses")
-    name = models.CharField(max_length=100)
-    color = models.CharField(max_length=7, default="#6366f1")
-    order = models.PositiveIntegerField(default=0)
+    name    = models.CharField(max_length=100)
+    color   = models.CharField(max_length=7, default="#6366f1")
+    order   = models.PositiveIntegerField(default=0)
+    is_done = models.BooleanField(default=False)  # counts toward completion %
 
     class Meta:
         ordering = ["order"]
@@ -42,10 +43,18 @@ class TaskStatus(models.Model):
 class Task(models.Model):
     class Priority(models.TextChoices):
         NO_PRIORITY = "no_priority", "No Priority"
-        LOW = "low", "Low"
-        MEDIUM = "medium", "Medium"
-        HIGH = "high", "High"
-        URGENT = "urgent", "Urgent"
+        LOW         = "low",         "Low"
+        MEDIUM      = "medium",      "Medium"
+        HIGH        = "high",        "High"
+        URGENT      = "urgent",      "Urgent"
+
+    class TaskType(models.TextChoices):
+        TASK        = "task",        "Task"
+        BUG         = "bug",         "Bug"
+        FEATURE     = "feature",     "Feature"
+        STORY       = "story",       "Story"
+        IMPROVEMENT = "improvement", "Improvement"
+        QUESTION    = "question",    "Question"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="tasks")
@@ -61,9 +70,10 @@ class Task(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
         null=True, related_name="created_tasks"
     )
-    labels   = models.ManyToManyField("Label", blank=True, related_name="tasks")
-    sprint   = models.ForeignKey("Sprint", on_delete=models.SET_NULL, null=True, blank=True, related_name="tasks")
-    due_date = models.DateField(null=True, blank=True)
+    task_type = models.CharField(max_length=20, choices=TaskType.choices, default=TaskType.TASK)
+    labels    = models.ManyToManyField("Label", blank=True, related_name="tasks")
+    sprint    = models.ForeignKey("Sprint", on_delete=models.SET_NULL, null=True, blank=True, related_name="tasks")
+    due_date  = models.DateField(null=True, blank=True)
     order = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
