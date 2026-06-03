@@ -23,7 +23,7 @@ import BulkActionBar from "@/components/tasks/BulkActionBar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip } from "@/components/ui/tooltip";
-import { Plus, ArrowLeft, Download, Settings2, Users, Lock, LayoutGrid, List, Zap, CalendarDays, GanttChartSquare } from "lucide-react";
+import { Plus, ArrowLeft, Download, Settings2, Users, Lock, LayoutGrid, List, Zap, CalendarDays, GanttChartSquare, BookOpen, FormInput } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBulkUpdateTasks } from "@/hooks/useBulkActions";
 import api from "@/lib/api";
@@ -118,6 +118,12 @@ export default function KanbanPage() {
   const [membersModal, setMembersModal]   = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState(() => searchParams.get("task") || null);
   const [view, setView]       = useState("kanban");
+
+  // Keep selectedTaskId in sync whenever ?task= param changes (e.g. navigating to a child task from the panel)
+  useEffect(() => {
+    const param = searchParams.get("task") || null;
+    setSelectedTaskId(param);
+  }, [searchParams]);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [activeSprint, setActiveSprint] = useState(() => sprints.find(s => s.status === "active") || null);
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -236,6 +242,34 @@ export default function KanbanPage() {
             </div>
           </div>
           <div className="flex items-center gap-1.5">
+            {/* Project sub-feature nav — Wiki, Forms, Automations */}
+            <div className="flex items-center gap-0.5 bg-muted/60 rounded-lg p-0.5 mr-1">
+              <Tooltip content="Wiki">
+                <button
+                  onClick={() => navigate(`/w/${workspaceSlug}/projects/${projectId}/wiki`)}
+                  className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-background transition-colors active:scale-[0.97]"
+                >
+                  <BookOpen className="w-4 h-4" />
+                </button>
+              </Tooltip>
+              <Tooltip content="Forms">
+                <button
+                  onClick={() => navigate(`/w/${workspaceSlug}/projects/${projectId}/forms`)}
+                  className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-background transition-colors active:scale-[0.97]"
+                >
+                  <FormInput className="w-4 h-4" />
+                </button>
+              </Tooltip>
+              <Tooltip content="Automations">
+                <button
+                  onClick={() => navigate(`/w/${workspaceSlug}/projects/${projectId}/automations`)}
+                  className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-background transition-colors active:scale-[0.97]"
+                >
+                  <Zap className="w-4 h-4" />
+                </button>
+              </Tooltip>
+            </div>
+
             <Tooltip content="Project members & access">
               <button
                 onClick={() => setMembersModal(true)}

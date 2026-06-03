@@ -1,15 +1,16 @@
 import { useState, useRef, useEffect } from "react";
-import { useParams } from "react-router-dom";
-import { format } from "date-fns";
+import { useParams, useNavigate } from "react-router-dom";
+import { format, formatDistanceToNow } from "date-fns";
 import {
-  X, Flag, Calendar, User, CheckSquare, MessageSquare,
-  ChevronDown, Trash2, Plus, Check, Activity, Tag, Link2, Layers, Copy,
+  X, Flag, Calendar, User, CheckSquare, MessageSquare, Zap,
+  ChevronDown, ChevronRight, Trash2, Plus, Check, Activity, Tag,
+  Layers, Copy, GitBranch, Timer, Square, Clock,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useDeleteTask } from "@/hooks/useTasks";
 import { useToast } from "@/components/ui/toast";
-import { TASK_TYPES, getTaskType } from "@/lib/taskTypes";
+import { TASK_TYPES } from "@/lib/taskTypes";
 import { useTaskDetail, useUpdateTaskDetail, useCreateComment, useDeleteComment, useCreateSubtask, useToggleSubtask, useDeleteSubtask } from "@/hooks/useTaskDetail";
 import { useUpsertFieldValue } from "@/hooks/useCustomFields";
 import { useMembers } from "@/hooks/useMembers";
@@ -19,6 +20,9 @@ import { cn } from "@/lib/utils";
 import MentionTextarea from "@/components/tasks/MentionTextarea";
 import TaskAttachmentsSection from "@/components/tasks/TaskAttachmentsSection";
 import TaskDependenciesSection from "@/components/tasks/TaskDependenciesSection";
+import VoltEditor from "@/components/ui/VoltEditor";
+import { useChildTasks, useCreateChildTask, useCloneTask } from "@/hooks/useTaskHierarchy";
+import { useTimeEntries, useAddTimeEntry, useDeleteTimeEntry, useStartTimer, useStopTimer, useActiveTimer, formatDuration } from "@/hooks/useTimeTracking";
 
 const LABEL_COLORS = ["#6366f1","#ec4899","#f59e0b","#22c55e","#3b82f6","#ef4444","#8b5cf6","#14b8a6"];
 
@@ -32,9 +36,11 @@ const PRIORITY_OPTIONS = [
 
 export default function TaskDetailPanel({ taskId, projectStatuses = [], projectLabels = [], projectFields = [], onCreateLabel, onClose, canEdit = true }) {
   const { workspaceSlug, projectId } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const { data: members = [] } = useMembers(workspaceSlug);
   const { data: task, isLoading } = useTaskDetail(workspaceSlug, projectId, taskId);
+  const { data: childTasks = [] } = useChildTasks(workspaceSlug, projectId, taskId);
   const update = useUpdateTaskDetail(workspaceSlug, projectId, taskId);
   const upsertField = useUpsertFieldValue(workspaceSlug, projectId, taskId);
   const createComment = useCreateComment(workspaceSlug, projectId, taskId);
@@ -43,12 +49,30 @@ export default function TaskDetailPanel({ taskId, projectStatuses = [], projectL
   const toggleSubtask = useToggleSubtask(workspaceSlug, projectId, taskId);
   const deleteSubtask = useDeleteSubtask(workspaceSlug, projectId, taskId);
   const deleteTask = useDeleteTask(workspaceSlug, projectId);
-  const { toast } = useToast();
+  const createChild = useCreateChildTask(workspaceSlug, projectId, taskId);
+  const cloneTask   = useCloneTask(workspaceSlug, projectId);
+  const { toast }   = useToast();
+
+  // v2.8.0 — time tracking
+  const { data: timeEntries = [] } = useTimeEntries(workspaceSlug, projectId, taskId);
+  const { data: activeTimer }      = useActiveTimer(workspaceSlug);
+  const startTimer   = useStartTimer(workspaceSlug, projectId, taskId);
+  const stopTimer    = useStopTimer(workspaceSlug);
+  const addEntry     = useAddTimeEntry(workspaceSlug, projectId, taskId);
+  const deleteEntry  = useDeleteTimeEntry(workspaceSlug, projectId, taskId);
+
+  const isTimerRunningOnThisTask = activeTimer?.task === taskId;
+  const totalLogged = timeEntries.reduce((s, e) => s + (e.duration_seconds || 0), 0);
 
   const [commentBody, setCommentBody] = useState("");
   const [newSubtask, setNewSubtask] = useState("");
+  const [newChildTitle, setNewChildTitle] = useState("");
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
+  const [childrenOpen, setChildrenOpen] = useState(true);
+  const [manualLogOpen, setManualLogOpen] = useState(false);
+  const [manualMinutes, setManualMinutes] = useState("");
+  const [manualDesc, setManualDesc] = useState("");
   const titleRef = useRef(null);
 
   useEffect(() => {
@@ -57,7 +81,7 @@ export default function TaskDetailPanel({ taskId, projectStatuses = [], projectL
 
   if (isLoading || !task) {
     return (
-      <div className="w-[480px] border-l flex items-center justify-center bg-card animate-panel-in">
+      <div className="w-[500px] border-l flex items-center justify-center bg-card animate-panel-in">
         <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
       </div>
     );
@@ -82,26 +106,69 @@ export default function TaskDetailPanel({ taskId, projectStatuses = [], projectL
     createSubtask.mutate(newSubtask.trim(), { onSuccess: () => setNewSubtask("") });
   };
 
+  const handleChildAdd = (e) => {
+    e.preventDefault();
+    if (!newChildTitle.trim()) return;
+    const defaultStatus = projectStatuses[0];
+    createChild.mutate(
+      { title: newChildTitle.trim(), status_id: defaultStatus?.id },
+      { onSuccess: () => setNewChildTitle("") }
+    );
+  };
+
+  const handleClone = () => {
+    cloneTask.mutate(taskId, {
+      onSuccess: (cloned) => toast.success(`Cloned as "${cloned.title}"`),
+    });
+  };
+
+  const openParent = (parentId) => {
+    navigate(`?task=${parentId}`, { replace: true });
+  };
+
   return (
-    <div className="w-[480px] flex-shrink-0 border-l flex flex-col bg-card overflow-hidden animate-panel-in">
+    <div className="w-[500px] flex-shrink-0 border-l flex flex-col bg-card overflow-hidden animate-panel-in">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b flex-shrink-0 bg-card">
         <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Task detail</span>
         <div className="flex items-center gap-1">
-          {/* Copy link */}
           <Tooltip content="Copy link">
             <button
-              onClick={() => {
-                navigator.clipboard.writeText(window.location.href);
-                toast.success("Link copied");
-              }}
+              onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success("Link copied"); }}
               className="p-1.5 rounded-md bg-accent/60 text-foreground/70 hover:text-foreground hover:bg-accent transition-colors active:scale-[0.97]"
             >
               <Copy className="w-3.5 h-3.5" />
             </button>
           </Tooltip>
 
-          {/* Delete task — editors and above only */}
+          {canEdit && (
+            <Tooltip content="Clone task">
+              <button
+                onClick={handleClone}
+                className="p-1.5 rounded-md bg-accent/60 text-foreground/70 hover:text-foreground hover:bg-accent transition-colors active:scale-[0.97]"
+              >
+                <GitBranch className="w-3.5 h-3.5" />
+              </button>
+            </Tooltip>
+          )}
+
+          {/* Timer button */}
+          <Tooltip content={isTimerRunningOnThisTask ? "Stop timer" : "Start timer"}>
+            <button
+              onClick={() => isTimerRunningOnThisTask ? stopTimer.mutate() : startTimer.mutate()}
+              className={cn(
+                "p-1.5 rounded-md transition-colors active:scale-[0.97]",
+                isTimerRunningOnThisTask
+                  ? "bg-red-500/15 text-red-500 hover:bg-red-500/25"
+                  : "bg-accent/60 text-foreground/70 hover:text-foreground hover:bg-accent"
+              )}
+            >
+              {isTimerRunningOnThisTask
+                ? <Square className="w-3.5 h-3.5 fill-current" />
+                : <Timer className="w-3.5 h-3.5" />}
+            </button>
+          </Tooltip>
+
           {canEdit && (
             <Tooltip content="Delete task">
               <button
@@ -117,7 +184,6 @@ export default function TaskDetailPanel({ taskId, projectStatuses = [], projectL
             </Tooltip>
           )}
 
-          {/* Close */}
           <Tooltip content="Close panel">
             <button
               onClick={onClose}
@@ -131,6 +197,25 @@ export default function TaskDetailPanel({ taskId, projectStatuses = [], projectL
 
       <div className="flex-1 overflow-y-auto">
         <div className="px-5 py-4 space-y-5">
+
+          {/* Breadcrumb — ancestors */}
+          {task.ancestors?.length > 0 && (
+            <div className="flex items-center gap-1 flex-wrap">
+              {task.ancestors.map((a, i) => (
+                <span key={a.id} className="flex items-center gap-1">
+                  {i > 0 && <ChevronRight className="w-3 h-3 text-muted-foreground" />}
+                  <button
+                    onClick={() => openParent(a.id)}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors font-medium underline-offset-2 hover:underline"
+                  >
+                    {a.title}
+                  </button>
+                </span>
+              ))}
+              <ChevronRight className="w-3 h-3 text-muted-foreground" />
+              <span className="text-xs font-medium text-foreground truncate max-w-[140px]">{task.title}</span>
+            </div>
+          )}
 
           {/* Title */}
           <div>
@@ -217,6 +302,17 @@ export default function TaskDetailPanel({ taskId, projectStatuses = [], projectL
               </select>
             </MetaField>
 
+            {/* Start date */}
+            <MetaField label="Start Date" icon={<Calendar className="w-3.5 h-3.5" />}>
+              <input
+                type="date"
+                className="w-full bg-card outline-none text-sm cursor-pointer disabled:cursor-default disabled:opacity-70"
+                value={task.start_date || ""}
+                onChange={(e) => update.mutate({ start_date: e.target.value || null })}
+                disabled={!canEdit}
+              />
+            </MetaField>
+
             {/* Due date */}
             <MetaField label="Due Date" icon={<Calendar className="w-3.5 h-3.5" />}>
               <input
@@ -227,17 +323,44 @@ export default function TaskDetailPanel({ taskId, projectStatuses = [], projectL
                 disabled={!canEdit}
               />
             </MetaField>
+          </div>
 
-            {/* Created by */}
-            <MetaField label="Created by" icon={<User className="w-3.5 h-3.5" />}>
-              <span className="text-sm truncate">{task.created_by?.full_name || task.created_by?.email || "—"}</span>
+          {/* Estimates — v2.4.0 */}
+          <div className="grid grid-cols-2 gap-3">
+            <MetaField label="Story Points" icon={<Zap className="w-3.5 h-3.5" />}>
+              <input
+                type="number"
+                min="0"
+                placeholder="SP"
+                className="w-full bg-card outline-none text-sm disabled:opacity-70"
+                value={task.estimate_points ?? ""}
+                onChange={(e) => update.mutate({ estimate_points: e.target.value === "" ? null : parseInt(e.target.value) })}
+                disabled={!canEdit}
+              />
+            </MetaField>
+            <MetaField label="Est. Hours" icon={<Timer className="w-3.5 h-3.5" />}>
+              <input
+                type="number"
+                min="0"
+                step="0.5"
+                placeholder="h"
+                className="w-full bg-card outline-none text-sm disabled:opacity-70"
+                value={task.estimate_hours ?? ""}
+                onChange={(e) => update.mutate({ estimate_hours: e.target.value === "" ? null : parseFloat(e.target.value) })}
+                disabled={!canEdit}
+              />
             </MetaField>
           </div>
 
-          {/* Description */}
+          {/* Description — VoltEditor */}
           <div>
             <p className="text-xs font-medium text-muted-foreground mb-1.5">Description</p>
-            <DescriptionEditor task={task} onSave={(desc) => update.mutate({ description: desc })} canEdit={canEdit} />
+            <VoltEditor
+              value={task.description || ""}
+              onBlur={(md) => { if (md !== task.description) update.mutate({ description: md }); }}
+              readOnly={!canEdit}
+              placeholder="Add a description…"
+            />
           </div>
 
           {/* Labels */}
@@ -301,12 +424,74 @@ export default function TaskDetailPanel({ taskId, projectStatuses = [], projectL
             </div>
           )}
 
-          {/* Subtasks */}
+          {/* Child Tasks — v2.4.0 */}
+          <div>
+            <button
+              onClick={() => setChildrenOpen(o => !o)}
+              className="flex items-center gap-1.5 mb-2 w-full group"
+            >
+              {childrenOpen
+                ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+                : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
+              <p className="text-xs font-medium text-muted-foreground">
+                Child Tasks
+                {childTasks.length > 0 && (
+                  <span className="ml-1.5 text-muted-foreground/70">
+                    ({task.done_child_count}/{childTasks.length})
+                  </span>
+                )}
+              </p>
+            </button>
+
+            {childrenOpen && (
+              <div className="space-y-1.5 mb-2 ml-1">
+                {childTasks.map((child) => (
+                  <div key={child.id} className="flex items-center gap-2 group">
+                    <div
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: child.status_detail?.color || "#94a3b8" }}
+                    />
+                    <button
+                      onClick={() => navigate(`?task=${child.id}`, { replace: true })}
+                      className="text-sm flex-1 text-left hover:text-primary transition-colors truncate"
+                    >
+                      {child.title}
+                    </button>
+                    <span className={cn(
+                      "text-xs px-1.5 py-0.5 rounded-full",
+                      child.priority === "urgent" && "bg-red-500/15 text-red-500",
+                      child.priority === "high" && "bg-orange-500/15 text-orange-500",
+                      child.priority === "medium" && "bg-yellow-500/15 text-yellow-500",
+                      child.priority === "low" && "bg-blue-500/15 text-blue-500",
+                    )}>
+                      {child.status_detail?.name}
+                    </span>
+                  </div>
+                ))}
+
+                {canEdit && (
+                  <form onSubmit={handleChildAdd} className="flex gap-2 mt-1">
+                    <input
+                      className="flex-1 text-sm border-b border-border bg-transparent outline-none py-0.5 placeholder:text-muted-foreground focus:border-primary"
+                      placeholder="Add child task…"
+                      value={newChildTitle}
+                      onChange={(e) => setNewChildTitle(e.target.value)}
+                    />
+                    {newChildTitle && (
+                      <button type="submit" className="text-primary text-xs font-medium">Add</button>
+                    )}
+                  </form>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Subtasks checklist */}
           <div>
             <div className="flex items-center gap-1.5 mb-2">
               <CheckSquare className="w-3.5 h-3.5 text-muted-foreground" />
               <p className="text-xs font-medium text-muted-foreground">
-                Subtasks {task.subtasks?.length > 0 && `(${task.done_subtask_count}/${task.subtask_count})`}
+                Checklist {task.subtasks?.length > 0 && `(${task.done_subtask_count}/${task.subtask_count})`}
               </p>
             </div>
             <div className="space-y-1.5 mb-2">
@@ -341,7 +526,7 @@ export default function TaskDetailPanel({ taskId, projectStatuses = [], projectL
               <form onSubmit={handleSubtaskAdd} className="flex gap-2">
                 <input
                   className="flex-1 text-sm border-b border-border bg-transparent outline-none py-0.5 placeholder:text-muted-foreground focus:border-primary"
-                  placeholder="Add subtask…"
+                  placeholder="Add checklist item…"
                   value={newSubtask}
                   onChange={(e) => setNewSubtask(e.target.value)}
                 />
@@ -415,6 +600,122 @@ export default function TaskDetailPanel({ taskId, projectStatuses = [], projectL
             taskId={taskId}
           />
 
+          {/* Time Log — v2.8.0 */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                <p className="text-xs font-medium text-muted-foreground">
+                  Time Logged
+                  {totalLogged > 0 && <span className="ml-1.5 text-foreground">{formatDuration(totalLogged)}</span>}
+                </p>
+              </div>
+              {canEdit && (
+                <button
+                  onClick={() => setManualLogOpen(o => !o)}
+                  className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+                >
+                  <Plus className="w-3 h-3" /> Log time
+                </button>
+              )}
+            </div>
+
+            {/* Active timer indicator */}
+            {isTimerRunningOnThisTask && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 mb-2">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+                <span className="text-xs text-red-600 font-medium">Timer running</span>
+                <span className="text-xs text-muted-foreground ml-auto">
+                  started {formatDistanceToNow(new Date(activeTimer.start_at), { addSuffix: true })}
+                </span>
+              </div>
+            )}
+
+            {/* Manual log form */}
+            {manualLogOpen && canEdit && (
+              <div className="rounded-lg border px-3 py-2.5 mb-2 space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  {[15, 30, 60, 120].map(min => (
+                    <button
+                      key={min}
+                      type="button"
+                      onClick={() => setManualMinutes(String(min))}
+                      className={cn(
+                        "text-xs px-2 py-1.5 rounded border transition-colors",
+                        manualMinutes === String(min)
+                          ? "bg-primary/15 border-primary/30 text-primary font-medium"
+                          : "border-border text-muted-foreground hover:bg-accent"
+                      )}
+                    >
+                      {min < 60 ? `${min}m` : `${min / 60}h`}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="Or enter minutes manually…"
+                  className="w-full text-xs border rounded px-2 py-1.5 bg-background outline-none focus:ring-1 focus:ring-ring"
+                  value={manualMinutes}
+                  onChange={e => setManualMinutes(e.target.value)}
+                />
+                <input
+                  type="text"
+                  placeholder="Description (optional)"
+                  className="w-full text-xs border rounded px-2 py-1.5 bg-background outline-none focus:ring-1 focus:ring-ring"
+                  value={manualDesc}
+                  onChange={e => setManualDesc(e.target.value)}
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="flex-1 text-xs h-7"
+                    disabled={!manualMinutes || addEntry.isPending}
+                    onClick={() => {
+                      addEntry.mutate(
+                        { duration_seconds: parseInt(manualMinutes) * 60, description: manualDesc },
+                        { onSuccess: () => { setManualLogOpen(false); setManualMinutes(""); setManualDesc(""); } }
+                      );
+                    }}
+                  >
+                    {addEntry.isPending ? "Saving…" : "Log"}
+                  </Button>
+                  <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => setManualLogOpen(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Existing entries */}
+            {timeEntries.length > 0 && (
+              <div className="space-y-1.5">
+                {timeEntries.map(entry => (
+                  <div key={entry.id} className="flex items-center gap-2 group text-xs">
+                    <Avatar
+                      name={entry.user?.full_name || entry.user?.email}
+                      size="xs"
+                      className="flex-shrink-0"
+                    />
+                    <span className="font-medium text-foreground">{formatDuration(entry.duration_seconds)}</span>
+                    {entry.description && <span className="text-muted-foreground truncate flex-1">{entry.description}</span>}
+                    <span className="text-muted-foreground ml-auto flex-shrink-0">
+                      {format(new Date(entry.created_at), "MMM d")}
+                    </span>
+                    {canEdit && (
+                      <button
+                        onClick={() => deleteEntry.mutate(entry.id)}
+                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Activity */}
           {task.activities?.length > 0 && (
             <div>
@@ -451,7 +752,6 @@ export default function TaskDetailPanel({ taskId, projectStatuses = [], projectL
 
 function CustomFieldInput({ field, value, onSave }) {
   const [draft, setDraft] = useState(value);
-
   const commit = () => onSave(draft);
 
   if (field.type === "select") {
@@ -497,9 +797,7 @@ function LabelPicker({ currentLabels, projectLabels, onToggle, onCreateLabel }) 
   const handleCreate = (e) => {
     e.preventDefault();
     if (!newName.trim()) return;
-    onCreateLabel?.({ name: newName.trim(), color: newColor }, {
-      onSuccess: () => setNewName(""),
-    });
+    onCreateLabel?.({ name: newName.trim(), color: newColor }, { onSuccess: () => setNewName("") });
   };
 
   return (
@@ -576,46 +874,6 @@ function MetaField({ label, icon, children }) {
         {icon}
         {children}
       </div>
-    </div>
-  );
-}
-
-function DescriptionEditor({ task, onSave, canEdit = true }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(task.description || "");
-  const ref = useRef(null);
-
-  useEffect(() => { if (editing && ref.current) ref.current.focus(); }, [editing]);
-
-  const save = () => {
-    if (draft !== task.description) onSave(draft);
-    setEditing(false);
-  };
-
-  if (!editing) {
-    return (
-      <div
-        onClick={() => canEdit && (setDraft(task.description || ""), setEditing(true))}
-        className={cn(
-          "text-sm text-muted-foreground rounded px-1 -mx-1 py-1 min-h-[36px]",
-          canEdit && "cursor-text hover:bg-accent/50"
-        )}
-      >
-        {task.description || <span className="italic">{canEdit ? "Add a description…" : "No description."}</span>}
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <textarea
-        ref={ref}
-        className="w-full text-sm border rounded-md p-2 bg-transparent outline-none focus:border-primary resize-none"
-        rows={4}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={save}
-      />
     </div>
   );
 }

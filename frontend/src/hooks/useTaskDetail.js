@@ -58,6 +58,8 @@ export const useCreateSubtask = (workspaceSlug, projectId, taskId) => {
       qc.setQueryData(detailKey(workspaceSlug, projectId, taskId), (old) =>
         old ? { ...old, subtasks: [...(old.subtasks || []), subtask], subtask_count: (old.subtask_count || 0) + 1 } : old
       );
+      // Update the card counter immediately (no waiting for auto-refetch)
+      qc.invalidateQueries({ queryKey: ["tasks", workspaceSlug, projectId] });
     },
   });
 };
@@ -68,11 +70,14 @@ export const useToggleSubtask = (workspaceSlug, projectId, taskId) => {
     mutationFn: ({ subtaskId, is_done }) =>
       api.patch(`/api/workspaces/${workspaceSlug}/projects/${projectId}/tasks/${taskId}/subtasks/${subtaskId}/`, { is_done }).then((r) => r.data),
     onSuccess: (updated) => {
-      qc.setQueryData(detailKey(workspaceSlug, projectId, taskId), (old) =>
-        old ? { ...old, subtasks: old.subtasks.map((s) => (s.id === updated.id ? updated : s)),
-          done_subtask_count: old.subtasks.filter((s) => (s.id === updated.id ? updated.is_done : s.is_done)).filter(Boolean).length,
-        } : old
-      );
+      qc.setQueryData(detailKey(workspaceSlug, projectId, taskId), (old) => {
+        if (!old) return old;
+        const subtasks = old.subtasks.map((s) => (s.id === updated.id ? updated : s));
+        const done_subtask_count = subtasks.filter((s) => s.is_done).length;
+        return { ...old, subtasks, done_subtask_count };
+      });
+      // Sync the task card progress bar immediately
+      qc.invalidateQueries({ queryKey: ["tasks", workspaceSlug, projectId] });
     },
   });
 };
@@ -86,6 +91,7 @@ export const useDeleteSubtask = (workspaceSlug, projectId, taskId) => {
       qc.setQueryData(detailKey(workspaceSlug, projectId, taskId), (old) =>
         old ? { ...old, subtasks: old.subtasks.filter((s) => s.id !== subtaskId), subtask_count: Math.max(0, (old.subtask_count || 1) - 1) } : old
       );
+      qc.invalidateQueries({ queryKey: ["tasks", workspaceSlug, projectId] });
     },
   });
 };

@@ -91,12 +91,15 @@ export function useToast() {
   const ctx = useContext(ToastContext);
   if (!ctx) throw new Error("useToast must be used within ToastProvider");
   const { toast } = ctx;
-  return {
-    toast,
-    success: (title, description) => toast({ title, description, type: "success" }),
-    error:   (title, description) => toast({ title, description, type: "error" }),
-    warning: (title, description) => toast({ title, description, type: "warning" }),
-    info:    (title, description) => toast({ title, description, type: "info" }),
-  };
+
+  // Attach convenience methods directly on the function so that both patterns work:
+  //   const { toast } = useToast(); toast.success("msg")   ← most common in this codebase
+  //   const h = useToast(); h.success("msg")               ← also valid
+  toast.success = (title, description) => toast({ title, description, type: "success" });
+  toast.error   = (title, description) => toast({ title, description, type: "error" });
+  toast.warning = (title, description) => toast({ title, description, type: "warning" });
+  toast.info    = (title, description) => toast({ title, description, type: "info" });
+
+  return { toast };
 }
 

@@ -104,6 +104,14 @@ CHANNEL_LAYERS = {
     },
 }
 
+# ── Celery (v2.7.0) ───────────────────────────────────────────────────────────
+CELERY_BROKER_URL         = env("REDIS_URL", default="redis://localhost:6379")
+CELERY_RESULT_BACKEND     = env("REDIS_URL", default="redis://localhost:6379")
+CELERY_ACCEPT_CONTENT     = ["json"]
+CELERY_TASK_SERIALIZER    = "json"
+CELERY_RESULT_SERIALIZER  = "json"
+CELERY_TIMEZONE           = "UTC"
+
 # Swap Django's built-in User model for ours (email-based, UUID pk, no username)
 # Must be set before the first migration — cannot be changed after
 AUTH_USER_MODEL = "accounts.User"

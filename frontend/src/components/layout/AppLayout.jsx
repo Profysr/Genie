@@ -7,8 +7,9 @@ import api from "@/lib/api";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, FolderKanban, Users, Settings, LogOut,
-  ChevronDown, Search, Map, BarChart2, Plus, Check,
+  ChevronDown, Search, Map, BarChart2, Plus, Check, Clock, Square,
 } from "lucide-react";
+import { useActiveTimer, useStopTimer, formatDuration } from "@/hooks/useTimeTracking";
 import NotificationBell from "@/components/layout/NotificationBell";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -45,16 +46,20 @@ export default function AppLayout({ onOpenPalette }) {
   };
 
   const navLinks = [
-    { to: `/w/${workspaceSlug}`,          icon: LayoutDashboard, label: "Dashboard", end: true },
-    { to: `/w/${workspaceSlug}/projects`, icon: FolderKanban,    label: "Projects" },
-    { to: `/w/${workspaceSlug}/roadmap`,  icon: Map,             label: "Roadmap" },
-    { to: `/w/${workspaceSlug}/analytics`,icon: BarChart2,       label: "Analytics" },
-    { to: `/w/${workspaceSlug}/members`,  icon: Users,           label: "Members" },
-    { to: `/w/${workspaceSlug}/settings`, icon: Settings,        label: "Settings" },
+    { to: `/w/${workspaceSlug}`,             icon: LayoutDashboard, label: "Dashboard",   end: true },
+    { to: `/w/${workspaceSlug}/projects`,    icon: FolderKanban,    label: "Projects" },
+    { to: `/w/${workspaceSlug}/roadmap`,     icon: Map,             label: "Roadmap" },
+    { to: `/w/${workspaceSlug}/analytics`,   icon: BarChart2,       label: "Analytics" },
+    { to: `/w/${workspaceSlug}/timesheets`,  icon: Clock,           label: "Timesheets" },
+    { to: `/w/${workspaceSlug}/members`,     icon: Users,           label: "Members" },
+    { to: `/w/${workspaceSlug}/settings`,    icon: Settings,        label: "Settings" },
   ];
 
   const initials    = workspace?.name?.[0]?.toUpperCase() || "W";
   const userInitial = user?.display_name?.[0]?.toUpperCase() || "U";
+
+  const { data: activeTimer } = useActiveTimer(workspaceSlug);
+  const stopTimer = useStopTimer(workspaceSlug);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -105,6 +110,26 @@ export default function AppLayout({ onOpenPalette }) {
             </NavLink>
           ))}
         </nav>
+
+        {/* Active timer strip — v2.8.0 */}
+        {activeTimer && (
+          <div className="mx-3 mb-1 flex items-center gap-2 px-2.5 py-2 rounded-lg bg-red-500/10 border border-red-500/20">
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-red-600 leading-none">Timer running</p>
+              <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+                {activeTimer.task_title || "Task"}
+              </p>
+            </div>
+            <button
+              onClick={() => stopTimer.mutate()}
+              className="p-1 rounded text-red-500 hover:bg-red-500/20 transition-colors flex-shrink-0"
+              title="Stop timer"
+            >
+              <Square className="w-3 h-3 fill-current" />
+            </button>
+          </div>
+        )}
 
         {/* User panel */}
         <div className="px-3 pb-3 pt-2 border-t border-border/60 space-y-1">

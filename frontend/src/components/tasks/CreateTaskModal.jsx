@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useCreateTask } from "@/hooks/useTasks";
+import { useTaskTemplates, useCreateTaskTemplate } from "@/hooks/useTaskHierarchy";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import * as Dialog from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
+import { X, ChevronDown, LayoutTemplate, Plus } from "lucide-react";
 import { TASK_TYPES } from "@/lib/taskTypes";
 import { cn } from "@/lib/utils";
 
@@ -27,20 +28,40 @@ const PRIORITY_COLORS = {
 export default function CreateTaskModal({
   open, onClose, workspaceSlug, projectId,
   defaultStatusId, statuses = [], members = [],
+  defaultParentId = null,
 }) {
   const { mutate, isPending } = useCreateTask(workspaceSlug, projectId);
+  const { data: templates = [] } = useTaskTemplates(workspaceSlug, projectId);
+  const createTemplate = useCreateTaskTemplate(workspaceSlug, projectId);
 
-  const [title,      setTitle]      = useState("");
-  const [priority,   setPriority]   = useState("no_priority");
-  const [taskType,   setTaskType]   = useState("task");
-  const [statusId,   setStatusId]   = useState("");
-  const [assigneeId, setAssigneeId] = useState("");
-  const [dueDate,    setDueDate]    = useState("");
-  const [desc,       setDesc]       = useState("");
+  const [title,           setTitle]           = useState("");
+  const [priority,        setPriority]        = useState("no_priority");
+  const [taskType,        setTaskType]        = useState("task");
+  const [statusId,        setStatusId]        = useState("");
+  const [assigneeId,      setAssigneeId]      = useState("");
+  const [dueDate,         setDueDate]         = useState("");
+  const [startDate,       setStartDate]       = useState("");
+  const [estimatePoints,  setEstimatePoints]  = useState("");
+  const [estimateHours,   setEstimateHours]   = useState("");
+  const [parentId,        setParentId]        = useState(defaultParentId || "");
+  const [desc,            setDesc]            = useState("");
+  const [showAdvanced,    setShowAdvanced]    = useState(false);
+  const [templateOpen,    setTemplateOpen]    = useState(false);
+  const [newTplName,      setNewTplName]      = useState("");
+  const [creatingTpl,     setCreatingTpl]     = useState(false);
 
   const reset = () => {
     setTitle(""); setPriority("no_priority"); setTaskType("task");
-    setStatusId(""); setAssigneeId(""); setDueDate(""); setDesc("");
+    setStatusId(""); setAssigneeId(""); setDueDate(""); setStartDate("");
+    setEstimatePoints(""); setEstimateHours(""); setParentId(defaultParentId || "");
+    setDesc(""); setShowAdvanced(false);
+  };
+
+  const applyTemplate = (tpl) => {
+    setTaskType(tpl.task_type || "task");
+    setPriority(tpl.priority || "no_priority");
+    if (tpl.description) setDesc(tpl.description);
+    setTemplateOpen(false);
   };
 
   const handleSubmit = (e) => {
@@ -49,11 +70,15 @@ export default function CreateTaskModal({
       {
         title,
         priority,
-        task_type:   taskType,
-        status_id:   statusId || defaultStatusId || null,
-        assignee_id: assigneeId || null,
-        due_date:    dueDate || null,
-        description: desc,
+        task_type:       taskType,
+        status_id:       statusId || defaultStatusId || null,
+        assignee_id:     assigneeId || null,
+        due_date:        dueDate || null,
+        start_date:      startDate || null,
+        estimate_points: estimatePoints ? parseInt(estimatePoints) : null,
+        estimate_hours:  estimateHours  ? parseFloat(estimateHours) : null,
+        parent_id:       parentId || null,
+        description:     desc,
       },
       { onSuccess: () => { onClose(); reset(); } },
     );
@@ -63,14 +88,105 @@ export default function CreateTaskModal({
     <Dialog.Root open={open} onOpenChange={(o) => { if (!o) { onClose(); reset(); } }}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/40 z-40 animate-fade-in" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-card border rounded-xl shadow-xl w-full max-w-lg animate-scale-in">
-          <div className="flex items-center justify-between px-5 py-4 border-b">
+        <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-card border rounded-xl shadow-xl w-full max-w-lg animate-scale-in max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-between px-5 py-4 border-b sticky top-0 bg-card z-10">
             <Dialog.Title className="text-sm font-semibold">Create Task</Dialog.Title>
-            <Dialog.Close asChild>
-              <button className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-accent">
-                <X className="w-4 h-4" />
-              </button>
-            </Dialog.Close>
+            <div className="flex items-center gap-2">
+              {/* Template picker — always visible */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => { setTemplateOpen(o => !o); setCreatingTpl(false); }}
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground border rounded-md px-2.5 py-1.5 hover:bg-accent transition-colors"
+                >
+                  <LayoutTemplate className="w-3.5 h-3.5" />
+                  Template
+                  {templates.length > 0 && (
+                    <span className="bg-primary/20 text-primary rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none">{templates.length}</span>
+                  )}
+                </button>
+                {templateOpen && (
+                  <div className="absolute right-0 top-9 z-50 w-56 bg-popover border rounded-xl shadow-popover p-1.5">
+                    {templates.length === 0 && !creatingTpl ? (
+                      <div className="px-3 py-3 text-center">
+                        <p className="text-xs text-muted-foreground mb-2">No templates yet.</p>
+                        <button
+                          type="button"
+                          onClick={() => setCreatingTpl(true)}
+                          className="text-xs text-primary hover:underline flex items-center gap-1 mx-auto"
+                        >
+                          <Plus className="w-3 h-3" /> Save current as template
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        {templates.map(tpl => (
+                          <button
+                            key={tpl.id}
+                            type="button"
+                            onClick={() => { applyTemplate(tpl); setTemplateOpen(false); }}
+                            className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-accent transition-colors"
+                          >
+                            <p className="font-medium text-sm">{tpl.name}</p>
+                            {tpl.description && (
+                              <p className="text-xs text-muted-foreground truncate">{tpl.description}</p>
+                            )}
+                          </button>
+                        ))}
+                        <div className="border-t mt-1 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setCreatingTpl(true)}
+                            className="w-full text-left px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent rounded-lg transition-colors flex items-center gap-1.5"
+                          >
+                            <Plus className="w-3 h-3" /> Save current as template
+                          </button>
+                        </div>
+                      </>
+                    )}
+                    {/* Inline template name input */}
+                    {creatingTpl && (
+                      <div className="px-2 pt-1 pb-2 border-t mt-1">
+                        <p className="text-xs font-medium text-muted-foreground mb-1.5">Template name</p>
+                        <input
+                          autoFocus
+                          className="w-full text-xs border rounded px-2 py-1.5 bg-background outline-none focus:ring-1 focus:ring-ring"
+                          placeholder="e.g. Bug Report"
+                          value={newTplName}
+                          onChange={e => setNewTplName(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === "Escape") setCreatingTpl(false);
+                            if (e.key === "Enter" && newTplName.trim()) {
+                              createTemplate.mutate({ name: newTplName.trim(), task_type: taskType, priority, description: desc });
+                              setNewTplName(""); setCreatingTpl(false); setTemplateOpen(false);
+                            }
+                          }}
+                        />
+                        <div className="flex gap-1.5 mt-1.5">
+                          <button
+                            type="button"
+                            disabled={!newTplName.trim() || createTemplate.isPending}
+                            onClick={() => {
+                              createTemplate.mutate({ name: newTplName.trim(), task_type: taskType, priority, description: desc });
+                              setNewTplName(""); setCreatingTpl(false); setTemplateOpen(false);
+                            }}
+                            className="flex-1 text-xs bg-primary text-primary-foreground rounded py-1 font-medium disabled:opacity-50"
+                          >
+                            Save
+                          </button>
+                          <button type="button" onClick={() => setCreatingTpl(false)} className="text-xs text-muted-foreground px-2">Cancel</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <Dialog.Close asChild>
+                <button className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-accent">
+                  <X className="w-4 h-4" />
+                </button>
+              </Dialog.Close>
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="p-5 space-y-4">
@@ -190,6 +306,58 @@ export default function CreateTaskModal({
                 />
               </div>
             </div>
+
+            {/* Advanced toggle — estimates, start date, parent */}
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(o => !o)}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", showAdvanced && "rotate-180")} />
+              {showAdvanced ? "Hide" : "Show"} advanced options
+            </button>
+
+            {showAdvanced && (
+              <div className="space-y-3 pt-1">
+                {/* Start date */}
+                <div>
+                  <Label className="text-xs font-medium">Start Date</Label>
+                  <input
+                    type="date"
+                    className="mt-1 w-full h-9 rounded-md border border-input bg-background px-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                  />
+                </div>
+
+                {/* Estimates */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs font-medium">Story Points</Label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 3"
+                      className="mt-1 w-full h-9 rounded-md border border-input bg-background px-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+                      value={estimatePoints}
+                      onChange={(e) => setEstimatePoints(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-medium">Est. Hours</Label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      placeholder="e.g. 4.5"
+                      className="mt-1 w-full h-9 rounded-md border border-input bg-background px-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+                      value={estimateHours}
+                      onChange={(e) => setEstimateHours(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="flex justify-end gap-2 pt-1">
               <Button type="button" variant="outline" size="sm" onClick={() => { onClose(); reset(); }}>

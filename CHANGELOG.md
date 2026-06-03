@@ -323,7 +323,7 @@
 ---
 
 # 6-Month Product Roadmap — JCN v2.0 → v5.0
-> **Every version below is: IN PROGRESS 🔨**
+> **Phase 1 — COMPLETE ✅ | Phase 2 — COMPLETE ✅ | Phase 3+ — IN PROGRESS 🔨**
 >
 > **Mission:** Build the project management tool that small institutions (5–200 people) actually want to use every day — one that combines the speed of Linear, the power of ClickUp, the clarity of Notion, and the depth of Jira, without inheriting any of their weaknesses.
 >
@@ -343,80 +343,112 @@
 ## PHASE 1 — DESIGN SYSTEM & CORE ARCHITECTURE (Weeks 1–4)
 ## ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+> **Phase 1 status: COMPLETE ✅** — Tested and verified end-to-end on 2026-06-02.
+
 ---
 
 ## v2.0.0 — Design System 2.0 (Week 1)
 > Status: COMPLETE ✅
 > **Intent:** The app should feel like it took 3 years to build. Every pixel earns its place.
 
-### Design Tokens
-- Full CSS custom property system: `--space-1` through `--space-16`, `--text-xs` through `--text-4xl`, `--radius-sm` through `--radius-full`, `--shadow-sm` through `--shadow-2xl`
-- 3 complete themes: **Light**, **Dark**, **Midnight** (true OLED black) — user toggle, persisted in DB
-- 9 accent colours: Indigo (default), Blue, Violet, Pink, Rose, Amber, Emerald, Cyan, Slate — applies to all interactive elements
-- Density modes: **Comfortable** (default) / **Compact** / **Cozy** — global CSS variable swap, no class changes in components
-- `theme.css` is the single source of truth; Tailwind only extends tokens, never hardcodes values
+### Design Tokens (`theme.css` — single source of truth)
+- Full CSS custom property system: spacing, typography, radius, shadow, easing, duration
+- 3 complete themes: **Light**, **Dark** (softened — VS Code-style slate-gray, not pitch black), **Midnight** (OLED)
+- `color-scheme: dark` on dark/midnight themes — all native browser controls (select, date, scrollbar) inherit the theme automatically
+- 9 accent colours: Indigo (default), Blue, Violet, Pink, Rose, Amber, Emerald, Cyan, Slate
+- Density modes: **Comfortable** / **Compact** / **Cozy** — CSS variable swap, zero component changes
+- Theme preference persisted in backend user profile; applied before first paint
 
-### Animation Rules (Emil Kowalski principles applied globally)
-- Custom easing variables: `--ease-out: cubic-bezier(0.23, 1, 0.32, 1)`, `--ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1)`
-- All panels: `translateX(100%) → translateX(0)`, 220ms `--ease-out` — no more instant mount
-- All modals: `scale(0.95) opacity-0 → scale(1) opacity-1`, 160ms `--ease-out`
-- All dropdowns: origin-aware scale from trigger point (Radix `--transform-origin`)
-- All toasts: slide-up from bottom-right, stagger-stack like Sonner
-- Button press: `active:scale-[0.97]` on all interactive elements
-- List items stagger: 30ms delay between items (not all at once)
-- Keyboard actions (⌘K, shortcuts): **zero animation** — instant response, no latency
-
-### Component Overhaul
-- Form inputs: floating label on focus/filled, error shake animation, character count
-- All selects/dropdowns: searchable, keyboard-navigable, scale from trigger
-- Avatar group: overlap + `+N` overflow chip
-- Skeleton loaders on every async view (no spinners except for button loading states)
-- Empty state SVG illustrations (inline, 0 network requests)
-- Toast system: position top-centre, max 3 stacked, swipe-to-dismiss, pause-on-hover
-- Tooltip system: 300ms delay (first), 0ms (subsequent — feels instant across toolbar)
+### Animation system
+- Individual CSS transform properties (`scale`, `translate`) used in keyframes — never the `transform` shorthand — so positioning transforms (`-translate-x-1/2`) are never overridden by animations. **This fixed modals appearing off-centre.**
+- `--ease-out: cubic-bezier(0.23, 1, 0.32, 1)`, `--ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1)`
+- Panel slide-in 220ms, modal scale-in 160ms, dropdown slide-down 200ms
 - `prefers-reduced-motion`: opacity-only fallback for all transform animations
+- `active:scale-[0.97]` on all interactive elements
+
+### Components shipped
+- Sidebar `AppLayout` with workspace switcher (real dropdown — lists all user workspaces, checkmark on active, "New workspace" gated by `can_create_workspace`)
+- `Avatar` component — deterministic colour from name hash, xs/sm/md/lg sizes
+- `Tooltip` — 300ms delay on first, 0ms on subsequent within a toolbar
+- Toast system — Radix-based, type variants (success/error/warning/info)
+- `FilterBar` — redesigned: avatar-stacker assignee picker, "Filters" popover (task type, due date, labels)
+- `KanbanColumn` — inline column management: hover to reveal `···` menu → rename, change colour, mark as Done, delete
+- **Add column** button at board end — inline name input, random colour, creates new status
+- Task card: `isDragDisabled` when viewer; type badge hidden for default "task" type; priority dot hidden when unset
+
+### Dark mode fixes (found during testing)
+- `hover:bg-white` on TaskCard replaced with `hover:bg-accent/40`
+- Task type badges changed from `bg-slate-100` / `bg-red-50` to opacity-based (`/15`) so they adapt without dark: variants
+- Header action buttons changed from `border border-border` (near-invisible) to `bg-accent/60` with proper contrast
+- Native `<select>` dropdown in TaskDetailPanel: `color-scheme: dark` + `bg-card` so the OS picker matches the app
 
 ---
 
 ## v2.1.0 — Access Control & Permissions Matrix (Week 2)
 > Status: COMPLETE ✅
-> **Intent:** Proper permissions that don't require a PhD to configure.
+> **Intent:** Roles that make sense without reading a manual.
+
+### Role hierarchy (clarified after testing)
+```
+Workspace Admin  →  always "admin" on every project — no project override can touch this
+Workspace Member →  "editor" on all projects by default — can be restricted per-project to viewer/guest
+Workspace Viewer →  always "viewer" — read-only everywhere, no exceptions
+```
+Project-level overrides (via `ProjectMember`) **can only restrict** Members/Viewers — they can never promote beyond the workspace role ceiling.
 
 ### Backend
-- `ProjectMember` model — project-level role override: `Admin`, `Editor`, `Viewer`, `Guest` (external)
-- Permission resolution: `effective_role = min(workspace_role, project_role)` — most restrictive wins
-- `GuestToken` model — time-limited (7/14/30 days), read-only public link to a project
-- `has_project_permission(user, project, action)` utility used on every view
-- Audit: every permission change logged to `AuditEvent`
+- `ProjectMember` model — project-level role override: Admin / Editor / Viewer / Guest
+- `GuestToken` model — time-limited (7/14/30 days) read-only shareable link
+- `AuditEvent` model — immutable log of every permission change
+- `Project.is_private` field — hides project from workspace Members/Viewers who are not explicit project members
+- `permissions.py` — `get_effective_role()`, `has_project_permission()`, `log_audit()`; workspace Admins short-circuit to "admin" immediately — bug fixed where a project override could accidentally demote a workspace admin
+- `ProjectListCreateView` filters private projects: only explicit members + workspace admins see them
+- `ProjectMemberListCreateView`, `ProjectMemberDetailView` — CRUD for project-level role overrides
+- `GuestTokenListCreateView`, `GuestTokenDeleteView` — create + revoke share links
+- `ProjectPermissionsView` — returns `{role, can_view, can_edit, can_delete, can_admin}` for current user
 
 ### Frontend
-- **Project Settings → Members tab**: add project-specific roles, override workspace role
-- Visual permission matrix: rows = members, columns = Create/Edit/Delete/Admin — checkbox grid
-- Private project toggle (lock icon) — hidden from workspace Projects page unless member
-- Guest link generator: copy shareable read-only URL + expiry date picker
-- `useProjectPermissions()` hook: `canEdit`, `canAdmin`, `canView`, `isGuest` — disables UI elements contextually
-- Access-denied page with "Request access" button (notifies project admins)
+- `useProjectPermissions(ws, pid)` — derives `{canEdit, canAdmin, canView, isGuest, role}` from `project.my_role` (zero extra requests)
+- `useProjectMembers` / `useGuestTokens` — full CRUD hooks
+- `ProjectMembersModal` — 3-tab modal:
+  - **Members**: member list with `RoleDropdown` (Radix Popover — smart flip above/below, rendered via Portal so it's never clipped by the modal scroll container), private toggle, add override
+  - **Permissions**: visual matrix — rows = roles, columns = Create/Edit/Delete/Admin
+  - **Sharing**: guest link list with copy + revoke; create form with label + 7/14/30-day expiry
+- `KanbanPage` gates: Add Task button, board settings gear, column add/rename/delete — all hidden for Viewers
+- `TaskDetailPanel` — read-only for Viewers: selects disabled, title not clickable, subtask form hidden, label picker hidden, delete button hidden; drag-and-drop disabled via `isDragDisabled`
+- `AccessDeniedPage` — 403 page with "Request access" button
+- `ProjectsPage` — private projects invisible to non-members
+
+### Bugs found + fixed during testing
+- Workspace Admin getting "Project admin role required" when managing a private project → fixed by short-circuiting workspace admins in `get_effective_role`
+- Viewers could still drag tasks and edit task detail fields → `handleDragEnd` now checks `perms.canEdit`; all TaskDetailPanel inputs carry `disabled={!canEdit}`
 
 ---
 
-## v2.2.0 — Multi-Board Architecture (Week 3)
-> Status: COMPLETE ✅
-> **Intent:** One project, multiple perspectives. A "project" is a container; boards are the views.
+## v2.2.0 — Views Architecture (Week 3)
+> Status: COMPLETE ✅ *(spec revised — see note)*
+> **Intent:** Multiple ways to look at the same project's tasks.
+
+### Architecture decision (revised from original spec)
+Original spec called for "multi-board" where each "board" was a named view with its own type. After implementation and review, this was confusing: **in ClickUp/Jira terminology, a "board" IS a project (or list). Views are how you display it.**
+
+**Revised model:**
+- `Project` = the board / container (what ClickUp calls a "board")
+- `View` = how you look at a project's tasks (Kanban, List, Sprint, Calendar, Timeline)
+- The "Board" model stays in the backend for future per-project view configuration, but the UI correctly exposes a view toggle, not a "boards" concept
 
 ### Backend
-- `Board` model: belongs to `Project`, has `board_type` (kanban / scrum / list / timeline / calendar), `name`, `description`, `is_default`, `visibility` (workspace-public / private / secret)
-- A project can have unlimited boards; tasks belong to the project, boards are views over them
-- `Board.config` JSONField: per-board column ordering, swimlane config, WIP limits
-- Board templates stored as seed fixtures: "Software Development", "Marketing Campaign", "Product Launch", "Bug Tracker", "Customer Requests"
-- Board archive/restore endpoint
+- `Board` model retained: `board_type` (kanban / scrum / list / timeline / calendar), `is_default`, `visibility`, `config` JSONField, `is_archived`, `order`
+- `SavedView.board` FK (nullable) — scopes saved filter presets to a specific view config
+- `ProjectSerializer.create()` auto-creates a default "Main Board" (kanban) on every new project
+- `BoardListCreateView`, `BoardDetailView`, `BoardArchiveView`, `BoardReorderView`, `BoardTemplatesView`
+- 5 built-in board templates as Python constants (no DB rows needed): Software Dev, Marketing Campaign, Product Launch, Bug Tracker, Customer Requests
 
 ### Frontend
-- **Board tabs** in project header — horizontal scrollable tab bar, active board highlighted
-- "New Board" modal: board type picker (5 types with preview illustrations) + template picker
-- Board-specific saved filters (separate from project-level)
-- Drag-and-drop board tab reordering
-- Board type icon in tab (grid icon for Kanban, list icon for List, etc.)
-- "Set as default" option — opens this board when navigating to the project
+- View toggle (Board · List · Sprint · Calendar · Timeline) replaces the "Board tabs" concept — clean segmented control in the combined filter row
+- Calendar and Timeline show "Coming in Phase 3" placeholder — routes exist, view not implemented yet
+- `useBoards` hook available for future board config UI
+- `NewBoardModal` + `BoardTabs` components built but not exposed in main navigation (available for Phase 3 project settings)
 
 ---
 
@@ -425,21 +457,34 @@
 > **Intent:** New user → first value in under 5 minutes. No tutorial videos.
 
 ### Backend
-- `OnboardingState` model — tracks checklist completion per workspace
-- `WorkspaceTemplate` model — pre-configured project + boards + statuses + automations
-- Built-in templates: Software Team, Startup, Design Studio, Marketing Agency, Education, Operations
-- Template import API: apply any template to a new project
+- `OnboardingState` model — per-workspace: `wizard_completed`, `team_type`, `dismissed_by_users` (JSON list of user UUIDs — per-user dismissal)
+- `OnboardingStateView` — `GET/PATCH /api/workspaces/:slug/onboarding/`; computes checklist from live data (project count, task count, member count); returns `user_is_admin` flag
+- 6 built-in `WORKSPACE_TEMPLATES` as Python constants: Software Team, Startup, Design Studio, Marketing Agency, Education, Operations
+- `WorkspaceTemplateApplyView` — creates pre-configured projects + statuses + boards from a template key
+- `can_create_workspace = BooleanField(default=True)` on `User` model — set to `False` when accepting an invite; enforced server-side on workspace creation (HTTP 403 if False)
 
 ### Frontend
-- **Setup wizard** (first workspace, 4 steps):
-  - Step 1: Team type (6 illustrated cards — software, design, marketing, ops, education, other)
-  - Step 2: Template preview with animated board illustration
-  - Step 3: Invite teammates (email chip input, bulk paste, send with one click)
-  - Step 4: Confetti animation + "Your workspace is ready → Go to first project"
-- **Getting Started checklist** (dashboard widget, dismissable after all complete):
-  - ✓ Create first project · Add a task · Invite teammate · Connect GitHub · Set up automation
-- Project template gallery in CreateProjectModal (visual cards with live preview screenshots)
-- "Import from Jira / ClickUp / Trello" option on setup step 2
+- `SetupWizard` — full-screen 4-step wizard at `/w/:slug/setup` (separate route, no sidebar):
+  - Step 1: Team type picker — 6 emoji cards
+  - Step 2: Template picker — 6 workspace templates + "Blank" + "Import from Jira/ClickUp/Trello" link
+  - Step 3: Email chip input (comma/space/paste bulk-add) + role selector + send invites
+  - Step 4: Confetti + "Go to workspace" — wizard marked complete in backend
+- `OnboardingPage` now redirects to `/w/:slug/setup` after workspace creation (previously went straight to dashboard)
+- `GettingStartedChecklist` dashboard widget:
+  - **Admin-only** — non-admin members don't see it (they joined an existing workspace)
+  - **Per-user dismissal** — Admin A dismissing it doesn't affect Admin B
+  - **Collapsible** — chevron button collapses the item list; the header with progress bar stays visible so the user can come back later
+  - **Permanent dismiss** — X button removes it for that user permanently
+  - Items auto-complete from live data — no manual marking
+- `CreateProjectModal` — collapsible template gallery (5 project templates as visual cards)
+- `WorkspaceSwitcher` in sidebar — real dropdown listing all user workspaces with active checkmark; "New workspace" option gated by `can_create_workspace`
+
+### Bugs found + fixed during testing
+- New user seeing old user's data (cross-session cache leak) → `queryClient` extracted to singleton (`src/lib/queryClient.js`); `login()` and `register()` now call `queryClient.clear()` before setting new tokens — not just on logout
+- All auth storage keys not cleared on logout → logout now removes `access_token`, `refresh_token`, `accessToken`, `refreshToken`, and `auth` (Zustand persist blob)
+- Invite flow broken: `RegisterPage` ignored `?next=` param → after registration now redirects to `next` (e.g. `/invites/:token`) or `/` if absent
+- Getting Started checklist showed 3 items pre-checked for all users (workspace-level data showed existing projects/tasks) → gated to admins only; per-user `dismissed_by_users` replaces single workspace-wide flag
+- `RoleDropdown` in `ProjectMembersModal` clipped by modal `overflow-hidden` → migrated to Radix `Popover.Portal` (renders into `document.body`, auto-flips above/below)
 
 ---
 
@@ -447,150 +492,179 @@
 ## PHASE 2 — TASK POWER FEATURES (Weeks 5–8)
 ## ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+> **Phase 2 status: COMPLETE ✅** — Implemented, tested, and validated end-to-end on 2026-06-03.
+>
+> **Scope decisions made during implementation:**
+> - `RecurringRule` deferred to Phase 3 (requires Celery beat infrastructure)
+> - `Task.description` stays as `TextField` storing markdown — no JSONField migration needed (Tiptap uses `tiptap-markdown` extension to serialize/deserialize markdown strings, zero data breakage)
+> - `TaskDependency` extended with `relation_type` field instead of creating a separate `TaskRelation` model
+> - Automation triggers scoped to 3 synchronous signal-based triggers; `task.overdue` deferred (requires scheduled Celery task)
+
 ---
 
 ## v2.4.0 — Advanced Task System (Week 5)
-> Status: IN PROGRESS 🔨
+> Status: COMPLETE ✅
 > **Intent:** Tasks that can model any kind of work — from a 2-minute fix to a 6-month epic.
 
 ### Backend
-- **Task hierarchy**: `Task.parent` FK (self-referential) — unlimited depth; Epics → Stories → Tasks → Subtasks in one model
-- `Task.estimate_points` (story points) + `Task.estimate_hours` (decimal) — both tracked
-- `Task.start_date` DateField — tasks now span a range, not just a due date
-- `TaskRelation` model: `relates_to`, `duplicate_of`, `cloned_from` alongside existing `blocks`/`blocked_by`
-- `TaskTemplate` model — reusable task structure: pre-filled fields + subtask tree + default assignee + labels
-- `RecurringRule` model: RRULE string (daily/weekly/monthly/custom) + `next_occurrence` computed field
-- Recurring task auto-generation via Celery beat task (nightly)
-- `Task.clone()` method — deep clone with subtasks, labels; strips assignee + dates
-- Rollup stats on parent tasks: `total_descendants`, `done_descendants`, `total_estimate_hours`
+- **Task hierarchy**: `Task.parent` FK (self-referential, nullable) — unlimited depth; Epic → Story → Task → child Task in one model
+- `Task.estimate_points` (story points, PositiveIntegerField) + `Task.estimate_hours` (DecimalField, 2dp) — both nullable
+- `Task.start_date` DateField (nullable) — tasks now span a date range, not just a deadline
+- **Epic** added as a new `TaskType` choice alongside Task / Bug / Feature / Story / Improvement / Question
+- `TaskDependency.relation_type` field added — extends existing `blocks/blocked_by` with `relates_to`, `duplicate_of`, `cloned_from` choices; no second model needed
+- `TaskTemplate` model — project-scoped reusable structure: `name`, `task_type`, `priority`, `default_subtasks` (JSONField list of `{title, order}`)
+- `Task.clone()` method — deep-clones task + all subtasks + labels into a new `"(Copy)"` task; strips assignee, dates, and sprint
+- Rollup properties on `Task`: `child_count`, `done_child_count` (Python `@property`, no extra DB columns)
+- **5 new endpoints**: `POST /tasks/:id/clone/`, `GET+POST /tasks/:id/children/`, `POST /tasks/:id/apply-template/`, `GET+POST /projects/:id/task-templates/`, `PATCH+DELETE /projects/:id/task-templates/:id/`
+- `TaskDetailSerializer` extended: `children` (direct child list), `ancestors` (full parent chain, ordered root→direct parent), `relations` (non-blocking relation list)
 
 ### Frontend
-- Task hierarchy in detail panel: breadcrumb trail — Epic → Story → Task, click to navigate up
-- Nested subtask tree (replaces flat list): infinite depth, collapse/expand, indent per level
-- Estimate field: `SP` + `h` side by side, both editable inline
-- Start date field in meta section alongside due date — shows duration span
-- "Relate task" picker in dependencies section with new relation types
-- Task template picker in `CreateTaskModal` — "Start from template" toggle
-- Recurring task toggle in detail panel + recurrence configurator
-- Parent task card shows aggregated progress bar from all descendants
-- "Clone task" in task context menu (three-dot menu)
-- Epic view: task card expands to show child tree inline
+- **VoltEditor** (`src/components/ui/VoltEditor.jsx`) — Tiptap + `tiptap-markdown`; outputs/reads markdown strings so `description` stays a `TextField`
+  - Toolbar: Bold · Italic · Strikethrough · Inline code · Highlight · H2 · H3 · Bullet list · Numbered list · Checklist · Quote · Divider · Link · Align left/center/right · Table (3×3 insert) · Undo/Redo
+  - Markdown shortcuts active: `## ` → H2, `- ` → bullet, `` ``` `` → code block
+  - `onBlur` saves — no per-keystroke API calls
+  - Read-only mode for Viewers (`readOnly` prop)
+- **TaskDetailPanel** additions:
+  - **Breadcrumb trail** at top — clickable ancestor chain (root → … → direct parent → current); navigates via `?task=` URL param
+  - **Child Tasks section** — collapsible; lists direct children with status dot + status label; "Add child task…" inline input; `(done/total)` counter
+  - **Checklist section** renamed from "Subtasks" — clarifies SubTask model remains for simple checkbox items
+  - **Story Points** + **Est. Hours** meta fields (inline number inputs, blur to save)
+  - **Start Date** meta field alongside Due Date
+  - **Clone button** (GitBranch icon) in header — clones task, shows toast with new title
+  - Description replaced with VoltEditor
+- **CreateTaskModal** additions:
+  - **Template picker** button always visible — shows count badge when templates exist; "No templates yet" empty state; inline "Save current as template" (type name + Enter)
+  - **Advanced options** collapsible section: Start Date, Story Points, Est. Hours
+  - `parent_id` support (for child task creation)
+- `useTaskHierarchy.js` — hooks: `useChildTasks`, `useCreateChildTask`, `useCloneTask`, `useTaskTemplates`, `useCreateTaskTemplate`, `useDeleteTaskTemplate`, `useApplyTemplate`
+
+### Bugs found + fixed during testing
+- `selectedTaskId` in KanbanPage only initialised from URL once at mount — child task navigation via `navigate(?task=childId)` didn't update the panel → added `useEffect` to sync `selectedTaskId` with `searchParams`
+- Subtask checklist count on task card (e.g. `3/5`) remained stale after toggling — `useToggleSubtask`, `useCreateSubtask`, `useDeleteSubtask` only patched the detail cache, never invalidated `["tasks", ...]` → added `qc.invalidateQueries` to all three; also fixed `done_subtask_count` calculation (was using `.filter(Boolean)` on objects instead of `.filter(s => s.is_done)`)
+- Child task status in parent panel showed stale value after drag-and-drop → `useMoveTask.onMutate` now also patches all `["children", ...]` caches optimistically; `onSuccess` invalidates them for accurate server label
 
 ---
 
 ## v2.5.0 — Rich Text Editor & Wiki (Week 6)
-> Status: IN PROGRESS 🔨
+> Status: COMPLETE ✅
 > **Intent:** Task descriptions as powerful as Notion pages. Wiki as structured as Confluence. All in one place.
 
 ### Backend
-- Task `description` upgraded from `TextField` to `JSONField` (Tiptap/ProseMirror document format)
-- `WikiPage` model — project-scoped, tree structure (`parent` FK), `slug`, `is_public`
-- `WikiRevision` — immutable version history per page (full JSON snapshot + author + timestamp)
-- `Document` model — workspace-scoped standalone documents (meeting notes, specs, runbooks)
-- Full-text search across task descriptions + wiki + documents via PostgreSQL `tsvector`
-- Mention resolution endpoint: `GET /api/workspaces/{ws}/mention-targets/?q=` → users + tasks + wiki pages + docs
-- Public wiki toggle: `WikiPage.is_public` → shareable read-only URL, no login required
+- `WikiPage` model — project-scoped, `parent` FK (nullable, self-referential tree), `title`, `slug` (auto-generated from title, unique per project), `content` (TextField, markdown), `is_public`, `order`
+- `WikiRevision` model — immutable snapshot saved before every PATCH: `content`, `title`, `author` FK, `created_at`; ordered newest-first; last 20 returned per page
+- `Document` model — workspace-scoped standalone document: `title`, `content` (markdown), `created_by`, timestamps
+- `WikiPageSerializer.create()` auto-generates unique slug from title (slugify + numeric suffix on collision); `slug` is `read_only` — never required from client
+- **5 wiki endpoints**: `GET+POST /projects/:id/wiki/`, `GET+PATCH+DELETE /projects/:id/wiki/:id/`, `GET /projects/:id/wiki/:id/revisions/`
+- **2 document endpoints**: `GET+POST /workspaces/:slug/documents/`, `GET+PATCH+DELETE /workspaces/:slug/documents/:id/`
 
 ### Frontend
-- **Volt Editor** (Tiptap-based, fully custom styled):
-  - `/` slash menu: Heading 1/2/3, Bullet list, Numbered list, Checklist, Code block, Quote, Table, Divider, Image, Callout, Embed
-  - `@user` mentions → inline avatar chip, notification to mentioned user
-  - `[[task-title]]` cross-references → live task chip (status colour, priority dot, updates in real time)
-  - `[[doc-title]]` wiki links → breadcrumb link with page icon
-  - Markdown shortcuts: `## ` → H2, `- ` → bullet, ` ``` ` → code block
-  - Code blocks: Shiki syntax highlighting, copy button, language badge
-  - Tables: resizable columns, add/remove rows and columns contextually
-  - Callout blocks: Info / Warning / Danger / Success (left border colour + icon)
-  - Images: paste, drag-drop (uploads to attachment storage), resize handles
-  - Mermaid diagrams: `flowchart`, `sequenceDiagram`, `erDiagram` rendered inline
-- Wiki section in project sidebar — collapsible page tree
-- Document page `/w/:ws/projects/:proj/wiki/:page` with sticky table of contents
-- Page history panel — visual diff between any two revisions
-- "Related docs" in task detail panel — pages that mention this task
+- `WikiPage.jsx` — split-pane layout: collapsible sidebar page tree + main editor area
+  - **Sidebar**: `+` creates new page (inline title input); page tree with `WikiTreeNode` supporting nested children; active page highlighted; back button → project board
+  - **Editor area**: editable title (click to edit, blur to save); updated-at timestamp + author; **Public/Private toggle** (globe vs lock icon); **History** button
+  - **VoltEditor** wired for content — blur-to-save, no explicit save button needed
+  - **Revision history panel** — slides in from right; list of revisions with author + timestamp; click to preview; "Restore this version" applies content back to editor
+- `useWiki.js` — hooks: `useWikiPages`, `useWikiPage`, `useCreateWikiPage`, `updateWikiPage`, `useDeleteWikiPage`, `useWikiRevisions`, `useDocuments`, `useDocument`, `useCreateDocument`, `useUpdateDocument`, `useDeleteDocument`
+
+### Bugs found + fixed during testing
+- `POST /wiki/` failed with `slug: ["This field is required."]` — DRF validated `slug` before `create()` could generate it → marked `slug` as `read_only` in serializer; `create()` still injects it into `validated_data` before calling `super().create()`
 
 ---
 
 ## v2.6.0 — Forms & Intake System (Week 6)
-> Status: IN PROGRESS 🔨
+> Status: COMPLETE ✅
 > **Gap filled:** Jira's issue collector is ugly. Linear has no intake. ClickUp forms are buried 6 levels deep.
 
 ### Backend
-- `Form` model: project-scoped, `fields` JSONField (label, type, required, options, placeholder)
-- Field types: short text, long text, dropdown, multi-select, email, number, date, file upload, assignee picker, priority picker
-- `FormSubmission` model: raw JSON answers + auto-created task FK + submitter email
-- `POST /api/forms/:token/submit/` — public, no auth, rate-limited (10 submissions/hour/IP)
-- Auto-create task: configurable field mapping (form field → task field)
-- Confirmation email to submitter (optional, configurable)
+- `Form` model — project-scoped: `name`, `description`, `is_active`, `token` (UUID, unique, public share key), `config` (JSONField: success_message, create_task, default_status_id), `created_by`
+- `FormField` model — ordered fields per form: `label`, `field_type` (short_text / long_text / email / number / dropdown / multiselect / date / file), `placeholder`, `is_required`, `options` (JSONField list for dropdown/multiselect)
+- `FormSubmission` model — `answers` (JSONField: `{field_id: value}`), `submitter_email`, `task` (OneToOne FK, nullable — set when auto-task is created), `status` (new / in_review / closed)
+- `PUT /projects/:id/forms/:id/fields/` — bulk-replace all fields in one request (reorder support)
+- `GET /api/forms/:token/` — **public, no auth** — returns form definition for rendering
+- `POST /api/forms/:token/submit/` — **public, no auth** — creates submission; auto-creates task if `config.create_task` is true; uses project's first status as default
+- **6 authenticated endpoints**: Form CRUD, field bulk-update, submission list + status update
 
 ### Frontend
-- **Form Builder** in project settings → Forms tab:
-  - Drag-and-drop field reordering
-  - Add field: type selector + label + required toggle + placeholder text
-  - Live preview panel updates as you build
-  - Success message + redirect URL config
-- Public form URL: `/forms/:token` — branded standalone page (no JCN chrome unless paid)
-- Embed code for external websites (copy `<iframe>` snippet)
-- Submission inbox in project: list of all submissions with "Create task" / "Dismiss" actions
-- "From form" badge on tasks created via submissions
-- Submission analytics: total count, this week, response rate
+- `FormsPage.jsx` — sidebar-based layout (form list left, editor right); back button → project board
+  - **Form list sidebar**: `+` creates new form; active/inactive indicator
+  - **Form header**: editable name (blur-to-save) + description; Active/Inactive toggle; Copy link button (toast on copy); Preview button (opens public URL in new tab)
+  - **Builder tab**: field cards with label, type selector, placeholder, required toggle, options textarea (for dropdown/multiselect); Add field button at bottom; fields saved on blur (not per keystroke — eliminates request spam)
+  - **Submissions tab**: submission cards with submitter email, timestamp, status dropdown (new → in_review → closed), answer accordion
+- `PublicFormPage.jsx` — standalone page at `/forms/:token`, no auth required, no JCN chrome
+  - Renders all field types: text, long text, email, number, dropdown, multiselect (checkboxes), date
+  - Client-side required field validation before submit
+  - Success screen with check icon and configurable message
+  - 404 state for inactive/invalid forms
+- `useForms.js` — hooks: `useForms`, `useForm`, `useCreateForm`, `useUpdateForm`, `useDeleteForm`, `useUpdateFormFields`, `useFormSubmissions`, `useUpdateSubmissionStatus`
+
+### Bugs found + fixed during testing
+- Copy link button threw `toast.success is not a function` — `useToast()` returned `{ toast, success, ... }` but `const { toast } = useToast()` extracted only the raw function; convenience methods lived on the returned object, not on `toast` itself → fixed `useToast()` to attach `success/error/warning/info` directly onto the `toast` function before returning, so `toast.success()` works everywhere
+- Preview button opened workspace dashboard — `/forms/:token` had no React route; router's catch-all matched it and redirected to `/` → created `PublicFormPage.jsx` and registered `/forms/:formToken` as a public route in `App.jsx`
+- Form name/description inputs fired 1 API request per keystroke — `onChange` called `updateForm.mutate()` directly → changed to local draft state; `onBlur` saves to server
+- Field inputs fired 1 API request per keystroke via `saveFields()` — split into `patchFieldLocally` (updates parent state, no API) and `flushField` (called on blur/select change — fires API once)
+- Public form URL `GET /api/forms/{token}/` returned 404 — patterns in `projects/urls.py` were written as `"api/forms/..."` but already included under `api/` prefix in `core/urls.py`, making the real path `/api/api/forms/...` → removed duplicate `api/` prefix
 
 ---
 
 ## v2.7.0 — Automation Engine (Week 7)
-> Status: IN PROGRESS 🔨
+> Status: COMPLETE ✅
 > **Intent:** Let the app do the repetitive work. Rules-based, no-code, visual builder.
 
 ### Backend
-- `AutomationRule` model: `trigger` + `conditions` + `actions` (all JSONField) + `is_active` + `fire_count`
-- **Triggers:** task.created, task.status_changed, task.assigned, task.priority_changed, task.due_date_passed, task.overdue, comment.created, sprint.started, sprint.completed, form.submitted, member.joined
-- **Conditions:** field equals/contains/is-empty/greater-than, assignee is/is-not, label includes/excludes, type is, sprint is, creator is
-- **Actions:** change status, set/clear assignee, add/remove label, set priority, post comment (with template variables `{{task.title}}` `{{assignee.name}}`), create subtask from template, send notification (specific user or role), move to sprint, set due date (relative: `+3 days`), archive task, trigger webhook, send email
-- `AutomationLog` model: rule FK, trigger payload, conditions evaluated, actions executed, duration_ms, status (success/partial/failed)
-- Execution: Django signals for sync actions, Celery queue for email/webhook/AI
-- Rate limit: 500 fire/project/day (free), unlimited (Pro+)
+- `AutomationRule` model — project-scoped: `name`, `is_active`, `fire_count`, `trigger` (JSONField: `{type}`), `conditions` (JSONField list: `[{field, operator, value}]`), `actions` (JSONField list: `[{type, payload}]`), `created_by`
+- `AutomationLog` model — immutable execution record: `rule` FK, `task` FK, `trigger_payload`, `actions_run` (JSONField list with per-action result), `exec_status` (success / partial / failed), `error_message`, `duration_ms`
+- **Django signals** (`signals.py` + `ProjectsConfig.ready()`):
+  - `pre_save` receiver captures old `status_id` and `assignee_id` before every Task save and stamps `_status_changed`, `_assignee_changed`, `_old_status` flags on the instance
+  - `post_save` receiver reads those flags to fire the correct trigger synchronously
+- **3 active triggers**: `task.created` (post_save created=True), `task.status_changed` (pre_save diff), `task.assigned` (pre_save diff)
+- **Condition evaluation** (`_eval_condition`): `priority` equals/not_equals; `assignee` is_set/is_not_set; `status` equals; `task_type` equals; unknown conditions pass through
+- **6 action handlers** (`_run_action`): `change_status` (looks up TaskStatus by id), `change_priority` (validates against Priority choices), `set_assignee` (looks up User by id), `add_label` (looks up Label by id), `post_comment` (creates TaskComment), `send_notification` (creates Notification + notifies assignee if no user_id specified)
+- Celery configured (`core/celery.py`, `core/__init__.py`, `CELERY_*` settings) — ready for async actions in future
+- **3 endpoints**: `GET+POST /automations/`, `PATCH+DELETE /automations/:id/`, `GET /automations/:id/logs/`
 
 ### Frontend
-- **Automations page** in project settings
-- **Rule builder UI:**
-  - "When [trigger]" picker with search + category grouping (Task events / Sprint events / Member events)
-  - "And [conditions match]" — add rows, each row is field + operator + value; remove button
-  - "Then [do this]" — action chain; add multiple actions; drag to reorder
-  - Visual cards connected by down arrows; active state shown in green
-- **Template gallery** (pre-built, one-click install):
-  - "When moved to Done → close all subtasks"
-  - "When overdue → escalate to Urgent + notify assignee"
-  - "When task created as Bug → assign QA label + notify QA lead"
-  - "When sprint starts → post kickoff comment on all sprint tasks"
-  - "When form submitted → set status to Triage + notify team lead"
-  - "When task unassigned for 3 days → notify project admin"
-  - "When estimate is empty → request estimate in comment"
-- Automation log: expandable rows, full execution trace, re-run button
-- Enable/disable toggle per rule; "Fired 12x this week" count badge
+- `AutomationsPage.jsx` — full-page rule manager; back button → project board
+  - **Empty state**: template gallery shown when no rules exist (3 ready-to-use templates)
+  - **"Use template" dropdown** inside the builder — always accessible while form is open; picks template → pre-fills name + trigger + conditions + actions; user edits before saving
+  - **Rule builder**: name input; trigger picker (4 options); conditions builder (field + operator + value rows, add/remove); actions chain (type selector + payload input per action type)
+  - **Payload inputs per action**: priority dropdown for `change_priority`; text input for `post_comment`; message input for `send_notification`
+  - **Rule cards**: enable/disable toggle; fire count badge; expandable → shows last 5 execution logs with status colour (green/yellow/red) + duration
+- `useAutomations.js` — hooks: `useAutomations`, `useCreateAutomation`, `useUpdateAutomation`, `useDeleteAutomation`, `useAutomationLogs`
+
+### Bugs found + fixed during testing
+- Automation rule fired as "partial" with 0ms — template had `{ type: "change_status", payload: {} }` (wrong action, empty payload); engine had no `change_priority` handler → added `change_priority` to `automation.py`; fixed template to `{ type: "change_priority", payload: { priority: "urgent" } }`; fixed `change_status` to return clear error immediately when `status_id` is missing instead of falling through to "unknown action type"
+- `task.status_changed` and `task.assigned` triggers never fired — `post_save` checked for `_status_changed` / `_assignee_changed` flags but nothing set them → added `pre_save` receiver that loads old DB row and stamps diff flags before the save
 
 ---
 
 ## v2.8.0 — Time Tracking (Week 8)
-> Status: IN PROGRESS 🔨
+> Status: COMPLETE ✅
 > **Gap filled:** Jira's time tracking is buried 3 clicks deep. ClickUp's is disconnected from tasks. Linear has none.
 
 ### Backend
-- `TimeEntry` model: `user` FK, `task` FK, `start_at`, `end_at`, `duration_seconds`, `description`, `is_billable`, `hourly_rate`
-- Active timer: `TimeEntry` with `end_at=null` = running; max 1 active per user (starting new stops previous)
-- Endpoints: `POST /timer/start/`, `PATCH /timer/stop/`, `GET /timer/active/`
-- Manual entry: `POST /tasks/:id/time-entries/` with duration + optional description
-- Time reports: `GET /timesheets/?user=&project=&start=&end=&billable=` — flexible filters
-- `Task.total_logged_seconds` aggregated property
-- Weekly timesheet: `GET /api/workspaces/:ws/timesheets/?week=YYYY-Www` — user × day matrix
+- `TimeEntry` model: `task` FK, `user` FK, `start_at` (DateTimeField, nullable — null = manual entry), `end_at` (DateTimeField, nullable — null = timer still running), `duration_seconds`, `description`, `is_billable`
+- **Timer logic**: `end_at=null` + `start_at set` = running timer; starting a new timer automatically stops any currently running timer for that user (`TimeEntry.stop()` method sets `end_at` and computes `duration_seconds`)
+- `TimeEntrySerializer` includes `task_title` (from `task.title`) so the sidebar active-timer strip can show the task name without a second request
+- **6 endpoints**: `GET+POST /tasks/:id/time-entries/`, `DELETE /tasks/:id/time-entries/:id/`, `POST /tasks/:id/timer/start/`, `PATCH /workspaces/:slug/timer/stop/`, `GET /workspaces/:slug/timer/active/`, `GET /workspaces/:slug/timesheets/`
+- **Timesheet endpoint** — accepts `?week=YYYY-Www`; returns `{ week_start, days: [ISO dates], rows: [{user, days: {date: seconds}, total}] }` — user × day matrix ready for the grid
 
 ### Frontend
-- Timer button on task cards (hover → clock icon) and in task detail panel header
-- Active timer: pulsing dot + elapsed time in sidebar footer (stops from anywhere)
-- Time entry list in task detail: user avatar, duration, date, description, edit + delete inline
-- Manual time log: `+` button → quick picker (15m / 30m / 1h / custom) + description input
-- **Timesheets page** `/w/:ws/timesheets`: weekly grid, rows = members, columns = days, cells = logged hours; totals in footer row
-- Billable toggle per entry; billable hours shown separately in reports
-- Time analytics in project: "Logged vs Estimated" horizontal bar chart
-- CSV export: date range picker → download
+- **TaskDetailPanel** time tracking section:
+  - **Timer button** in panel header (Timer icon = idle, red Stop square = running on this task)
+  - **Active timer strip** — pulsing red dot + "Timer running" + started-X-ago text; shown when timer is active on this task
+  - **Quick log buttons** — 15m / 30m / 1h / 2h pills + custom minutes input + description; saves on click
+  - **Entry list** — user avatar, formatted duration (Xh Ym), description, date; delete on hover (own entries only)
+  - **Total logged** shown next to section label
+- **AppLayout sidebar** — active timer strip appears above user panel when any timer is running; shows task title (truncated) + Stop button; works from any page in the app
+- **TimesheetsPage** (`/w/:ws/timesheets`):
+  - Weekly grid: Mon–Sun columns, one row per member, cells show formatted hours
+  - Footer row with daily totals + grand total
+  - Week navigator: prev / next / "This week" buttons
+- `useTimeTracking.js` — hooks: `useActiveTimer` (polls every 10s), `useStartTimer`, `useStopTimer`, `useTimeEntries`, `useAddTimeEntry`, `useDeleteTimeEntry`, `useTimesheet`; `formatDuration(seconds)` helper (returns `Xh Ym` or `Xm`)
+
+### Navigation additions (Phase 2)
+- **KanbanPage project header** — icon button group (Book / Form / Zap) navigates to Wiki / Forms / Automations sub-routes for the current project
+- **Back button** on Wiki, Forms, and Automations pages — always navigates back to the project board
+- **Timesheets** added to AppLayout sidebar nav (Clock icon)
 
 ---
 

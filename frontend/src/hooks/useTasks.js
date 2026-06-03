@@ -30,7 +30,11 @@ export const useUpdateTask = (workspaceSlug, projectId) => {
   return useMutation({
     mutationFn: ({ taskId, ...data }) =>
       api.patch(`/api/workspaces/${workspaceSlug}/projects/${projectId}/tasks/${taskId}/`, data).then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: tasksKey(workspaceSlug, projectId) }),
+    onSuccess: (updated) => {
+      qc.invalidateQueries({ queryKey: tasksKey(workspaceSlug, projectId) });
+      // Refresh any open parent-task panels that list this task as a child
+      qc.invalidateQueries({ queryKey: ["children", workspaceSlug, projectId] });
+    },
   });
 };
 
@@ -42,7 +46,6 @@ export const useMoveTask = (workspaceSlug, projectId) => {
     // Synchronous optimistic update — no await so @hello-pangea/dnd never sees the
     // original position again and the one-frame "snap back" flicker is eliminated.
     onMutate: ({ taskId, status_id, order }) => {
-      // Cancel in-flight refetches without awaiting (non-blocking)
       qc.cancelQueries({ queryKey: tasksKey(workspaceSlug, projectId) });
       const prev = qc.getQueryData(tasksKey(workspaceSlug, projectId));
       qc.setQueryData(tasksKey(workspaceSlug, projectId), (old) =>
@@ -52,10 +55,33 @@ export const useMoveTask = (workspaceSlug, projectId) => {
             : t
         )
       );
+
+      // Mirror the same optimistic patch into every open children cache so the
+      // TaskDetailPanel status dot + label updates at the same instant as the card.
+      qc.setQueriesData(
+        { queryKey: ["children", workspaceSlug, projectId], exact: false },
+        (old) =>
+          Array.isArray(old)
+            ? old.map((c) =>
+                c.id === taskId
+                  ? { ...c, status_detail: { ...c.status_detail, id: status_id } }
+                  : c
+              )
+            : old
+      );
+
       return { prev };
     },
-    onError: (_, __, ctx) => qc.setQueryData(tasksKey(workspaceSlug, projectId), ctx.prev),
-    // No onSettled invalidation — WebSocket broadcast reconciles the cache
+    onError: (_, __, ctx) => {
+      qc.setQueryData(tasksKey(workspaceSlug, projectId), ctx.prev);
+      // Roll back children caches too
+      qc.invalidateQueries({ queryKey: ["children", workspaceSlug, projectId] });
+    },
+    onSuccess: () => {
+      // Server response has the full status_detail (name + color) — invalidate so
+      // children panels get the accurate label, not just the optimistic id-only patch.
+      qc.invalidateQueries({ queryKey: ["children", workspaceSlug, projectId] });
+    },
   });
 };
 

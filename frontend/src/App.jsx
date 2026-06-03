@@ -16,6 +16,16 @@ import AnalyticsPage from "@/pages/workspace/AnalyticsPage";
 import AcceptInvitePage from "@/pages/invite/AcceptInvitePage";
 import SetupWizard from "@/pages/workspace/SetupWizard";
 import CommandPalette from "@/components/CommandPalette";
+// v2.5.0
+import WikiPage from "@/pages/projects/WikiPage";
+// v2.6.0
+import FormsPage from "@/pages/projects/FormsPage";
+// v2.7.0
+import AutomationsPage from "@/pages/projects/AutomationsPage";
+// v2.8.0
+import TimesheetsPage from "@/pages/workspace/TimesheetsPage";
+// v2.6.0 — public form (no auth)
+import PublicFormPage from "@/pages/forms/PublicFormPage";
 
 export default function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -38,6 +48,7 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/invites/:token" element={<AcceptInvitePage />} />
+        <Route path="/forms/:formToken" element={<PublicFormPage />} />
 
         {/* Protected */}
         <Route element={<ProtectedRoute />}>
@@ -49,8 +60,21 @@ export default function App() {
             <Route index element={<DashboardPage />} />
             <Route path="projects" element={<ProjectsPage />} />
             <Route path="projects/:projectId" element={<KanbanPage />} />
+
+            {/* v2.5.0 — Wiki (per project) */}
+            <Route path="projects/:projectId/wiki" element={<WikiPage />} />
+            <Route path="projects/:projectId/wiki/:pageId" element={<WikiPage />} />
+
+            {/* v2.6.0 — Forms (per project) */}
+            <Route path="projects/:projectId/forms" element={<FormsPage />} />
+
+            {/* v2.7.0 — Automations (per project) */}
+            <Route path="projects/:projectId/automations" element={<AutomationsPage />} />
+
+            {/* Workspace-level */}
             <Route path="roadmap" element={<RoadmapPage />} />
             <Route path="analytics" element={<AnalyticsPage />} />
+            <Route path="timesheets" element={<TimesheetsPage />} />
             <Route path="members" element={<MembersPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>

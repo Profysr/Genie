@@ -17,7 +17,11 @@ import re
 from .models import (
     Project, TaskStatus, Task, SubTask, TaskComment, TaskActivity, Label,
     ProjectField, TaskFieldValue, SavedView, Sprint,
-    TaskAttachment, TaskDependency,
+    TaskAttachment, TaskDependency, TaskTemplate,
+    WikiPage, WikiRevision, Document,
+    Form, FormField, FormSubmission,
+    AutomationRule, AutomationLog,
+    TimeEntry,
     ProjectMember, GuestToken,
     Board,
 )
@@ -27,7 +31,12 @@ from .serializers import (
     SubTaskSerializer, TaskCommentSerializer, TaskActivitySerializer,
     LabelSerializer, TaskSearchSerializer, ProjectSearchSerializer,
     ProjectFieldSerializer, TaskFieldValueSerializer, SavedViewSerializer, SprintSerializer,
-    TaskAttachmentSerializer, MinimalTaskSerializer,
+    TaskAttachmentSerializer, MinimalTaskSerializer, TaskDependencySerializer,
+    TaskTemplateSerializer,
+    WikiPageSerializer, WikiRevisionSerializer, DocumentSerializer,
+    FormSerializer, FormFieldSerializer, FormSubmissionSerializer, PublicFormSerializer,
+    AutomationRuleSerializer, AutomationLogSerializer,
+    TimeEntrySerializer,
     ProjectMemberSerializer, GuestTokenSerializer,
     BoardSerializer,
 )
@@ -1245,5 +1254,585 @@ class BoardReorderView(APIView):
             Board.objects.filter(id=item["id"], project=project).update(order=item["order"])
         boards = project.boards.filter(is_archived=False)
         return Response(BoardSerializer(boards, many=True).data)
+
+
+# ── v2.4.0 — Advanced Task System ────────────────────────────────────────────
+
+class TaskCloneView(APIView):
+    """POST /tasks/:id/clone/ — deep-clone a task and return the new task."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, workspace_slug, project_id, task_id):
+        workspace = get_workspace_for_user(workspace_slug, request.user)
+        project   = get_object_or_404(Project, id=project_id, workspace=workspace)
+        if not has_project_permission(request.user, project, "edit"):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Editor role required.")
+        task      = get_object_or_404(Task, id=task_id, project=project)
+        new_task  = task.clone(created_by=request.user)
+        log_activity(new_task, request.user, TaskActivity.Verb.CREATED, {"cloned_from": str(task.id)})
+        broadcast(workspace_slug, "task.created", TaskSerializer(new_task, context={"request": request}).data)
+        return Response(TaskSerializer(new_task, context={"request": request}).data, status=status.HTTP_201_CREATED)
+
+
+class TaskChildrenView(APIView):
+    """GET /tasks/:id/children/ — list direct child tasks."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, workspace_slug, project_id, task_id):
+        workspace = get_workspace_for_user(workspace_slug, request.user)
+        project   = get_object_or_404(Project, id=project_id, workspace=workspace)
+        task      = get_object_or_404(Task, id=task_id, project=project)
+        children  = task.children.select_related("status", "assignee").all()
+        return Response(TaskSerializer(children, many=True, context={"request": request}).data)
+
+    def post(self, request, workspace_slug, project_id, task_id):
+        """Create a child task under this parent."""
+        workspace = get_workspace_for_user(workspace_slug, request.user)
+        project   = get_object_or_404(Project, id=project_id, workspace=workspace)
+        if not has_project_permission(request.user, project, "edit"):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Editor role required.")
+        parent = get_object_or_404(Task, id=task_id, project=project)
+        data   = request.data.copy()
+        data["parent_id"] = str(parent.id)
+        serializer = TaskSerializer(data=data, context={"request": request, "project": project})
+        serializer.is_valid(raise_exception=True)
+        task = serializer.save(project=project, created_by=request.user, parent=parent)
+        log_activity(task, request.user, TaskActivity.Verb.CREATED)
+        broadcast(workspace_slug, "task.created", serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class TaskTemplateListCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, workspace_slug, project_id):
+        workspace = get_workspace_for_user(workspace_slug, request.user)
+        project   = get_object_or_404(Project, id=project_id, workspace=workspace)
+        templates = project.task_templates.all()
+        return Response(TaskTemplateSerializer(templates, many=True).data)
+
+    def post(self, request, workspace_slug, project_id):
+        workspace = get_workspace_for_user(workspace_slug, request.user)
+        project   = get_object_or_404(Project, id=project_id, workspace=workspace)
+        if not has_project_permission(request.user, project, "edit"):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Editor role required.")
+        serializer = TaskTemplateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(project=project, created_by=request.user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class TaskTemplateDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, workspace_slug, project_id, template_id):
+        workspace = get_workspace_for_user(workspace_slug, request.user)
+        project   = get_object_or_404(Project, id=project_id, workspace=workspace)
+        template  = get_object_or_404(TaskTemplate, id=template_id, project=project)
+        serializer = TaskTemplateSerializer(template, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def delete(self, request, workspace_slug, project_id, template_id):
+        workspace = get_workspace_for_user(workspace_slug, request.user)
+        project   = get_object_or_404(Project, id=project_id, workspace=workspace)
+        template  = get_object_or_404(TaskTemplate, id=template_id, project=project)
+        if not has_project_permission(request.user, project, "edit"):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Editor role required.")
+        template.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class TaskApplyTemplateView(APIView):
+    """POST /tasks/:id/apply-template/ — apply a template to an existing task (fills subtasks)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, workspace_slug, project_id, task_id):
+        workspace   = get_workspace_for_user(workspace_slug, request.user)
+        project     = get_object_or_404(Project, id=project_id, workspace=workspace)
+        task        = get_object_or_404(Task, id=task_id, project=project)
+        template_id = request.data.get("template_id")
+        template    = get_object_or_404(TaskTemplate, id=template_id, project=project)
+        for i, sub in enumerate(template.default_subtasks):
+            SubTask.objects.get_or_create(task=task, title=sub.get("title", ""), defaults={"order": i})
+        return Response(TaskDetailSerializer(task, context={"request": request}).data)
+
+
+# ── v2.5.0 — Wiki & Documents ─────────────────────────────────────────────────
+
+class WikiPageListCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, workspace_slug, project_id):
+        workspace = get_workspace_for_user(workspace_slug, request.user)
+        project   = get_object_or_404(Project, id=project_id, workspace=workspace)
+        pages     = project.wiki_pages.filter(parent=None).prefetch_related("children")
+        return Response(WikiPageSerializer(pages, many=True).data)
+
+    def post(self, request, workspace_slug, project_id):
+        workspace = get_workspace_for_user(workspace_slug, request.user)
+        project   = get_object_or_404(Project, id=project_id, workspace=workspace)
+        if not has_project_permission(request.user, project, "edit"):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Editor role required.")
+        serializer = WikiPageSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        page = serializer.save(project=project, created_by=request.user)
+        return Response(WikiPageSerializer(page).data, status=status.HTTP_201_CREATED)
+
+
+class WikiPageDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get_page(self, workspace_slug, project_id, page_id, user):
+        workspace = get_workspace_for_user(workspace_slug, user)
+        project   = get_object_or_404(Project, id=project_id, workspace=workspace)
+        return get_object_or_404(WikiPage, id=page_id, project=project), project
+
+    def get(self, request, workspace_slug, project_id, page_id):
+        page, _ = self._get_page(workspace_slug, project_id, page_id, request.user)
+        return Response(WikiPageSerializer(page).data)
+
+    def patch(self, request, workspace_slug, project_id, page_id):
+        page, project = self._get_page(workspace_slug, project_id, page_id, request.user)
+        if not has_project_permission(request.user, project, "edit"):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Editor role required.")
+        # Save a revision before updating
+        WikiRevision.objects.create(page=page, content=page.content, title=page.title, author=request.user)
+        serializer = WikiPageSerializer(page, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def delete(self, request, workspace_slug, project_id, page_id):
+        page, project = self._get_page(workspace_slug, project_id, page_id, request.user)
+        if not has_project_permission(request.user, project, "admin"):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Admin role required.")
+        page.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class WikiPageRevisionsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, workspace_slug, project_id, page_id):
+        workspace = get_workspace_for_user(workspace_slug, request.user)
+        project   = get_object_or_404(Project, id=project_id, workspace=workspace)
+        page      = get_object_or_404(WikiPage, id=page_id, project=project)
+        revisions = page.revisions.select_related("author")[:20]
+        return Response(WikiRevisionSerializer(revisions, many=True).data)
+
+
+class DocumentListCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, workspace_slug):
+        workspace = get_workspace_for_user(workspace_slug, request.user)
+        docs      = workspace.documents.select_related("created_by")
+        return Response(DocumentSerializer(docs, many=True).data)
+
+    def post(self, request, workspace_slug):
+        workspace = get_workspace_for_user(workspace_slug, request.user)
+        serializer = DocumentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(workspace=workspace, created_by=request.user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class DocumentDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get_doc(self, workspace_slug, doc_id, user):
+        workspace = get_workspace_for_user(workspace_slug, user)
+        return get_object_or_404(Document, id=doc_id, workspace=workspace)
+
+    def get(self, request, workspace_slug, doc_id):
+        doc = self._get_doc(workspace_slug, doc_id, request.user)
+        return Response(DocumentSerializer(doc).data)
+
+    def patch(self, request, workspace_slug, doc_id):
+        doc = self._get_doc(workspace_slug, doc_id, request.user)
+        serializer = DocumentSerializer(doc, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def delete(self, request, workspace_slug, doc_id):
+        doc = self._get_doc(workspace_slug, doc_id, request.user)
+        doc.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ── v2.6.0 — Forms & Intake ───────────────────────────────────────────────────
+
+class FormListCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, workspace_slug, project_id):
+        workspace = get_workspace_for_user(workspace_slug, request.user)
+        project   = get_object_or_404(Project, id=project_id, workspace=workspace)
+        forms     = project.forms.prefetch_related("fields")
+        return Response(FormSerializer(forms, many=True).data)
+
+    def post(self, request, workspace_slug, project_id):
+        workspace = get_workspace_for_user(workspace_slug, request.user)
+        project   = get_object_or_404(Project, id=project_id, workspace=workspace)
+        if not has_project_permission(request.user, project, "edit"):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Editor role required.")
+        serializer = FormSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        form = serializer.save(project=project, created_by=request.user)
+        return Response(FormSerializer(form).data, status=status.HTTP_201_CREATED)
+
+
+class FormDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get_form(self, workspace_slug, project_id, form_id, user):
+        workspace = get_workspace_for_user(workspace_slug, user)
+        project   = get_object_or_404(Project, id=project_id, workspace=workspace)
+        return get_object_or_404(Form, id=form_id, project=project), project
+
+    def get(self, request, workspace_slug, project_id, form_id):
+        form, _ = self._get_form(workspace_slug, project_id, form_id, request.user)
+        return Response(FormSerializer(form).data)
+
+    def patch(self, request, workspace_slug, project_id, form_id):
+        form, project = self._get_form(workspace_slug, project_id, form_id, request.user)
+        if not has_project_permission(request.user, project, "edit"):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Editor role required.")
+        serializer = FormSerializer(form, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def delete(self, request, workspace_slug, project_id, form_id):
+        form, project = self._get_form(workspace_slug, project_id, form_id, request.user)
+        if not has_project_permission(request.user, project, "admin"):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Admin role required.")
+        form.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class FormFieldsBulkUpdateView(APIView):
+    """PUT /forms/:id/fields/ — replace all fields in one shot (drag-drop reorder support)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def put(self, request, workspace_slug, project_id, form_id):
+        workspace = get_workspace_for_user(workspace_slug, request.user)
+        project   = get_object_or_404(Project, id=project_id, workspace=workspace)
+        if not has_project_permission(request.user, project, "edit"):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Editor role required.")
+        form = get_object_or_404(Form, id=form_id, project=project)
+        form.fields.all().delete()
+        new_fields = []
+        for i, f in enumerate(request.data):
+            new_fields.append(FormField(
+                form=form,
+                label=f.get("label", ""),
+                field_type=f.get("field_type", "short_text"),
+                placeholder=f.get("placeholder", ""),
+                is_required=f.get("is_required", False),
+                options=f.get("options", []),
+                order=i,
+            ))
+        FormField.objects.bulk_create(new_fields)
+        return Response(FormSerializer(form).data)
+
+
+class PublicFormView(APIView):
+    """GET /forms/:token/ — unauthenticated, returns public form definition."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, form_token):
+        form = get_object_or_404(Form, token=form_token, is_active=True)
+        return Response(PublicFormSerializer(form).data)
+
+
+class PublicFormSubmitView(APIView):
+    """POST /forms/:token/submit/ — unauthenticated public submission."""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, form_token):
+        form = get_object_or_404(Form, token=form_token, is_active=True)
+        answers         = request.data.get("answers", {})
+        submitter_email = request.data.get("email", "")
+
+        submission = FormSubmission.objects.create(
+            form=form,
+            answers=answers,
+            submitter_email=submitter_email,
+        )
+
+        # Auto-create task if configured
+        cfg = form.config or {}
+        if cfg.get("create_task", True):
+            title_field_id = cfg.get("title_field_id")
+            title = answers.get(title_field_id, "") if title_field_id else f"Submission from {submitter_email or 'form'}"
+            if not title:
+                title = f"Form submission — {form.name}"
+            status_id = cfg.get("default_status_id")
+            task_status = None
+            if status_id:
+                try:
+                    task_status = TaskStatus.objects.get(id=status_id, project=form.project)
+                except TaskStatus.DoesNotExist:
+                    task_status = form.project.statuses.first()
+            else:
+                task_status = form.project.statuses.first()
+
+            task = Task.objects.create(
+                project=form.project,
+                title=title[:500],
+                description=f"**Via form:** {form.name}\n\n**Submitter:** {submitter_email}",
+                status=task_status,
+                created_by=None,
+            )
+            submission.task = task
+            submission.save(update_fields=["task"])
+
+        return Response({"success": True, "submission_id": str(submission.id)}, status=status.HTTP_201_CREATED)
+
+
+class FormSubmissionListView(APIView):
+    """GET /forms/:id/submissions/ — authenticated, returns all submissions."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, workspace_slug, project_id, form_id):
+        workspace = get_workspace_for_user(workspace_slug, request.user)
+        project   = get_object_or_404(Project, id=project_id, workspace=workspace)
+        form      = get_object_or_404(Form, id=form_id, project=project)
+        subs      = form.submissions.select_related("task").order_by("-submitted_at")
+        return Response(FormSubmissionSerializer(subs, many=True).data)
+
+    def patch(self, request, workspace_slug, project_id, form_id):
+        """Update a submission status."""
+        workspace  = get_workspace_for_user(workspace_slug, request.user)
+        project    = get_object_or_404(Project, id=project_id, workspace=workspace)
+        form       = get_object_or_404(Form, id=form_id, project=project)
+        sub_id     = request.data.get("id")
+        sub        = get_object_or_404(FormSubmission, id=sub_id, form=form)
+        new_status = request.data.get("status")
+        if new_status in [s[0] for s in FormSubmission.Status.choices]:
+            sub.status = new_status
+            sub.save(update_fields=["status"])
+        return Response(FormSubmissionSerializer(sub).data)
+
+
+# ── v2.7.0 — Automation Engine ────────────────────────────────────────────────
+
+class AutomationRuleListCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, workspace_slug, project_id):
+        workspace = get_workspace_for_user(workspace_slug, request.user)
+        project   = get_object_or_404(Project, id=project_id, workspace=workspace)
+        rules     = project.automation_rules.all()
+        return Response(AutomationRuleSerializer(rules, many=True).data)
+
+    def post(self, request, workspace_slug, project_id):
+        workspace = get_workspace_for_user(workspace_slug, request.user)
+        project   = get_object_or_404(Project, id=project_id, workspace=workspace)
+        if not has_project_permission(request.user, project, "edit"):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Editor role required.")
+        serializer = AutomationRuleSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        rule = serializer.save(project=project, created_by=request.user)
+        return Response(AutomationRuleSerializer(rule).data, status=status.HTTP_201_CREATED)
+
+
+class AutomationRuleDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get_rule(self, workspace_slug, project_id, rule_id, user):
+        workspace = get_workspace_for_user(workspace_slug, user)
+        project   = get_object_or_404(Project, id=project_id, workspace=workspace)
+        return get_object_or_404(AutomationRule, id=rule_id, project=project), project
+
+    def patch(self, request, workspace_slug, project_id, rule_id):
+        rule, project = self._get_rule(workspace_slug, project_id, rule_id, request.user)
+        if not has_project_permission(request.user, project, "edit"):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Editor role required.")
+        serializer = AutomationRuleSerializer(rule, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def delete(self, request, workspace_slug, project_id, rule_id):
+        rule, project = self._get_rule(workspace_slug, project_id, rule_id, request.user)
+        if not has_project_permission(request.user, project, "admin"):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Admin role required.")
+        rule.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AutomationLogListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, workspace_slug, project_id, rule_id):
+        workspace = get_workspace_for_user(workspace_slug, request.user)
+        project   = get_object_or_404(Project, id=project_id, workspace=workspace)
+        rule      = get_object_or_404(AutomationRule, id=rule_id, project=project)
+        logs      = rule.logs.order_by("-created_at")[:50]
+        return Response(AutomationLogSerializer(logs, many=True).data)
+
+
+# ── v2.8.0 — Time Tracking ────────────────────────────────────────────────────
+
+class TimeEntryListCreateView(APIView):
+    """GET + POST manual time entries for a task."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, workspace_slug, project_id, task_id):
+        workspace = get_workspace_for_user(workspace_slug, request.user)
+        project   = get_object_or_404(Project, id=project_id, workspace=workspace)
+        task      = get_object_or_404(Task, id=task_id, project=project)
+        entries   = task.time_entries.select_related("user").all()
+        return Response(TimeEntrySerializer(entries, many=True).data)
+
+    def post(self, request, workspace_slug, project_id, task_id):
+        """Manual time entry — requires duration_seconds."""
+        workspace = get_workspace_for_user(workspace_slug, request.user)
+        project   = get_object_or_404(Project, id=project_id, workspace=workspace)
+        task      = get_object_or_404(Task, id=task_id, project=project)
+        entry = TimeEntry.objects.create(
+            task=task,
+            user=request.user,
+            duration_seconds=request.data.get("duration_seconds", 0),
+            description=request.data.get("description", ""),
+            is_billable=request.data.get("is_billable", False),
+        )
+        return Response(TimeEntrySerializer(entry).data, status=status.HTTP_201_CREATED)
+
+
+class TimeEntryDeleteView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, workspace_slug, project_id, task_id, entry_id):
+        workspace = get_workspace_for_user(workspace_slug, request.user)
+        project   = get_object_or_404(Project, id=project_id, workspace=workspace)
+        task      = get_object_or_404(Task, id=task_id, project=project)
+        entry     = get_object_or_404(TimeEntry, id=entry_id, task=task, user=request.user)
+        entry.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class TimerStartView(APIView):
+    """POST — start a timer on a task. Stops any currently running timer for this user."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, workspace_slug, project_id, task_id):
+        workspace = get_workspace_for_user(workspace_slug, request.user)
+        project   = get_object_or_404(Project, id=project_id, workspace=workspace)
+        task      = get_object_or_404(Task, id=task_id, project=project)
+
+        # Stop any existing running timer for this user
+        running = TimeEntry.objects.filter(user=request.user, end_at__isnull=True, start_at__isnull=False)
+        for r in running:
+            r.stop()
+
+        entry = TimeEntry.objects.create(
+            task=task,
+            user=request.user,
+            start_at=timezone.now(),
+            description=request.data.get("description", ""),
+            is_billable=request.data.get("is_billable", False),
+        )
+        return Response(TimeEntrySerializer(entry).data, status=status.HTTP_201_CREATED)
+
+
+class TimerStopView(APIView):
+    """PATCH — stop the currently running timer."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, workspace_slug):
+        get_workspace_for_user(workspace_slug, request.user)
+        running = TimeEntry.objects.filter(user=request.user, end_at__isnull=True, start_at__isnull=False).first()
+        if not running:
+            return Response({"detail": "No active timer."}, status=status.HTTP_404_NOT_FOUND)
+        running.stop()
+        return Response(TimeEntrySerializer(running).data)
+
+
+class TimerActiveView(APIView):
+    """GET — return the currently running timer for this user (if any)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, workspace_slug):
+        get_workspace_for_user(workspace_slug, request.user)
+        running = TimeEntry.objects.filter(user=request.user, end_at__isnull=True, start_at__isnull=False).select_related("task").first()
+        if not running:
+            return Response(None)
+        return Response(TimeEntrySerializer(running).data)
+
+
+class TimesheetView(APIView):
+    """GET /timesheets/ — weekly logged hours per member per day."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, workspace_slug):
+        from django.db.models import Sum
+        import datetime as dt
+
+        workspace = get_workspace_for_user(workspace_slug, request.user)
+        week_str  = request.query_params.get("week")  # YYYY-Www
+
+        if week_str:
+            try:
+                year, week = week_str.split("-W")
+                start_date = dt.datetime.strptime(f"{year}-W{week}-1", "%Y-W%W-%w").date()
+            except (ValueError, AttributeError):
+                start_date = timezone.now().date() - dt.timedelta(days=timezone.now().weekday())
+        else:
+            start_date = timezone.now().date() - dt.timedelta(days=timezone.now().weekday())
+
+        end_date = start_date + dt.timedelta(days=6)
+
+        entries = (
+            TimeEntry.objects
+            .filter(
+                task__project__workspace=workspace,
+                created_at__date__gte=start_date,
+                created_at__date__lte=end_date,
+                end_at__isnull=False,
+            )
+            .select_related("user", "task")
+        )
+
+        # Group by user + day
+        from collections import defaultdict
+        grid = defaultdict(lambda: defaultdict(int))
+        users = {}
+        for entry in entries:
+            uid = str(entry.user_id)
+            users[uid] = {"id": uid, "name": entry.user.full_name or entry.user.email}
+            day_key = str(entry.created_at.date())
+            grid[uid][day_key] += entry.duration_seconds
+
+        days = [(start_date + dt.timedelta(days=i)).isoformat() for i in range(7)]
+        rows = [
+            {
+                "user": users[uid],
+                "days": {day: grid[uid].get(day, 0) for day in days},
+                "total": sum(grid[uid].values()),
+            }
+            for uid in users
+        ]
+
+        return Response({"week_start": str(start_date), "days": days, "rows": rows})
 
 

@@ -20,6 +20,21 @@ from .views import (
     ProjectPermissionsView,
     BoardListCreateView, BoardDetailView, BoardArchiveView,
     BoardTemplatesView, BoardReorderView,
+    # v2.4.0
+    TaskCloneView, TaskChildrenView,
+    TaskTemplateListCreateView, TaskTemplateDetailView, TaskApplyTemplateView,
+    # v2.5.0
+    WikiPageListCreateView, WikiPageDetailView, WikiPageRevisionsView,
+    DocumentListCreateView, DocumentDetailView,
+    # v2.6.0
+    FormListCreateView, FormDetailView, FormFieldsBulkUpdateView,
+    FormSubmissionListView, PublicFormView, PublicFormSubmitView,
+    # v2.7.0
+    AutomationRuleListCreateView, AutomationRuleDetailView, AutomationLogListView,
+    # v2.8.0
+    TimeEntryListCreateView, TimeEntryDeleteView,
+    TimerStartView, TimerStopView, TimerActiveView,
+    TimesheetView,
 )
 
 _ws = "workspaces/<slug:workspace_slug>"
@@ -99,4 +114,53 @@ urlpatterns += [
     path(f"{_bd}/templates/",                                 BoardTemplatesView.as_view()),
     path(f"{_bd}/<uuid:board_id>/",                           BoardDetailView.as_view()),
     path(f"{_bd}/<uuid:board_id>/archive/",                   BoardArchiveView.as_view()),
+]
+
+# v2.4.0 — Advanced Task System
+urlpatterns += [
+    path(f"{_tk}/clone/",                                     TaskCloneView.as_view()),
+    path(f"{_tk}/children/",                                  TaskChildrenView.as_view()),
+    path(f"{_tk}/apply-template/",                            TaskApplyTemplateView.as_view()),
+    path(f"{_pr}/task-templates/",                            TaskTemplateListCreateView.as_view()),
+    path(f"{_pr}/task-templates/<uuid:template_id>/",         TaskTemplateDetailView.as_view()),
+]
+
+# v2.5.0 — Wiki & Documents
+urlpatterns += [
+    path(f"{_pr}/wiki/",                                      WikiPageListCreateView.as_view()),
+    path(f"{_pr}/wiki/<uuid:page_id>/",                       WikiPageDetailView.as_view()),
+    path(f"{_pr}/wiki/<uuid:page_id>/revisions/",             WikiPageRevisionsView.as_view()),
+    path(f"{_ws}/documents/",                                 DocumentListCreateView.as_view()),
+    path(f"{_ws}/documents/<uuid:doc_id>/",                   DocumentDetailView.as_view()),
+]
+
+# v2.6.0 — Forms & Intake
+urlpatterns += [
+    path(f"{_pr}/forms/",                                     FormListCreateView.as_view()),
+    path(f"{_pr}/forms/<uuid:form_id>/",                      FormDetailView.as_view()),
+    path(f"{_pr}/forms/<uuid:form_id>/fields/",               FormFieldsBulkUpdateView.as_view()),
+    path(f"{_pr}/forms/<uuid:form_id>/submissions/",          FormSubmissionListView.as_view()),
+]
+
+# Public form endpoints — already under api/ via core/urls.py include, so no api/ prefix here
+urlpatterns += [
+    path("forms/<uuid:form_token>/",         PublicFormView.as_view()),
+    path("forms/<uuid:form_token>/submit/",  PublicFormSubmitView.as_view()),
+]
+
+# v2.7.0 — Automation Engine
+urlpatterns += [
+    path(f"{_pr}/automations/",                                 AutomationRuleListCreateView.as_view()),
+    path(f"{_pr}/automations/<uuid:rule_id>/",                  AutomationRuleDetailView.as_view()),
+    path(f"{_pr}/automations/<uuid:rule_id>/logs/",             AutomationLogListView.as_view()),
+]
+
+# v2.8.0 — Time Tracking
+urlpatterns += [
+    path(f"{_tk}/time-entries/",                                TimeEntryListCreateView.as_view()),
+    path(f"{_tk}/time-entries/<uuid:entry_id>/",                TimeEntryDeleteView.as_view()),
+    path(f"{_tk}/timer/start/",                                 TimerStartView.as_view()),
+    path(f"{_ws}/timer/stop/",                                  TimerStopView.as_view()),
+    path(f"{_ws}/timer/active/",                                TimerActiveView.as_view()),
+    path(f"{_ws}/timesheets/",                                  TimesheetView.as_view()),
 ]
