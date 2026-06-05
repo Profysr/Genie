@@ -2,26 +2,30 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Bell, ArrowRight } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { useInbox, useUpdateInboxItem, useInboxUnreadCount } from "@/hooks/useInbox";
+import {
+  useInbox,
+  useUpdateInboxItem,
+  useInboxUnreadCount,
+} from "@/hooks/useInbox";
 import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
 const VERB_LABELS = {
-  task_assigned:      "assigned you to",
-  task_commented:     "commented on",
-  task_mentioned:     "mentioned you in",
+  task_assigned: "assigned you to",
+  task_commented: "commented on",
+  task_mentioned: "mentioned you in",
   approval_requested: "requested approval on",
 };
 
 export default function NotificationBell() {
-  const navigate            = useNavigate();
-  const { workspaceSlug }   = useParams();
-  const [open, setOpen]     = useState(false);
-  const ref                 = useRef(null);
+  const navigate = useNavigate();
+  const { workspaceSlug } = useParams();
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
 
   const { data: items = [] } = useInbox(workspaceSlug, { tab: "for_you" });
-  const unreadCount          = useInboxUnreadCount(workspaceSlug);
-  const updateItem           = useUpdateInboxItem(workspaceSlug);
+  const unreadCount = useInboxUnreadCount(workspaceSlug);
+  const updateItem = useUpdateInboxItem(workspaceSlug);
 
   useEffect(() => {
     const handler = (e) => {
@@ -69,7 +73,7 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute left-0 bottom-full mb-2 z-50 w-[340px] bg-card border rounded-xl shadow-xl overflow-hidden">
+        <div className="absolute left-0 bottom-full mb-2 z-50 w-[340px] bg-card border rounded-md shadow-xl overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b">
             <h3 className="text-sm font-semibold">Notifications</h3>
@@ -95,7 +99,8 @@ export default function NotificationBell() {
                       {projectName}
                     </span>
                     <span className="text-[10px] text-muted-foreground ml-2 flex-shrink-0">
-                      {projectItems.filter((i) => i.status === "unread").length} unread
+                      {projectItems.filter((i) => i.status === "unread").length}{" "}
+                      unread
                     </span>
                   </div>
 
@@ -108,17 +113,27 @@ export default function NotificationBell() {
                         item.status === "unread" && "bg-primary/4",
                       )}
                     >
-                      <Avatar name={item.actor_name || "?"} size="xs" className="flex-shrink-0 mt-0.5" />
+                      <Avatar
+                        name={item.actor_name || "?"}
+                        size="xs"
+                        className="flex-shrink-0 mt-0.5"
+                      />
                       <div className="flex-1 min-w-0">
                         <p className="text-xs leading-snug break-words">
-                          <span className="font-semibold">{item.actor_name}</span>
-                          {" "}
-                          <span className="text-muted-foreground">{VERB_LABELS[item.verb] || item.verb}</span>
-                          {" "}
-                          <span className="font-medium">"{item.resource_name}"</span>
+                          <span className="font-semibold">
+                            {item.actor_name}
+                          </span>{" "}
+                          <span className="text-muted-foreground">
+                            {VERB_LABELS[item.verb] || item.verb}
+                          </span>{" "}
+                          <span className="font-medium">
+                            "{item.resource_name}"
+                          </span>
                         </p>
                         <p className="text-[10px] text-muted-foreground mt-0.5">
-                          {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+                          {formatDistanceToNow(new Date(item.created_at), {
+                            addSuffix: true,
+                          })}
                         </p>
                       </div>
                       {item.status === "unread" && (

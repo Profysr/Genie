@@ -1,8 +1,15 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  User, Lock, SlidersHorizontal, Palette, Keyboard,
-  Check, Eye, EyeOff, AlertCircle,
+  User,
+  Lock,
+  SlidersHorizontal,
+  Palette,
+  Keyboard,
+  Check,
+  Eye,
+  EyeOff,
+  AlertCircle,
 } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import { useAuthStore } from "@/store/authStore";
@@ -17,12 +24,14 @@ import api from "@/lib/api";
 // ── Shared <kbd> badge ────────────────────────────────────────────────────────
 function Key({ label }) {
   return (
-    <kbd className={cn(
-      "inline-flex items-center justify-center rounded-md border border-border bg-muted",
-      "text-[11px] font-semibold text-foreground leading-none shadow-sm",
-      "min-w-[22px] h-[22px] px-1.5",
-      (label === "Space" || label === "Enter" || label === "Esc") && "px-2.5",
-    )}>
+    <kbd
+      className={cn(
+        "inline-flex items-center justify-center rounded-md border border-border bg-muted",
+        "text-[11px] font-semibold text-foreground leading-none shadow-sm",
+        "min-w-[22px] h-[22px] px-1.5",
+        (label === "Space" || label === "Enter" || label === "Esc") && "px-2.5",
+      )}
+    >
       {label}
     </kbd>
   );
@@ -30,18 +39,18 @@ function Key({ label }) {
 
 // ── Tab definitions ───────────────────────────────────────────────────────────
 const TABS = [
-  { id: "me",          label: "Me",           icon: User },
-  { id: "password",    label: "Password",     icon: Lock },
-  { id: "preferences", label: "Preferences",  icon: SlidersHorizontal },
-  { id: "appearance",  label: "Appearance",   icon: Palette },
-  { id: "shortcuts",   label: "Shortcuts",    icon: Keyboard },
+  { id: "me", label: "Me", icon: User },
+  { id: "password", label: "Password", icon: Lock },
+  { id: "preferences", label: "Preferences", icon: SlidersHorizontal },
+  { id: "appearance", label: "Appearance", icon: Palette },
+  { id: "shortcuts", label: "Shortcuts", icon: Keyboard },
 ];
 
 // ── Me tab ────────────────────────────────────────────────────────────────────
 function MeTab() {
   const { user } = useAuthStore();
-  const qc        = useQueryClient();
-  const [form, setForm]       = useState({ full_name: "" });
+  const qc = useQueryClient();
+  const [form, setForm] = useState({ full_name: "" });
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
@@ -63,7 +72,7 @@ function MeTab() {
   return (
     <div className="space-y-6">
       {/* Avatar strip */}
-      <div className="flex items-center gap-4 p-4 bg-muted/30 rounded-xl">
+      <div className="flex items-center gap-4 p-4 bg-muted/30 rounded-md">
         <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center text-2xl font-bold flex-shrink-0">
           {initial}
         </div>
@@ -73,7 +82,13 @@ function MeTab() {
         </div>
       </div>
 
-      <form onSubmit={(e) => { e.preventDefault(); save.mutate(form); }} className="space-y-4">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          save.mutate(form);
+        }}
+        className="space-y-4"
+      >
         <div className="space-y-1.5">
           <Label htmlFor="full-name">Full name</Label>
           <Input
@@ -85,8 +100,14 @@ function MeTab() {
         </div>
         <div className="space-y-1.5">
           <Label>Email address</Label>
-          <Input value={user?.email || ""} disabled className="opacity-60 cursor-not-allowed" />
-          <p className="text-xs text-muted-foreground">Email cannot be changed here.</p>
+          <Input
+            value={user?.email || ""}
+            disabled
+            className="opacity-60 cursor-not-allowed"
+          />
+          <p className="text-xs text-muted-foreground">
+            Email cannot be changed here.
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <Button type="submit" size="sm" disabled={save.isPending}>
@@ -125,7 +146,11 @@ function PwField({ id, label, field, stateKey, show, setShow, setForm }) {
           onClick={() => setShow((s) => ({ ...s, [stateKey]: !s[stateKey] }))}
           className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
         >
-          {show[stateKey] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          {show[stateKey] ? (
+            <EyeOff className="w-4 h-4" />
+          ) : (
+            <Eye className="w-4 h-4" />
+          )}
         </button>
       </div>
     </div>
@@ -134,14 +159,19 @@ function PwField({ id, label, field, stateKey, show, setShow, setForm }) {
 
 // ── Password tab ──────────────────────────────────────────────────────────────
 function PasswordTab() {
-  const [form, setForm]   = useState({ old_password: "", new_password1: "", new_password2: "" });
-  const [show, setShow]   = useState({ old: false, new1: false, new2: false });
-  const [success, setSuccess]     = useState(false);
-  const [serverError, setError]   = useState("");
+  const [form, setForm] = useState({
+    old_password: "",
+    new_password1: "",
+    new_password2: "",
+  });
+  const [show, setShow] = useState({ old: false, new1: false, new2: false });
+  const [success, setSuccess] = useState(false);
+  const [serverError, setError] = useState("");
 
   // Uses dj_rest_auth's built-in endpoint: POST /api/auth/password/change/
   const change = useMutation({
-    mutationFn: (data) => api.post("/api/auth/password/change/", data).then((r) => r.data),
+    mutationFn: (data) =>
+      api.post("/api/auth/password/change/", data).then((r) => r.data),
     onSuccess: () => {
       setForm({ old_password: "", new_password1: "", new_password2: "" });
       setError("");
@@ -150,12 +180,13 @@ function PasswordTab() {
     },
     onError: (err) => {
       const data = err?.response?.data || {};
-      const msg  = data.old_password?.[0]
-        || data.new_password1?.[0]
-        || data.new_password2?.[0]
-        || data.detail
-        || data.non_field_errors?.[0]
-        || "Failed to change password.";
+      const msg =
+        data.old_password?.[0] ||
+        data.new_password1?.[0] ||
+        data.new_password2?.[0] ||
+        data.detail ||
+        data.non_field_errors?.[0] ||
+        "Failed to change password.";
       setError(msg);
     },
   });
@@ -174,13 +205,39 @@ function PasswordTab() {
     <div className="space-y-4">
       <div>
         <p className="text-sm font-medium mb-0.5">Change password</p>
-        <p className="text-xs text-muted-foreground">Use the form below to update your account password.</p>
+        <p className="text-xs text-muted-foreground">
+          Use the form below to update your account password.
+        </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <PwField id="old_password"   label="Current password"     field={form.old_password}  stateKey="old"  show={show} setShow={setShow} setForm={setForm} />
-        <PwField id="new_password1"  label="New password"         field={form.new_password1} stateKey="new1" show={show} setShow={setShow} setForm={setForm} />
-        <PwField id="new_password2"  label="Confirm new password" field={form.new_password2} stateKey="new2" show={show} setShow={setShow} setForm={setForm} />
+        <PwField
+          id="old_password"
+          label="Current password"
+          field={form.old_password}
+          stateKey="old"
+          show={show}
+          setShow={setShow}
+          setForm={setForm}
+        />
+        <PwField
+          id="new_password1"
+          label="New password"
+          field={form.new_password1}
+          stateKey="new1"
+          show={show}
+          setShow={setShow}
+          setForm={setForm}
+        />
+        <PwField
+          id="new_password2"
+          label="Confirm new password"
+          field={form.new_password2}
+          stateKey="new2"
+          show={show}
+          setShow={setShow}
+          setForm={setForm}
+        />
 
         {serverError && (
           <div className="flex items-start gap-2 text-sm text-destructive bg-destructive/8 border border-destructive/20 rounded-lg px-3 py-2">
@@ -200,7 +257,6 @@ function PasswordTab() {
           )}
         </div>
       </form>
-
     </div>
   );
 }
@@ -233,13 +289,21 @@ function PreferencesTab() {
           Mute in-app notifications for a set period.
         </p>
         {isFocusMode ? (
-          <div className="flex items-center justify-between p-3 rounded-xl bg-violet-500/10 border border-violet-500/20">
-            <span className="text-sm font-medium text-violet-700">Focus Mode is on</span>
-            <Button size="sm" variant="outline" onClick={disableFocus}>Turn off</Button>
+          <div className="flex items-center justify-between p-3 rounded-md bg-violet-500/10 border border-violet-500/20">
+            <span className="text-sm font-medium text-violet-700">
+              Focus Mode is on
+            </span>
+            <Button size="sm" variant="outline" onClick={disableFocus}>
+              Turn off
+            </Button>
           </div>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {[["1h","1 hour"], ["4h","4 hours"], ["8h","8 hours"]].map(([k, label]) => (
+            {[
+              ["1h", "1 hour"],
+              ["4h", "4 hours"],
+              ["8h", "8 hours"],
+            ].map(([k, label]) => (
               <Button
                 key={k}
                 size="sm"
@@ -254,8 +318,9 @@ function PreferencesTab() {
       </div>
 
       {/* Placeholder for future prefs */}
-      <div className="text-xs text-muted-foreground border border-dashed border-border rounded-xl px-4 py-3">
-        More preferences (notification digest time, quiet hours, etc.) coming soon.
+      <div className="text-xs text-muted-foreground border border-dashed border-border rounded-md px-4 py-3">
+        More preferences (notification digest time, quiet hours, etc.) coming
+        soon.
       </div>
     </div>
   );
@@ -263,33 +328,38 @@ function PreferencesTab() {
 
 // ── Appearance tab ────────────────────────────────────────────────────────────
 const THEMES = [
-  { value: "light",    label: "Light",    preview: "bg-white border-gray-200" },
-  { value: "dark",     label: "Dark",     preview: "bg-gray-900 border-gray-700" },
-  { value: "midnight", label: "Midnight", preview: "bg-slate-950 border-slate-800" },
+  { value: "light", label: "Light", preview: "bg-white border-gray-200" },
+  { value: "dark", label: "Dark", preview: "bg-gray-900 border-gray-700" },
+  {
+    value: "midnight",
+    label: "Midnight",
+    preview: "bg-slate-950 border-slate-800",
+  },
 ];
 
 const ACCENTS = [
-  { value: "indigo",  hex: "#6366f1" },
-  { value: "blue",    hex: "#3b82f6" },
-  { value: "violet",  hex: "#8b5cf6" },
-  { value: "pink",    hex: "#ec4899" },
-  { value: "rose",    hex: "#f43f5e" },
-  { value: "amber",   hex: "#f59e0b" },
+  { value: "indigo", hex: "#6366f1" },
+  { value: "blue", hex: "#3b82f6" },
+  { value: "violet", hex: "#8b5cf6" },
+  { value: "pink", hex: "#ec4899" },
+  { value: "rose", hex: "#f43f5e" },
+  { value: "amber", hex: "#f59e0b" },
   { value: "emerald", hex: "#10b981" },
-  { value: "cyan",    hex: "#06b6d4" },
-  { value: "slate",   hex: "#64748b" },
+  { value: "cyan", hex: "#06b6d4" },
+  { value: "slate", hex: "#64748b" },
 ];
 
 const DENSITIES = [
   { value: "comfortable", label: "Comfortable" },
-  { value: "cozy",        label: "Cozy" },
-  { value: "compact",     label: "Compact" },
+  { value: "cozy", label: "Cozy" },
+  { value: "compact", label: "Compact" },
 ];
 
 function AppearanceTab() {
   const { user } = useAuthStore();
-  const qc        = useQueryClient();
-  const { theme, accent, density, setTheme, setAccent, setDensity } = useThemeStore();
+  const qc = useQueryClient();
+  const { theme, accent, density, setTheme, setAccent, setDensity } =
+    useThemeStore();
   const [success, setSuccess] = useState(false);
 
   const save = useMutation({
@@ -325,19 +395,40 @@ function AppearanceTab() {
             <button
               key={t.value}
               onClick={() => applyTheme(t.value)}
-              className={cn(
-                "flex flex-col items-center gap-1.5 group",
-              )}
+              className={cn("flex flex-col items-center gap-1.5 group")}
             >
-              <div className={cn(
-                "w-16 h-10 rounded-lg border-2 transition-all",
-                t.preview,
-                theme === t.value ? "border-primary ring-2 ring-primary/30" : "border-border hover:border-primary/40",
-              )}>
-                <div className={cn("m-1.5 h-2 w-6 rounded-sm", theme === t.value ? "bg-primary/70" : "bg-muted-foreground/30")} />
-                <div className={cn("m-1.5 mt-0.5 h-1.5 w-8 rounded-sm", theme === t.value ? "bg-primary/40" : "bg-muted-foreground/20")} />
+              <div
+                className={cn(
+                  "w-16 h-10 rounded-lg border-2 transition-all",
+                  t.preview,
+                  theme === t.value
+                    ? "border-primary ring-2 ring-primary/30"
+                    : "border-border hover:border-primary/40",
+                )}
+              >
+                <div
+                  className={cn(
+                    "m-1.5 h-2 w-6 rounded-sm",
+                    theme === t.value
+                      ? "bg-primary/70"
+                      : "bg-muted-foreground/30",
+                  )}
+                />
+                <div
+                  className={cn(
+                    "m-1.5 mt-0.5 h-1.5 w-8 rounded-sm",
+                    theme === t.value
+                      ? "bg-primary/40"
+                      : "bg-muted-foreground/20",
+                  )}
+                />
               </div>
-              <span className={cn("text-xs font-medium", theme === t.value ? "text-primary" : "text-muted-foreground")}>
+              <span
+                className={cn(
+                  "text-xs font-medium",
+                  theme === t.value ? "text-primary" : "text-muted-foreground",
+                )}
+              >
                 {t.label}
               </span>
             </button>
@@ -356,7 +447,9 @@ function AppearanceTab() {
               title={a.value}
               className={cn(
                 "w-7 h-7 rounded-full border-2 transition-transform hover:scale-110",
-                accent === a.value ? "border-foreground scale-110 shadow-md" : "border-transparent",
+                accent === a.value
+                  ? "border-foreground scale-110 shadow-md"
+                  : "border-transparent",
               )}
               style={{ backgroundColor: a.hex }}
             />
@@ -413,10 +506,17 @@ function ShortcutsTab() {
             </h4>
             <div className="space-y-0">
               {group.shortcuts.map((s, i) => (
-                <div key={i} className="flex items-center justify-between gap-4 py-1.5 border-b border-border/40 last:border-0">
-                  <span className="text-xs text-foreground">{s.description}</span>
+                <div
+                  key={i}
+                  className="flex items-center justify-between gap-4 py-1.5 border-b border-border/40 last:border-0"
+                >
+                  <span className="text-xs text-foreground">
+                    {s.description}
+                  </span>
                   <div className="flex items-center gap-1 flex-shrink-0">
-                    {s.display.map((k, ki) => <Key key={ki} label={k} />)}
+                    {s.display.map((k, ki) => (
+                      <Key key={ki} label={k} />
+                    ))}
                   </div>
                 </div>
               ))}
@@ -425,7 +525,7 @@ function ShortcutsTab() {
         ))}
       </div>
 
-      <p className="text-xs text-muted-foreground/60 border border-dashed border-border rounded-xl px-4 py-3">
+      <p className="text-xs text-muted-foreground/60 border border-dashed border-border rounded-md px-4 py-3">
         Custom keybindings are coming in a future update.
       </p>
     </div>
@@ -437,11 +537,11 @@ export default function UserSettingsModal({ onClose, defaultTab = "me" }) {
   const [activeTab, setActiveTab] = useState(defaultTab);
 
   const CONTENT = {
-    me:          <MeTab />,
-    password:    <PasswordTab />,
+    me: <MeTab />,
+    password: <PasswordTab />,
     preferences: <PreferencesTab />,
-    appearance:  <AppearanceTab />,
-    shortcuts:   <ShortcutsTab />,
+    appearance: <AppearanceTab />,
+    shortcuts: <ShortcutsTab />,
   };
 
   return (

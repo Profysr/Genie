@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
+import { Loader } from "@/components/ui/Loader";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { useParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import {
@@ -7,7 +9,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import VoltEditor from "@/components/ui/VoltEditor";
+// Lazy — Tiptap + 15 extensions only load when a wiki page is opened for editing
+const VoltEditor = lazy(() => import("@/components/ui/VoltEditor"));
 import {
   useWikiPages, useWikiPage, useCreateWikiPage,
   useUpdateWikiPage, useDeleteWikiPage, useWikiRevisions,
@@ -25,9 +28,10 @@ export default function WikiPage() {
   const updatePage  = useUpdateWikiPage(workspaceSlug, projectId, pageId);
   const deletePage  = useDeleteWikiPage(workspaceSlug, projectId);
 
-  const [editingTitle, setEditingTitle] = useState(false);
-  const [titleDraft, setTitleDraft] = useState("");
+  const [editingTitle, setEditingTitle]   = useState(false);
+  const [titleDraft, setTitleDraft]       = useState("");
   const [showRevisions, setShowRevisions] = useState(false);
+  const [confirmState, setConfirmState]   = useState(null);
   const [newPageTitle, setNewPageTitle] = useState("");
   const [creatingPage, setCreatingPage] = useState(false);
 
@@ -54,12 +58,14 @@ export default function WikiPage() {
   };
 
   const handleDelete = () => {
-    if (!window.confirm("Delete this page permanently?")) return;
-    deletePage.mutate(pageId, {
-      onSuccess: () => {
-        toast.success("Page deleted");
-        navigate(`/w/${workspaceSlug}/projects/${projectId}/wiki`);
-      },
+    setConfirmState({
+      message: "This page will be permanently deleted.",
+      onConfirm: () => deletePage.mutate(pageId, {
+        onSuccess: () => {
+          toast.success("Page deleted");
+          navigate(`/w/${workspaceSlug}/projects/${projectId}/wiki`);
+        },
+      }),
     });
   };
 
@@ -131,9 +137,7 @@ export default function WikiPage() {
             </div>
           </div>
         ) : pageLoading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-          </div>
+          <Loader className="flex-1" />
         ) : page ? (
           <>
             {/* Page header */}
@@ -193,15 +197,17 @@ export default function WikiPage() {
             </div>
 
             <div className="flex flex-1 overflow-hidden">
-              {/* Editor */}
+              {/* Editor — Tiptap bundle loads on first render */}
               <div className="flex-1 overflow-y-auto px-8 py-6">
-                <VoltEditor
-                  key={page.id}
-                  value={page.content || ""}
-                  onBlur={(md) => { if (md !== page.content) updatePage.mutate({ content: md }); }}
-                  placeholder="Start writing…"
-                  className="min-h-[400px]"
-                />
+                <Suspense fallback={<Loader className="min-h-[400px]" />}>
+                  <VoltEditor
+                    key={page.id}
+                    value={page.content || ""}
+                    onBlur={(md) => { if (md !== page.content) updatePage.mutate({ content: md }); }}
+                    placeholder="Start writing…"
+                    className="min-h-[400px]"
+                  />
+                </Suspense>
               </div>
 
               {/* Revisions panel */}
@@ -218,6 +224,15 @@ export default function WikiPage() {
           </>
         ) : null}
       </div>
+
+      {confirmState && (
+        <ConfirmModal
+          title="Delete page?"
+          message={confirmState.message}
+          onConfirm={() => { confirmState.onConfirm(); setConfirmState(null); }}
+          onCancel={() => setConfirmState(null)}
+        />
+      )}
     </div>
   );
 }

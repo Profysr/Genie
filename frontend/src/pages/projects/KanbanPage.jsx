@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
+import { lazy, Suspense, useState, useMemo, useEffect } from "react";
+import { Loader } from "@/components/ui/Loader";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { DragDropContext } from "@hello-pangea/dnd";
 import { useProject } from "@/hooks/useProjects";
@@ -16,7 +17,8 @@ import { useAuthStore } from "@/store/authStore";
 import { useToast } from "@/components/ui/toast";
 import KanbanColumn from "@/components/tasks/KanbanColumn";
 import CreateTaskModal from "@/components/tasks/CreateTaskModal";
-import TaskDetailPanel from "@/components/tasks/TaskDetailPanel";
+// Lazy — TaskDetailPanel pulls in VoltEditor (Tiptap + extensions); load only when a task is opened
+const TaskDetailPanel = lazy(() => import("@/components/tasks/TaskDetailPanel"));
 import FilterBar from "@/components/tasks/FilterBar";
 import ListView from "@/components/tasks/ListView";
 import SprintPanel from "@/components/projects/SprintPanel";
@@ -27,8 +29,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Plus, ArrowLeft, Download, Settings2, Users, Lock, LayoutGrid, List, Zap, CalendarDays, GanttChartSquare, BookOpen, FormInput } from "lucide-react";
-import CalendarView from "@/components/tasks/CalendarView";
-import GanttView from "@/components/tasks/GanttView";
+// Lazy — only rendered when the user switches to that view
+const CalendarView = lazy(() => import("@/components/tasks/CalendarView"));
+const GanttView    = lazy(() => import("@/components/tasks/GanttView"));
 import { cn } from "@/lib/utils";
 import { APP_COLORS } from "@/lib/constants";
 import { useBulkUpdateTasks } from "@/hooks/useBulkActions";
@@ -529,31 +532,35 @@ export default function KanbanPage() {
 
         {/* Calendar View (v2.9.0) */}
         {view === "calendar" && (
-          <CalendarView
-            tasks={filteredTasks}
-            statuses={project?.statuses || []}
-            onTaskClick={openTask}
-            onCreateTask={(date) =>
-              setCreateModal({ open: true, statusId: null, date })
-            }
-            workspaceSlug={workspaceSlug}
-            projectId={projectId}
-            canEdit={perms.canEdit}
-          />
+          <Suspense fallback={<Loader className="flex-1" />}>
+            <CalendarView
+              tasks={filteredTasks}
+              statuses={project?.statuses || []}
+              onTaskClick={openTask}
+              onCreateTask={(date) =>
+                setCreateModal({ open: true, statusId: null, date })
+              }
+              workspaceSlug={workspaceSlug}
+              projectId={projectId}
+              canEdit={perms.canEdit}
+            />
+          </Suspense>
         )}
 
         {/* Timeline / Gantt View (v3.0.0) */}
         {view === "timeline" && (
-          <GanttView
-            tasks={filteredTasks}
-            statuses={project?.statuses || []}
-            members={members}
-            sprints={sprints}
-            onTaskClick={openTask}
-            workspaceSlug={workspaceSlug}
-            projectId={projectId}
-            canEdit={perms.canEdit}
-          />
+          <Suspense fallback={<Loader className="flex-1" />}>
+            <GanttView
+              tasks={filteredTasks}
+              statuses={project?.statuses || []}
+              members={members}
+              sprints={sprints}
+              onTaskClick={openTask}
+              workspaceSlug={workspaceSlug}
+              projectId={projectId}
+              canEdit={perms.canEdit}
+            />
+          </Suspense>
         )}
       </div>
 
@@ -586,8 +593,16 @@ export default function KanbanPage() {
         onClear={() => setSelectedIds(new Set())}
       />
 
-      {/* Task Detail Panel */}
+      {/* Task Detail Panel — lazy; Tiptap/VoltEditor bundle loads on first task open */}
       {selectedTaskId && (
+        <Suspense fallback={
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+            <div className="relative w-full max-w-2xl bg-card border border-border rounded-md shadow-2xl flex items-center justify-center" style={{ height: "60vh" }}>
+              <Loader size="lg" />
+            </div>
+          </div>
+        }>
         <TaskDetailPanel
           taskId={selectedTaskId}
           projectStatuses={project?.statuses || []}
@@ -597,6 +612,7 @@ export default function KanbanPage() {
           onClose={closeTask}
           canEdit={perms.canEdit}
         />
+        </Suspense>
       )}
 
       <CreateTaskModal

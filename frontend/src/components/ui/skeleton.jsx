@@ -3,10 +3,7 @@ import { cn } from "@/lib/utils";
 export function Skeleton({ className, ...props }) {
   return (
     <div
-      className={cn(
-        "animate-pulse rounded-md bg-muted",
-        className
-      )}
+      className={cn("animate-pulse rounded-md bg-muted", className)}
       {...props}
     />
   );
@@ -27,7 +24,12 @@ export function SkeletonText({ lines = 3, className }) {
 
 export function SkeletonCard({ className }) {
   return (
-    <div className={cn("rounded-xl border bg-card p-4 shadow-card space-y-3", className)}>
+    <div
+      className={cn(
+        "rounded-md border bg-card p-4 shadow-card space-y-3",
+        className,
+      )}
+    >
       <div className="flex items-center gap-3">
         <Skeleton className="h-8 w-8 rounded-full flex-shrink-0" />
         <div className="space-y-1.5 flex-1">
@@ -42,7 +44,9 @@ export function SkeletonCard({ className }) {
 
 export function SkeletonRow({ className }) {
   return (
-    <div className={cn("flex items-center gap-3 py-3 px-4 border-b", className)}>
+    <div
+      className={cn("flex items-center gap-3 py-3 px-4 border-b", className)}
+    >
       <Skeleton className="h-4 flex-1 max-w-xs" />
       <Skeleton className="h-4 w-20" />
       <Skeleton className="h-4 w-16" />

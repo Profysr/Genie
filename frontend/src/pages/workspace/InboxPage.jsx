@@ -367,7 +367,7 @@ function InboxItemRow({
           {snoozeOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={onSnoozeClose} />
-              <div className="absolute right-0 top-full mt-1 z-50 bg-popover border border-border rounded-xl shadow-popover py-1 w-40">
+              <div className="absolute right-0 top-full mt-1 z-50 bg-popover border border-border rounded-md shadow-popover py-1 w-40">
                 {SNOOZE_PRESETS.map((p) => (
                   <button
                     key={p.id}

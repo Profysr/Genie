@@ -1,21 +1,40 @@
 import { useState, useRef } from "react";
 import { Droppable } from "@hello-pangea/dnd";
-import { Plus, MoreHorizontal, Pencil, Check, Trash2, X, CheckCircle } from "lucide-react";
+import {
+  Plus,
+  MoreHorizontal,
+  Pencil,
+  Check,
+  Trash2,
+  X,
+  CheckCircle,
+} from "lucide-react";
 import TaskCard from "./TaskCard";
 import { useUpdateStatus, useDeleteStatus } from "@/hooks/useStatusManagement";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
 const PRESET_COLORS = [
-  "#94a3b8","#6366f1","#8b5cf6","#ec4899",
-  "#f59e0b","#22c55e","#14b8a6","#3b82f6",
-  "#ef4444","#f97316","#64748b","#0ea5e9",
+  "#94a3b8",
+  "#6366f1",
+  "#8b5cf6",
+  "#ec4899",
+  "#f59e0b",
+  "#22c55e",
+  "#14b8a6",
+  "#3b82f6",
+  "#ef4444",
+  "#f97316",
+  "#64748b",
+  "#0ea5e9",
 ];
 
 function ColumnMenu({ column, workspaceSlug, projectId, onClose }) {
   const [renaming, setRenaming] = useState(false);
-  const [nameVal, setNameVal]   = useState(column.name);
+  const [nameVal, setNameVal] = useState(column.name);
   const [showColors, setShowColors] = useState(false);
+  const [confirmState, setConfirmState] = useState(null);
 
   const updateStatus = useUpdateStatus(workspaceSlug, projectId);
   const deleteStatus = useDeleteStatus(workspaceSlug, projectId);
@@ -29,16 +48,19 @@ function ColumnMenu({ column, workspaceSlug, projectId, onClose }) {
   };
 
   const handleDelete = () => {
-    if (window.confirm(`Delete "${column.name}"? Tasks in this column will lose their status.`)) {
-      deleteStatus.mutate(column.id);
-      onClose();
-    }
+    setConfirmState({
+      message: `Tasks in "${column.name}" will lose their status.`,
+      onConfirm: () => {
+        deleteStatus.mutate(column.id);
+        onClose();
+      },
+    });
   };
 
   if (renaming) {
     return (
       <div
-        className="absolute top-full right-0 mt-1 z-50 bg-popover border rounded-xl shadow-popover p-2 w-44"
+        className="absolute top-full right-0 mt-1 z-50 bg-popover border rounded-md shadow-popover p-2 w-44"
         onClick={(e) => e.stopPropagation()}
       >
         <input
@@ -48,14 +70,26 @@ function ColumnMenu({ column, workspaceSlug, projectId, onClose }) {
           onChange={(e) => setNameVal(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") commitRename();
-            if (e.key === "Escape") { setRenaming(false); onClose(); }
+            if (e.key === "Escape") {
+              setRenaming(false);
+              onClose();
+            }
           }}
         />
         <div className="flex gap-1 mt-1.5">
-          <button onClick={commitRename} className="flex-1 text-xs py-1 bg-primary text-primary-foreground rounded-md font-medium">
+          <button
+            onClick={commitRename}
+            className="flex-1 text-xs py-1 bg-primary text-primary-foreground rounded-md font-medium"
+          >
             Save
           </button>
-          <button onClick={() => { setRenaming(false); onClose(); }} className="flex-1 text-xs py-1 border rounded-md text-muted-foreground hover:bg-accent">
+          <button
+            onClick={() => {
+              setRenaming(false);
+              onClose();
+            }}
+            className="flex-1 text-xs py-1 border rounded-md text-muted-foreground hover:bg-accent"
+          >
             Cancel
           </button>
         </div>
@@ -65,7 +99,7 @@ function ColumnMenu({ column, workspaceSlug, projectId, onClose }) {
 
   return (
     <div
-      className="absolute top-full right-0 mt-1 z-50 bg-popover border rounded-xl shadow-popover py-1 w-44"
+      className="absolute top-full right-0 mt-1 z-50 bg-popover border rounded-md shadow-popover py-1 w-44"
       onClick={(e) => e.stopPropagation()}
     >
       {/* Rename */}
@@ -79,9 +113,20 @@ function ColumnMenu({ column, workspaceSlug, projectId, onClose }) {
       {/* Mark as done toggle */}
       <button
         className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-accent text-sm transition-colors text-left"
-        onClick={() => { updateStatus.mutate({ statusId: column.id, is_done: !column.is_done }); onClose(); }}
+        onClick={() => {
+          updateStatus.mutate({
+            statusId: column.id,
+            is_done: !column.is_done,
+          });
+          onClose();
+        }}
       >
-        <CheckCircle className={cn("w-3.5 h-3.5", column.is_done ? "text-emerald-500" : "text-muted-foreground")} />
+        <CheckCircle
+          className={cn(
+            "w-3.5 h-3.5",
+            column.is_done ? "text-emerald-500" : "text-muted-foreground",
+          )}
+        />
         {column.is_done ? "Unmark as Done" : "Mark as Done"}
       </button>
 
@@ -90,7 +135,10 @@ function ColumnMenu({ column, workspaceSlug, projectId, onClose }) {
         className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-accent text-sm transition-colors text-left"
         onClick={() => setShowColors((v) => !v)}
       >
-        <span className="w-3.5 h-3.5 rounded-full border border-border/60 flex-shrink-0" style={{ backgroundColor: column.color }} />
+        <span
+          className="w-3.5 h-3.5 rounded-full border border-border/60 flex-shrink-0"
+          style={{ backgroundColor: column.color }}
+        />
         Change color
       </button>
 
@@ -99,9 +147,17 @@ function ColumnMenu({ column, workspaceSlug, projectId, onClose }) {
           {PRESET_COLORS.map((c) => (
             <button
               key={c}
-              className={cn("w-5 h-5 rounded-full border-2 transition-transform hover:scale-110", c === column.color ? "border-foreground scale-110" : "border-transparent")}
+              className={cn(
+                "w-5 h-5 rounded-full border-2 transition-transform hover:scale-110",
+                c === column.color
+                  ? "border-foreground scale-110"
+                  : "border-transparent",
+              )}
               style={{ backgroundColor: c }}
-              onClick={() => { updateStatus.mutate({ statusId: column.id, color: c }); onClose(); }}
+              onClick={() => {
+                updateStatus.mutate({ statusId: column.id, color: c });
+                onClose();
+              }}
             />
           ))}
         </div>
@@ -116,16 +172,35 @@ function ColumnMenu({ column, workspaceSlug, projectId, onClose }) {
           <Trash2 className="w-3.5 h-3.5" /> Delete column
         </button>
       </div>
+
+      {confirmState && (
+        <ConfirmModal
+          title="Delete column?"
+          message={confirmState.message}
+          onConfirm={() => {
+            confirmState.onConfirm();
+            setConfirmState(null);
+          }}
+          onCancel={() => setConfirmState(null)}
+        />
+      )}
     </div>
   );
 }
 
 export default function KanbanColumn({
-  column, tasks, onAddTask, onTaskClick,
-  selectedTaskId, selectedIds = new Set(), onToggleSelect,
-  workspaceSlug, projectId, canEdit,
+  column,
+  tasks,
+  onAddTask,
+  onTaskClick,
+  selectedTaskId,
+  selectedIds = new Set(),
+  onToggleSelect,
+  workspaceSlug,
+  projectId,
+  canEdit,
   columnViewers = [],
-  taskViewerMap  = {},
+  taskViewerMap = {},
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -146,7 +221,9 @@ export default function KanbanColumn({
             </div>
           ))}
           {columnViewers.length > 5 && (
-            <span className="text-[9px] text-muted-foreground">+{columnViewers.length - 5}</span>
+            <span className="text-[9px] text-muted-foreground">
+              +{columnViewers.length - 5}
+            </span>
           )}
         </div>
       )}
@@ -157,12 +234,17 @@ export default function KanbanColumn({
         style={{ borderTopColor: column.color }}
       >
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-foreground tracking-wide">{column.name}</span>
+          <span className="text-xs font-semibold text-foreground tracking-wide">
+            {column.name}
+          </span>
           <span className="text-[11px] text-muted-foreground bg-muted rounded px-1.5 py-0.5 font-mono tabular-nums">
             {tasks.length}
           </span>
           {column.is_done && (
-            <CheckCircle className="w-3 h-3 text-emerald-500" title="Done column" />
+            <CheckCircle
+              className="w-3 h-3 text-emerald-500"
+              title="Done column"
+            />
           )}
         </div>
 
@@ -179,7 +261,10 @@ export default function KanbanColumn({
               </button>
               {menuOpen && (
                 <>
-                  <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setMenuOpen(false)}
+                  />
                   <ColumnMenu
                     column={column}
                     workspaceSlug={workspaceSlug}
@@ -211,7 +296,9 @@ export default function KanbanColumn({
             ref={provided.innerRef}
             {...provided.droppableProps}
             className={`flex flex-col gap-1.5 min-h-[200px] rounded-b-md border border-t-0 border-border px-1.5 py-1.5 transition-colors ${
-              snapshot.isDraggingOver ? "bg-primary/5 border-primary/30" : "bg-card/40"
+              snapshot.isDraggingOver
+                ? "bg-primary/5 border-primary/30"
+                : "bg-card/40"
             }`}
           >
             {tasks.map((task, index) => (

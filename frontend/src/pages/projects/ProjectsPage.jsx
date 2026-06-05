@@ -18,7 +18,8 @@ export default function ProjectsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
           <p className="text-muted-foreground text-sm mt-0.5">
-            {projects?.length ?? 0} project{projects?.length !== 1 ? "s" : ""} in this workspace
+            {projects?.length ?? 0} project{projects?.length !== 1 ? "s" : ""}{" "}
+            in this workspace
           </p>
         </div>
         <Button onClick={() => setShowCreate(true)}>
@@ -31,8 +32,8 @@ export default function ProjectsPage() {
       )}
 
       {!isLoading && projects?.length === 0 && (
-        <div className="rounded-xl border bg-card p-16 text-center shadow-card">
-          <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
+        <div className="rounded-md border bg-card p-16 text-center shadow-card">
+          <div className="w-14 h-14 rounded--md bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
             <FolderKanban className="w-7 h-7" />
           </div>
           <p className="font-semibold text-lg">No projects yet</p>
@@ -47,21 +48,25 @@ export default function ProjectsPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {projects?.map((project) => {
-          const color = PROJECT_COLORS[project.name.charCodeAt(0) % PROJECT_COLORS.length];
+          const color =
+            PROJECT_COLORS[project.name.charCodeAt(0) % PROJECT_COLORS.length];
           const doneTasks = project.done_task_count || 0;
-          const pct = project.task_count > 0
-            ? Math.round((doneTasks / project.task_count) * 100)
-            : 0;
+          const pct =
+            project.task_count > 0
+              ? Math.round((doneTasks / project.task_count) * 100)
+              : 0;
 
           return (
             <button
               key={project.id}
-              onClick={() => navigate(`/w/${workspaceSlug}/projects/${project.id}`)}
-              className="text-left rounded-xl border bg-card p-5 hover:shadow-card-hover hover:border-primary/30 transition-all duration-200 group shadow-card"
+              onClick={() =>
+                navigate(`/w/${workspaceSlug}/projects/${project.id}`)
+              }
+              className="text-left rounded-md border bg-card p-5 hover:shadow-card-hover hover:border-primary/30 transition-all duration-200 group shadow-card"
             >
               <div className="flex items-start justify-between mb-3">
                 <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm text-white shadow-sm"
+                  className="w-10 h-10 rounded-md flex items-center justify-center font-bold text-sm text-white shadow-sm"
                   style={{ backgroundColor: color }}
                 >
                   {project.name[0].toUpperCase()}
@@ -97,7 +102,10 @@ export default function ProjectsPage() {
         })}
       </div>
 
-      <CreateProjectModal open={showCreate} onClose={() => setShowCreate(false)} />
+      <CreateProjectModal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+      />
     </div>
   );
 }

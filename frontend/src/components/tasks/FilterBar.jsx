@@ -1,29 +1,40 @@
 import { useState, useRef, useEffect } from "react";
-import { Search, X, Bookmark, BookmarkPlus, SlidersHorizontal, ChevronDown, Check, ShieldCheck } from "lucide-react";
+import {
+  Search,
+  X,
+  Bookmark,
+  BookmarkPlus,
+  SlidersHorizontal,
+  ChevronDown,
+  Check,
+  ShieldCheck,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { PRIORITIES, TASK_TYPES } from "@/lib/constants";
 
 // FilterBar needs active/idle chip classes — derive from PRIORITIES
-const PRIORITY_OPTIONS = PRIORITIES
-  .filter(p => p.value !== "no_priority")
-  .map(p => ({
-    value:  p.value,
-    label:  p.label,
-    active: p.filterActiveCls,
-    idle:   "border-border text-muted-foreground",
-  }));
+const PRIORITY_OPTIONS = PRIORITIES.filter(
+  (p) => p.value !== "no_priority",
+).map((p) => ({
+  value: p.value,
+  label: p.label,
+  active: p.filterActiveCls,
+  idle: "border-border text-muted-foreground",
+}));
 
 const DUE_OPTIONS = [
-  { value: "overdue",    label: "Overdue" },
-  { value: "today",      label: "Due today" },
-  { value: "this_week",  label: "This week" },
-  { value: "no_date",    label: "No due date" },
+  { value: "overdue", label: "Overdue" },
+  { value: "today", label: "Due today" },
+  { value: "this_week", label: "This week" },
+  { value: "no_date", label: "No due date" },
 ];
 
 function useClickOutside(ref, handler) {
   useEffect(() => {
-    const listener = (e) => { if (ref.current && !ref.current.contains(e.target)) handler(); };
+    const listener = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) handler();
+    };
     document.addEventListener("mousedown", listener);
     return () => document.removeEventListener("mousedown", listener);
   }, [ref, handler]);
@@ -36,10 +47,14 @@ function AssigneeFilter({ members, selected, onChange }) {
   useClickOutside(ref, () => setOpen(false));
 
   const toggle = (id) =>
-    onChange(selected.includes(id) ? selected.filter((v) => v !== id) : [...selected, id]);
+    onChange(
+      selected.includes(id)
+        ? selected.filter((v) => v !== id)
+        : [...selected, id],
+    );
 
   const visibleAvatars = members.filter((m) => selected.includes(m.user?.id));
-  const unselected     = members.filter((m) => !selected.includes(m.user?.id));
+  const unselected = members.filter((m) => !selected.includes(m.user?.id));
 
   return (
     <div ref={ref} className="relative flex items-center gap-1.5">
@@ -54,7 +69,9 @@ function AssigneeFilter({ members, selected, onChange }) {
               className="ring-2 ring-background rounded-full hover:ring-destructive/50 transition-all"
             >
               <Avatar
-                name={m.user?.display_name || m.user?.full_name || m.user?.email}
+                name={
+                  m.user?.display_name || m.user?.full_name || m.user?.email
+                }
                 src={m.user?.avatar}
                 size="sm"
               />
@@ -70,7 +87,7 @@ function AssigneeFilter({ members, selected, onChange }) {
           "flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md border transition-colors",
           selected.length > 0
             ? "border-primary/40 bg-primary/5 text-primary"
-            : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
+            : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground",
         )}
       >
         <span>Assignee</span>
@@ -78,7 +95,7 @@ function AssigneeFilter({ members, selected, onChange }) {
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1.5 z-50 bg-popover border rounded-xl shadow-popover py-1 min-w-[180px]">
+        <div className="absolute top-full left-0 mt-1.5 z-50 bg-popover border rounded-md shadow-popover py-1 min-w-[180px]">
           <p className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
             Filter by assignee
           </p>
@@ -91,19 +108,25 @@ function AssigneeFilter({ members, selected, onChange }) {
                 className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-accent transition-colors text-left"
               >
                 <Avatar
-                  name={m.user?.display_name || m.user?.full_name || m.user?.email}
+                  name={
+                    m.user?.display_name || m.user?.full_name || m.user?.email
+                  }
                   src={m.user?.avatar}
                   size="sm"
                 />
                 <span className="text-sm flex-1 truncate">
                   {m.user?.display_name || m.user?.full_name || m.user?.email}
                 </span>
-                {active && <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
+                {active && (
+                  <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                )}
               </button>
             );
           })}
           {members.length === 0 && (
-            <p className="px-3 py-2 text-sm text-muted-foreground">No members</p>
+            <p className="px-3 py-2 text-sm text-muted-foreground">
+              No members
+            </p>
           )}
         </div>
       )}
@@ -119,13 +142,16 @@ function AdvancedFilters({ filters, onChange, labels }) {
 
   const toggleArr = (key, val) => {
     const arr = filters[key] || [];
-    onChange({ ...filters, [key]: arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val] });
+    onChange({
+      ...filters,
+      [key]: arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val],
+    });
   };
 
   const advancedActive =
-    (filters.types?.length  || 0) +
+    (filters.types?.length || 0) +
     (filters.labels?.length || 0) +
-    (filters.due?.length    || 0);
+    (filters.due?.length || 0);
 
   return (
     <div ref={ref} className="relative">
@@ -135,7 +161,7 @@ function AdvancedFilters({ filters, onChange, labels }) {
           "flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border transition-colors",
           advancedActive > 0
             ? "border-primary/40 bg-primary/5 text-primary"
-            : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
+            : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground",
         )}
       >
         <SlidersHorizontal className="w-3.5 h-3.5" />
@@ -149,11 +175,12 @@ function AdvancedFilters({ filters, onChange, labels }) {
       </button>
 
       {open && (
-        <div className="absolute top-full right-0 mt-1.5 z-50 bg-popover border rounded-xl shadow-popover p-3 w-64 space-y-4">
-
+        <div className="absolute top-full right-0 mt-1.5 z-50 bg-popover border rounded-md shadow-popover p-3 w-64 space-y-4">
           {/* Task type */}
           <div>
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Task type</p>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+              Task type
+            </p>
             <div className="flex flex-wrap gap-1.5">
               {TASK_TYPES.map((t) => {
                 const active = (filters.types || []).includes(t.value);
@@ -165,7 +192,7 @@ function AdvancedFilters({ filters, onChange, labels }) {
                       "px-2 py-1 rounded text-xs font-medium border transition-colors",
                       active
                         ? "border-primary/40 bg-primary/10 text-primary"
-                        : "border-border text-muted-foreground hover:bg-accent"
+                        : "border-border text-muted-foreground hover:bg-accent",
                     )}
                   >
                     {t.label}
@@ -177,7 +204,9 @@ function AdvancedFilters({ filters, onChange, labels }) {
 
           {/* Due date */}
           <div>
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Due date</p>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+              Due date
+            </p>
             <div className="flex flex-wrap gap-1.5">
               {DUE_OPTIONS.map((d) => {
                 const active = (filters.due || []).includes(d.value);
@@ -189,7 +218,7 @@ function AdvancedFilters({ filters, onChange, labels }) {
                       "px-2 py-1 rounded text-xs font-medium border transition-colors",
                       active
                         ? "border-primary/40 bg-primary/10 text-primary"
-                        : "border-border text-muted-foreground hover:bg-accent"
+                        : "border-border text-muted-foreground hover:bg-accent",
                     )}
                   >
                     {d.label}
@@ -202,7 +231,9 @@ function AdvancedFilters({ filters, onChange, labels }) {
           {/* Labels */}
           {labels.length > 0 && (
             <div>
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Labels</p>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                Labels
+              </p>
               <div className="flex flex-wrap gap-1.5">
                 {labels.map((l) => {
                   const active = (filters.labels || []).includes(l.id);
@@ -212,12 +243,14 @@ function AdvancedFilters({ filters, onChange, labels }) {
                       onClick={() => toggleArr("labels", l.id)}
                       className={cn(
                         "px-2 py-0.5 rounded-full text-xs font-medium border transition-colors",
-                        active ? "opacity-100" : "opacity-50 hover:opacity-75"
+                        active ? "opacity-100" : "opacity-50 hover:opacity-75",
                       )}
                       style={{
                         borderColor: l.color,
                         color: l.color,
-                        backgroundColor: active ? l.color + "22" : "transparent",
+                        backgroundColor: active
+                          ? l.color + "22"
+                          : "transparent",
                       }}
                     >
                       {l.name}
@@ -247,7 +280,17 @@ function AdvancedFilters({ filters, onChange, labels }) {
 }
 
 /* ── Main FilterBar ──────────────────────────────────────────────────────── */
-export default function FilterBar({ filters, onChange, members = [], labels = [], savedViews = [], onSaveView, onDeleteView, inline = false, currentUserId }) {
+export default function FilterBar({
+  filters,
+  onChange,
+  members = [],
+  labels = [],
+  savedViews = [],
+  onSaveView,
+  onDeleteView,
+  inline = false,
+  currentUserId,
+}) {
   const [savingName, setSavingName] = useState("");
   const [showSaveInput, setShowSaveInput] = useState(false);
 
@@ -261,25 +304,37 @@ export default function FilterBar({ filters, onChange, members = [], labels = []
 
   const toggleArr = (key, val) => {
     const arr = filters[key] || [];
-    onChange({ ...filters, [key]: arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val] });
+    onChange({
+      ...filters,
+      [key]: arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val],
+    });
   };
 
   const handleSave = (e) => {
     e.preventDefault();
     if (!savingName.trim()) return;
     onSaveView?.({ name: savingName.trim(), filters });
-    setSavingName(""); setShowSaveInput(false);
+    setSavingName("");
+    setShowSaveInput(false);
   };
 
   const clearAll = () =>
-    onChange({ search: "", priorities: [], assignees: [], labels: [], types: [], due: [] });
+    onChange({
+      search: "",
+      priorities: [],
+      assignees: [],
+      labels: [],
+      types: [],
+      due: [],
+    });
 
   return (
-    <div className={cn(
-      "flex items-center gap-2.5 px-3 py-1.5 flex-shrink-0 flex-wrap flex-1 min-w-0",
-      !inline && "border-b bg-background min-h-[46px]"
-    )}>
-
+    <div
+      className={cn(
+        "flex items-center gap-2.5 px-3 py-1.5 flex-shrink-0 flex-wrap flex-1 min-w-0",
+        !inline && "border-b bg-background min-h-[46px]",
+      )}
+    >
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
@@ -302,7 +357,9 @@ export default function FilterBar({ filters, onChange, members = [], labels = []
             onClick={() => toggleArr("priorities", p.value)}
             className={cn(
               "px-2.5 py-1 rounded-md text-xs font-medium border transition-colors",
-              (filters.priorities || []).includes(p.value) ? p.active : `${p.idle} hover:bg-accent`
+              (filters.priorities || []).includes(p.value)
+                ? p.active
+                : `${p.idle} hover:bg-accent`,
             )}
           >
             {p.label}
@@ -328,7 +385,12 @@ export default function FilterBar({ filters, onChange, members = [], labels = []
       {/* Pending my approval chip — v3.6.0 */}
       {currentUserId && (
         <button
-          onClick={() => onChange({ ...filters, pendingMyApproval: !filters.pendingMyApproval })}
+          onClick={() =>
+            onChange({
+              ...filters,
+              pendingMyApproval: !filters.pendingMyApproval,
+            })
+          }
           className={cn(
             "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border transition-colors",
             filters.pendingMyApproval
@@ -342,8 +404,9 @@ export default function FilterBar({ filters, onChange, members = [], labels = []
       )}
 
       {/* Save view */}
-      {hasFilters && onSaveView && (
-        showSaveInput ? (
+      {hasFilters &&
+        onSaveView &&
+        (showSaveInput ? (
           <form onSubmit={handleSave} className="flex items-center gap-1.5">
             <input
               autoFocus
@@ -351,9 +414,13 @@ export default function FilterBar({ filters, onChange, members = [], labels = []
               placeholder="View name…"
               value={savingName}
               onChange={(e) => setSavingName(e.target.value)}
-              onBlur={() => { if (!savingName) setShowSaveInput(false); }}
+              onBlur={() => {
+                if (!savingName) setShowSaveInput(false);
+              }}
             />
-            <button type="submit" className="text-xs text-primary font-medium">Save</button>
+            <button type="submit" className="text-xs text-primary font-medium">
+              Save
+            </button>
           </form>
         ) : (
           <button
@@ -362,8 +429,7 @@ export default function FilterBar({ filters, onChange, members = [], labels = []
           >
             <BookmarkPlus className="w-3.5 h-3.5" /> Save view
           </button>
-        )
-      )}
+        ))}
 
       {/* Clear all */}
       {hasFilters && (
@@ -381,12 +447,25 @@ export default function FilterBar({ filters, onChange, members = [], labels = []
           {savedViews.map((v) => (
             <div key={v.id} className="flex items-center gap-0.5">
               <button
-                onClick={() => onChange({ search: "", priorities: [], assignees: [], labels: [], types: [], due: [], ...v.filters })}
+                onClick={() =>
+                  onChange({
+                    search: "",
+                    priorities: [],
+                    assignees: [],
+                    labels: [],
+                    types: [],
+                    due: [],
+                    ...v.filters,
+                  })
+                }
                 className="flex items-center gap-1 text-xs px-2 py-1 border rounded-md hover:bg-accent transition-colors"
               >
                 <Bookmark className="w-3 h-3" /> {v.name}
               </button>
-              <button onClick={() => onDeleteView?.(v.id)} className="text-muted-foreground hover:text-destructive p-0.5 transition-colors">
+              <button
+                onClick={() => onDeleteView?.(v.id)}
+                className="text-muted-foreground hover:text-destructive p-0.5 transition-colors"
+              >
                 <X className="w-3 h-3" />
               </button>
             </div>

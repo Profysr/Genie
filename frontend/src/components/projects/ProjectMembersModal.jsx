@@ -2,11 +2,29 @@ import { useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Popover from "@radix-ui/react-popover";
 import {
-  X, Users, Lock, Unlock, Link2, Trash2, Plus,
-  Check, ChevronDown, Copy, Clock,
+  X,
+  Users,
+  Lock,
+  Unlock,
+  Link2,
+  Trash2,
+  Plus,
+  Check,
+  ChevronDown,
+  Copy,
+  Clock,
 } from "lucide-react";
-import { useProjectMembers, useAddProjectMember, useUpdateProjectMember, useRemoveProjectMember } from "@/hooks/useProjectMembers";
-import { useGuestTokens, useCreateGuestToken, useRevokeGuestToken } from "@/hooks/useGuestTokens";
+import {
+  useProjectMembers,
+  useAddProjectMember,
+  useUpdateProjectMember,
+  useRemoveProjectMember,
+} from "@/hooks/useProjectMembers";
+import {
+  useGuestTokens,
+  useCreateGuestToken,
+  useRevokeGuestToken,
+} from "@/hooks/useGuestTokens";
 import { useMembers } from "@/hooks/useMembers";
 import { useUpdateProject } from "@/hooks/useProjects";
 import { useToast } from "@/components/ui/toast";
@@ -17,29 +35,29 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 
 const PROJECT_ROLES = [
-  { value: "admin",  label: "Admin",  desc: "Full access, manage members" },
+  { value: "admin", label: "Admin", desc: "Full access, manage members" },
   { value: "editor", label: "Editor", desc: "Create, edit, delete tasks" },
   { value: "viewer", label: "Viewer", desc: "View only, no edits" },
-  { value: "guest",  label: "Guest",  desc: "Read-only via share link" },
+  { value: "guest", label: "Guest", desc: "Read-only via share link" },
 ];
 
 const ROLE_BADGE_VARIANT = {
-  admin:  "default",
+  admin: "default",
   editor: "secondary",
   viewer: "muted",
-  guest:  "outline",
+  guest: "outline",
 };
 
 const ACTIONS = ["Create", "Edit", "Delete", "Admin"];
 const ROLE_PERMS = {
-  admin:  [true,  true,  true,  true ],
-  editor: [true,  true,  true,  false],
+  admin: [true, true, true, true],
+  editor: [true, true, true, false],
   viewer: [false, false, false, false],
-  guest:  [false, false, false, false],
+  guest: [false, false, false, false],
 };
 
 const EXPIRY_OPTIONS = [
-  { days: 7,  label: "7 days"  },
+  { days: 7, label: "7 days" },
   { days: 14, label: "14 days" },
   { days: 30, label: "30 days" },
 ];
@@ -47,30 +65,35 @@ const EXPIRY_OPTIONS = [
 const TABS = ["members", "permissions", "sharing"];
 
 export default function ProjectMembersModal({
-  open, onClose,
-  workspaceSlug, projectId,
+  open,
+  onClose,
+  workspaceSlug,
+  projectId,
   project,
   canAdmin,
 }) {
-  const [tab, setTab]           = useState("members");
-  const [addOpen, setAddOpen]   = useState(false);
+  const [tab, setTab] = useState("members");
+  const [addOpen, setAddOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState("");
-  const [addRole, setAddRole]   = useState("editor");
+  const [addRole, setAddRole] = useState("editor");
   const [tokenLabel, setTokenLabel] = useState("");
-  const [tokenDays, setTokenDays]   = useState(30);
-  const [copied, setCopied]         = useState(null);
+  const [tokenDays, setTokenDays] = useState(30);
+  const [copied, setCopied] = useState(null);
 
   const toast = useToast(); // full object: { toast, success, error, warning, info }
 
-  const { data: projectMembers = [] } = useProjectMembers(workspaceSlug, projectId);
-  const { data: wsMembers = [] }       = useMembers(workspaceSlug);
-  const { data: guestTokens = [] }     = useGuestTokens(workspaceSlug, projectId);
+  const { data: projectMembers = [] } = useProjectMembers(
+    workspaceSlug,
+    projectId,
+  );
+  const { data: wsMembers = [] } = useMembers(workspaceSlug);
+  const { data: guestTokens = [] } = useGuestTokens(workspaceSlug, projectId);
 
-  const addMember     = useAddProjectMember(workspaceSlug, projectId);
-  const updateMember  = useUpdateProjectMember(workspaceSlug, projectId);
-  const removeMember  = useRemoveProjectMember(workspaceSlug, projectId);
-  const createToken   = useCreateGuestToken(workspaceSlug, projectId);
-  const revokeToken   = useRevokeGuestToken(workspaceSlug, projectId);
+  const addMember = useAddProjectMember(workspaceSlug, projectId);
+  const updateMember = useUpdateProjectMember(workspaceSlug, projectId);
+  const removeMember = useRemoveProjectMember(workspaceSlug, projectId);
+  const createToken = useCreateGuestToken(workspaceSlug, projectId);
+  const revokeToken = useRevokeGuestToken(workspaceSlug, projectId);
   const updateProject = useUpdateProject(workspaceSlug, projectId);
 
   // Workspace members not yet in the project-level list
@@ -83,11 +106,13 @@ export default function ProjectMembersModal({
       { user_id: selectedUserId, role: addRole },
       {
         onSuccess: () => {
-          setSelectedUserId(""); setAddRole("editor"); setAddOpen(false);
+          setSelectedUserId("");
+          setAddRole("editor");
+          setAddOpen(false);
           toast.success("Member added");
         },
         onError: () => toast.error("Failed to add member"),
-      }
+      },
     );
   };
 
@@ -103,9 +128,12 @@ export default function ProjectMembersModal({
     createToken.mutate(
       { label: tokenLabel || "Shared link", days: tokenDays },
       {
-        onSuccess: () => { setTokenLabel(""); toast.success("Guest link created"); },
-        onError:   () => toast.error("Failed to create link"),
-      }
+        onSuccess: () => {
+          setTokenLabel("");
+          toast.success("Guest link created");
+        },
+        onError: () => toast.error("Failed to create link"),
+      },
     );
   };
 
@@ -113,8 +141,7 @@ export default function ProjectMembersModal({
     <Dialog.Root open={open} onOpenChange={onClose}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/40 z-40 animate-fade-in" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-card border rounded-xl shadow-xl w-full max-w-2xl animate-scale-in flex flex-col max-h-[85vh]">
-
+        <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-card border rounded-md shadow-xl w-full max-w-2xl animate-scale-in flex flex-col max-h-[85vh]">
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 border-b flex-shrink-0">
             <div className="flex items-center gap-2.5">
@@ -140,17 +167,20 @@ export default function ProjectMembersModal({
                   "px-3 py-2.5 text-sm font-medium capitalize transition-colors border-b-2 -mb-px",
                   tab === t
                     ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
                 )}
               >
-                {t === "members" ? "Members" : t === "permissions" ? "Permissions" : "Sharing"}
+                {t === "members"
+                  ? "Members"
+                  : t === "permissions"
+                    ? "Permissions"
+                    : "Sharing"}
               </button>
             ))}
           </div>
 
           {/* Body */}
           <div className="flex-1 overflow-y-auto p-5">
-
             {/* ── Members tab ── */}
             {tab === "members" && (
               <div className="space-y-4">
@@ -158,10 +188,11 @@ export default function ProjectMembersModal({
                 {canAdmin && (
                   <div className="flex items-center justify-between p-3 rounded-lg border bg-background">
                     <div className="flex items-center gap-2.5">
-                      {project?.is_private
-                        ? <Lock className="w-4 h-4 text-amber-500" />
-                        : <Unlock className="w-4 h-4 text-muted-foreground" />
-                      }
+                      {project?.is_private ? (
+                        <Lock className="w-4 h-4 text-amber-500" />
+                      ) : (
+                        <Unlock className="w-4 h-4 text-muted-foreground" />
+                      )}
                       <div>
                         <p className="text-sm font-medium">Private project</p>
                         <p className="text-xs text-muted-foreground">
@@ -173,17 +204,19 @@ export default function ProjectMembersModal({
                     </div>
                     <button
                       onClick={() =>
-                        updateProject.mutate({ is_private: !project?.is_private })
+                        updateProject.mutate({
+                          is_private: !project?.is_private,
+                        })
                       }
                       className={cn(
                         "relative w-10 h-5 rounded-full transition-colors focus:outline-none",
-                        project?.is_private ? "bg-primary" : "bg-muted"
+                        project?.is_private ? "bg-primary" : "bg-muted",
                       )}
                     >
                       <span
                         className={cn(
                           "absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform",
-                          project?.is_private && "translate-x-5"
+                          project?.is_private && "translate-x-5",
                         )}
                       />
                     </button>
@@ -203,8 +236,12 @@ export default function ProjectMembersModal({
                         size="sm"
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{member.user.display_name || member.user.full_name}</p>
-                        <p className="text-xs text-muted-foreground truncate">{member.user.email}</p>
+                        <p className="text-sm font-medium truncate">
+                          {member.user.display_name || member.user.full_name}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {member.user.email}
+                        </p>
                       </div>
 
                       {canAdmin ? (
@@ -215,7 +252,10 @@ export default function ProjectMembersModal({
                           }
                         />
                       ) : (
-                        <Badge variant={ROLE_BADGE_VARIANT[member.role]} size="sm">
+                        <Badge
+                          variant={ROLE_BADGE_VARIANT[member.role]}
+                          size="sm"
+                        >
                           {member.role}
                         </Badge>
                       )}
@@ -234,7 +274,8 @@ export default function ProjectMembersModal({
 
                   {projectMembers.length === 0 && (
                     <p className="text-sm text-muted-foreground text-center py-6">
-                      No project-specific members set — all workspace members inherit their workspace role.
+                      No project-specific members set — all workspace members
+                      inherit their workspace role.
                     </p>
                   )}
                 </div>
@@ -264,7 +305,11 @@ export default function ProjectMembersModal({
                         >
                           {addMember.isPending ? "Adding…" : "Add"}
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setAddOpen(false)}>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setAddOpen(false)}
+                        >
                           Cancel
                         </Button>
                       </div>
@@ -285,15 +330,21 @@ export default function ProjectMembersModal({
             {tab === "permissions" && (
               <div>
                 <p className="text-xs text-muted-foreground mb-4">
-                  Effective permissions per role. The workspace role always caps the project role — the most restrictive wins.
+                  Effective permissions per role. The workspace role always caps
+                  the project role — the most restrictive wins.
                 </p>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b">
-                        <th className="text-left py-2 pr-4 font-medium text-muted-foreground text-xs uppercase tracking-wide w-28">Role</th>
+                        <th className="text-left py-2 pr-4 font-medium text-muted-foreground text-xs uppercase tracking-wide w-28">
+                          Role
+                        </th>
                         {ACTIONS.map((a) => (
-                          <th key={a} className="text-center py-2 px-3 font-medium text-muted-foreground text-xs uppercase tracking-wide">
+                          <th
+                            key={a}
+                            className="text-center py-2 px-3 font-medium text-muted-foreground text-xs uppercase tracking-wide"
+                          >
                             {a}
                           </th>
                         ))}
@@ -301,7 +352,10 @@ export default function ProjectMembersModal({
                     </thead>
                     <tbody>
                       {Object.entries(ROLE_PERMS).map(([role, perms]) => (
-                        <tr key={role} className="border-b last:border-0 hover:bg-accent/20 transition-colors">
+                        <tr
+                          key={role}
+                          className="border-b last:border-0 hover:bg-accent/20 transition-colors"
+                        >
                           <td className="py-3 pr-4">
                             <Badge variant={ROLE_BADGE_VARIANT[role]} size="sm">
                               {role}
@@ -309,10 +363,13 @@ export default function ProjectMembersModal({
                           </td>
                           {perms.map((allowed, i) => (
                             <td key={i} className="text-center py-3 px-3">
-                              {allowed
-                                ? <Check className="w-4 h-4 text-emerald-500 mx-auto" />
-                                : <span className="text-muted-foreground/30 text-lg leading-none">—</span>
-                              }
+                              {allowed ? (
+                                <Check className="w-4 h-4 text-emerald-500 mx-auto" />
+                              ) : (
+                                <span className="text-muted-foreground/30 text-lg leading-none">
+                                  —
+                                </span>
+                              )}
                             </td>
                           ))}
                         </tr>
@@ -321,9 +378,18 @@ export default function ProjectMembersModal({
                   </table>
                 </div>
                 <div className="mt-4 p-3 rounded-lg bg-muted/40 text-xs text-muted-foreground space-y-1">
-                  <p><strong>Workspace Admin</strong> → always Admin on all projects.</p>
-                  <p><strong>Workspace Member</strong> → defaults to Editor; can be restricted per project.</p>
-                  <p><strong>Workspace Viewer</strong> → capped at Viewer regardless of project role.</p>
+                  <p>
+                    <strong>Workspace Admin</strong> → always Admin on all
+                    projects.
+                  </p>
+                  <p>
+                    <strong>Workspace Member</strong> → defaults to Editor; can
+                    be restricted per project.
+                  </p>
+                  <p>
+                    <strong>Workspace Viewer</strong> → capped at Viewer
+                    regardless of project role.
+                  </p>
                 </div>
               </div>
             )}
@@ -348,12 +414,19 @@ export default function ProjectMembersModal({
                     >
                       <Link2 className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">{t.label || "Shared link"}</p>
+                        <p className="text-sm font-medium">
+                          {t.label || "Shared link"}
+                        </p>
                         <p className="text-xs text-muted-foreground flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          Expires {formatDistanceToNow(new Date(t.expires_at), { addSuffix: true })}
+                          Expires{" "}
+                          {formatDistanceToNow(new Date(t.expires_at), {
+                            addSuffix: true,
+                          })}
                           {t.is_expired && (
-                            <Badge variant="destructive" size="sm">Expired</Badge>
+                            <Badge variant="destructive" size="sm">
+                              Expired
+                            </Badge>
                           )}
                         </p>
                       </div>
@@ -363,10 +436,14 @@ export default function ProjectMembersModal({
                           "flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border transition-colors",
                           copied === t.id
                             ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                            : "border-border hover:border-primary hover:text-primary"
+                            : "border-border hover:border-primary hover:text-primary",
                         )}
                       >
-                        {copied === t.id ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                        {copied === t.id ? (
+                          <Check className="w-3 h-3" />
+                        ) : (
+                          <Copy className="w-3 h-3" />
+                        )}
                         {copied === t.id ? "Copied!" : "Copy link"}
                       </button>
                       {canAdmin && (
@@ -401,7 +478,9 @@ export default function ProjectMembersModal({
                         onChange={(e) => setTokenDays(Number(e.target.value))}
                       >
                         {EXPIRY_OPTIONS.map((o) => (
-                          <option key={o.days} value={o.days}>{o.label}</option>
+                          <option key={o.days} value={o.days}>
+                            {o.label}
+                          </option>
                         ))}
                       </select>
                       <Button
@@ -413,7 +492,8 @@ export default function ProjectMembersModal({
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Guest links grant read-only access. Anyone with the link can view tasks without signing in.
+                      Guest links grant read-only access. Anyone with the link
+                      can view tasks without signing in.
                     </p>
                   </div>
                 )}
@@ -446,8 +526,8 @@ function RoleDropdown({ value, onChange }) {
           sideOffset={4}
           collisionPadding={8}
           className={cn(
-            "w-52 z-[300] bg-popover border rounded-xl shadow-popover py-1",
-            "animate-scale-in"
+            "w-52 z-[300] bg-popover border rounded-md shadow-popover py-1",
+            "animate-scale-in",
           )}
         >
           {PROJECT_ROLES.map((r) => (
@@ -456,12 +536,14 @@ function RoleDropdown({ value, onChange }) {
                 onClick={() => onChange(r.value)}
                 className={cn(
                   "w-full text-left px-3 py-2 hover:bg-accent transition-colors",
-                  value === r.value && "bg-primary/5"
+                  value === r.value && "bg-primary/5",
                 )}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">{r.label}</span>
-                  {value === r.value && <Check className="w-3.5 h-3.5 text-primary" />}
+                  {value === r.value && (
+                    <Check className="w-3.5 h-3.5 text-primary" />
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground">{r.desc}</p>
               </button>

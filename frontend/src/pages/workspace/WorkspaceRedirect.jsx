@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
+import { Loader } from "@/components/ui/Loader";
 
 export default function WorkspaceRedirect() {
   const navigate = useNavigate();
@@ -25,11 +26,9 @@ export default function WorkspaceRedirect() {
   }, [data, isError, navigate]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-        <p className="text-sm text-muted-foreground">Loading your workspace…</p>
-      </div>
+    <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-background">
+      <Loader size="xl" />
+      <p className="text-sm text-muted-foreground">Loading your workspace…</p>
     </div>
   );
 }

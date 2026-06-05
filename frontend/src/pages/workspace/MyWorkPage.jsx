@@ -1,11 +1,22 @@
 import { useState, useMemo } from "react";
+import { Loader } from "@/components/ui/Loader";
 import { useNavigate } from "react-router-dom";
 import { useMyWork } from "@/hooks/useMyWork";
 import { Calendar, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PRIORITIES, getPriority, APP_COLORS, pickColor } from "@/lib/constants";
+import {
+  PRIORITIES,
+  getPriority,
+  APP_COLORS,
+  pickColor,
+} from "@/lib/constants";
 
-const PRI = Object.fromEntries(PRIORITIES.map(p => [p.value, { icon: p.icon, cls: p.textCls, dot: p.dotCls }]));
+const PRI = Object.fromEntries(
+  PRIORITIES.map((p) => [
+    p.value,
+    { icon: p.icon, cls: p.textCls, dot: p.dotCls },
+  ]),
+);
 
 // Deterministic color from project name so the same project always gets the same badge colour
 // pickColor from constants replaces the local projectColor function
@@ -13,21 +24,48 @@ const PRI = Object.fromEntries(PRIORITIES.map(p => [p.value, { icon: p.icon, cls
 // ── Urgency bucketing ─────────────────────────────────────────────────────────
 export function sectionFor(task) {
   if (!task.due_date) return "no_date";
-  const today   = new Date(); today.setHours(0, 0, 0, 0);
-  const weekEnd = new Date(today); weekEnd.setDate(today.getDate() + 7);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const weekEnd = new Date(today);
+  weekEnd.setDate(today.getDate() + 7);
   const d = new Date(task.due_date + "T00:00:00");
-  if (d < today)                 return "overdue";
+  if (d < today) return "overdue";
   if (d.getTime() === today.getTime()) return "today";
-  if (d <= weekEnd)              return "this_week";
+  if (d <= weekEnd) return "this_week";
   return "later";
 }
 
 const SECTIONS = [
-  { id: "overdue",   label: "Overdue",      headerCls: "text-red-500",           countCls: "bg-red-500/10 text-red-500"          },
-  { id: "today",     label: "Due Today",    headerCls: "text-orange-500",        countCls: "bg-orange-500/10 text-orange-500"    },
-  { id: "this_week", label: "This Week",    headerCls: "text-foreground",        countCls: "bg-muted text-muted-foreground"      },
-  { id: "later",     label: "Later",        headerCls: "text-muted-foreground",  countCls: "bg-muted text-muted-foreground"      },
-  { id: "no_date",   label: "No Due Date",  headerCls: "text-muted-foreground",  countCls: "bg-muted text-muted-foreground"      },
+  {
+    id: "overdue",
+    label: "Overdue",
+    headerCls: "text-red-500",
+    countCls: "bg-red-500/10 text-red-500",
+  },
+  {
+    id: "today",
+    label: "Due Today",
+    headerCls: "text-orange-500",
+    countCls: "bg-orange-500/10 text-orange-500",
+  },
+  {
+    id: "this_week",
+    label: "This Week",
+    headerCls: "text-foreground",
+    countCls: "bg-muted text-muted-foreground",
+  },
+  {
+    id: "later",
+    label: "Later",
+    headerCls: "text-muted-foreground",
+    countCls: "bg-muted text-muted-foreground",
+  },
+  {
+    id: "no_date",
+    label: "No Due Date",
+    headerCls: "text-muted-foreground",
+    countCls: "bg-muted text-muted-foreground",
+  },
 ];
 
 function formatDate(str) {
@@ -38,9 +76,9 @@ function formatDate(str) {
 
 // ── Task row ──────────────────────────────────────────────────────────────────
 function TaskRow({ task, sectionId, onOpen }) {
-  const p      = PRI[task.priority] || PRI.no_priority;
-  const Icon   = p.icon;
-  const color  = pickColor(task.project_name);
+  const p = PRI[task.priority] || PRI.no_priority;
+  const Icon = p.icon;
+  const color = pickColor(task.project_name);
   const status = task.status_detail;
   const isOverdue = sectionId === "overdue";
 
@@ -79,10 +117,12 @@ function TaskRow({ task, sectionId, onOpen }) {
 
       {/* Due date */}
       {task.due_date && (
-        <span className={cn(
-          "flex-shrink-0 flex items-center gap-1 text-[11px] font-medium",
-          isOverdue ? "text-red-500" : "text-muted-foreground",
-        )}>
+        <span
+          className={cn(
+            "flex-shrink-0 flex items-center gap-1 text-[11px] font-medium",
+            isOverdue ? "text-red-500" : "text-muted-foreground",
+          )}
+        >
           <Calendar className="w-3 h-3" />
           {formatDate(task.due_date)}
         </span>
@@ -99,16 +139,28 @@ function Section({ id, label, headerCls, countCls, tasks, onOpen }) {
     <div className="mb-1">
       {/* Section header */}
       <button
-        onClick={() => setOpen(o => !o)}
+        onClick={() => setOpen((o) => !o)}
         className="w-full flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-accent/40 transition-colors group"
       >
-        {open
-          ? <ChevronDown  className="w-3.5 h-3.5 text-muted-foreground" />
-          : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
-        <span className={cn("text-xs font-semibold uppercase tracking-wider", headerCls)}>
+        {open ? (
+          <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+        )}
+        <span
+          className={cn(
+            "text-xs font-semibold uppercase tracking-wider",
+            headerCls,
+          )}
+        >
           {label}
         </span>
-        <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-0.5", countCls)}>
+        <span
+          className={cn(
+            "text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-0.5",
+            countCls,
+          )}
+        >
           {tasks.length}
         </span>
       </button>
@@ -116,7 +168,7 @@ function Section({ id, label, headerCls, countCls, tasks, onOpen }) {
       {/* Task rows */}
       {open && (
         <div className="mt-0.5">
-          {tasks.map(t => (
+          {tasks.map((t) => (
             <TaskRow key={t.id} task={t} sectionId={id} onOpen={onOpen} />
           ))}
         </div>
@@ -130,24 +182,24 @@ export default function MyWorkPage() {
   const navigate = useNavigate();
   const { data: tasks = [], isLoading } = useMyWork();
 
-  const grouped = useMemo(() =>
-    SECTIONS.map(s => ({ ...s, tasks: tasks.filter(t => sectionFor(t) === s.id) }))
-             .filter(s => s.tasks.length > 0),
-  [tasks]);
+  const grouped = useMemo(
+    () =>
+      SECTIONS.map((s) => ({
+        ...s,
+        tasks: tasks.filter((t) => sectionFor(t) === s.id),
+      })).filter((s) => s.tasks.length > 0),
+    [tasks],
+  );
 
   const handleOpen = (task) => {
     if (task.workspace_slug && task.project_id) {
-      navigate(`/w/${task.workspace_slug}/projects/${task.project_id}?task=${task.id}`);
+      navigate(
+        `/w/${task.workspace_slug}/projects/${task.project_id}?task=${task.id}`,
+      );
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-      </div>
-    );
-  }
+  if (isLoading) return <Loader className="flex-1" />;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -170,17 +222,24 @@ export default function MyWorkPage() {
         {/* Quick stats */}
         {tasks.length > 0 && (
           <div className="flex items-center gap-3 mt-3">
-            {SECTIONS.filter(s => tasks.filter(t => sectionFor(t) === s.id).length > 0).map(s => {
-              const count = tasks.filter(t => sectionFor(t) === s.id).length;
+            {SECTIONS.filter(
+              (s) => tasks.filter((t) => sectionFor(t) === s.id).length > 0,
+            ).map((s) => {
+              const count = tasks.filter((t) => sectionFor(t) === s.id).length;
               return (
                 <div key={s.id} className="flex items-center gap-1.5">
-                  <span className={cn("w-1.5 h-1.5 rounded-full", {
-                    overdue:   "bg-red-500",
-                    today:     "bg-orange-500",
-                    this_week: "bg-primary",
-                    later:     "bg-muted-foreground",
-                    no_date:   "bg-muted-foreground/50",
-                  }[s.id])} />
+                  <span
+                    className={cn(
+                      "w-1.5 h-1.5 rounded-full",
+                      {
+                        overdue: "bg-red-500",
+                        today: "bg-orange-500",
+                        this_week: "bg-primary",
+                        later: "bg-muted-foreground",
+                        no_date: "bg-muted-foreground/50",
+                      }[s.id],
+                    )}
+                  />
                   <span className="text-xs text-muted-foreground">
                     {count} {s.label.toLowerCase()}
                   </span>
@@ -195,12 +254,18 @@ export default function MyWorkPage() {
       <div className="flex-1 overflow-auto px-4 py-3">
         {tasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-20">
-            <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center text-2xl mb-4">🎉</div>
-            <p className="font-semibold text-foreground">You're all caught up!</p>
-            <p className="text-sm text-muted-foreground mt-1">No tasks assigned to you right now.</p>
+            <div className="w-14 h-14 rounded--md bg-muted flex items-center justify-center text-2xl mb-4">
+              🎉
+            </div>
+            <p className="font-semibold text-foreground">
+              You're all caught up!
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              No tasks assigned to you right now.
+            </p>
           </div>
         ) : (
-          grouped.map(s => (
+          grouped.map((s) => (
             <Section
               key={s.id}
               id={s.id}

@@ -1,20 +1,37 @@
 import { useState } from "react";
-import { Sun, Moon, Eclipse, Palette, AlignJustify, ChevronRight } from "lucide-react";
+import {
+  Sun,
+  Moon,
+  Eclipse,
+  Palette,
+  AlignJustify,
+  ChevronRight,
+} from "lucide-react";
 import * as Popover from "@radix-ui/react-popover";
 import { cn } from "@/lib/utils";
-import { useThemeStore, ACCENT_COLORS, DENSITIES, THEMES } from "@/store/themeStore";
+import {
+  useThemeStore,
+  ACCENT_COLORS,
+  DENSITIES,
+  THEMES,
+} from "@/store/themeStore";
 
 const THEME_ICONS = {
-  light:    <Sun className="w-3.5 h-3.5" />,
-  dark:     <Moon className="w-3.5 h-3.5" />,
+  light: <Sun className="w-3.5 h-3.5" />,
+  dark: <Moon className="w-3.5 h-3.5" />,
   midnight: <Eclipse className="w-3.5 h-3.5" />,
 };
 
 const THEME_LABELS = { light: "Light", dark: "Dark", midnight: "Midnight" };
-const DENSITY_LABELS = { comfortable: "Comfortable", compact: "Compact", cozy: "Cozy" };
+const DENSITY_LABELS = {
+  comfortable: "Comfortable",
+  compact: "Compact",
+  cozy: "Cozy",
+};
 
 export function ThemeToggle({ collapsed = false }) {
-  const { theme, accent, density, setTheme, setAccent, setDensity } = useThemeStore();
+  const { theme, accent, density, setTheme, setAccent, setDensity } =
+    useThemeStore();
   const [open, setOpen] = useState(false);
 
   return (
@@ -44,9 +61,9 @@ export function ThemeToggle({ collapsed = false }) {
           sideOffset={8}
           align="end"
           className={cn(
-            "w-52 rounded-xl border bg-popover shadow-popover p-3 space-y-3",
+            "w-52 rounded-md border bg-popover shadow-popover p-3 space-y-3",
             "animate-scale-in",
-            "z-[200]"
+            "z-[200]",
           )}
         >
           {/* Theme */}
@@ -64,7 +81,7 @@ export function ThemeToggle({ collapsed = false }) {
                     "transition-colors active:scale-[0.97]",
                     theme === t
                       ? "bg-primary/10 text-primary ring-1 ring-primary/30"
-                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground",
                   )}
                 >
                   {THEME_ICONS[t]}
@@ -89,7 +106,7 @@ export function ThemeToggle({ collapsed = false }) {
                     "w-5 h-5 rounded-full transition-transform active:scale-[0.97]",
                     accent === key
                       ? "ring-2 ring-offset-2 ring-offset-popover scale-110"
-                      : "hover:scale-110"
+                      : "hover:scale-110",
                   )}
                   style={{
                     backgroundColor: hex,
@@ -118,7 +135,7 @@ export function ThemeToggle({ collapsed = false }) {
                     "transition-colors active:scale-[0.97]",
                     density === d
                       ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground",
                   )}
                 >
                   {DENSITY_LABELS[d]}

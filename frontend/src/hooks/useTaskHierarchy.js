@@ -28,6 +28,19 @@ export function useCreateChildTask(workspaceSlug, projectId, taskId) {
   });
 }
 
+export function useAttachChildTask(workspaceSlug, projectId, parentTaskId) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (childTaskId) =>
+      api.patch(`/api/workspaces/${workspaceSlug}/projects/${projectId}/tasks/${childTaskId}/`, { parent_id: parentTaskId }).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["children", workspaceSlug, projectId, parentTaskId] });
+      qc.invalidateQueries({ queryKey: ["task-detail", workspaceSlug, projectId, parentTaskId] });
+      qc.invalidateQueries({ queryKey: ["tasks", workspaceSlug, projectId] });
+    },
+  });
+}
+
 // ── Clone ─────────────────────────────────────────────────────────────────────
 
 export function useCloneTask(workspaceSlug, projectId) {

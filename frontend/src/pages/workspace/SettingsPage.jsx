@@ -7,7 +7,14 @@ import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertTriangle, Plug, ChevronRight, Key, Webhook, Upload } from "lucide-react";
+import {
+  AlertTriangle,
+  Plug,
+  ChevronRight,
+  Key,
+  Webhook,
+  Upload,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 
 export default function SettingsPage() {
@@ -17,7 +24,8 @@ export default function SettingsPage() {
 
   const { data: workspace, isLoading } = useQuery({
     queryKey: ["workspace", workspaceSlug],
-    queryFn: () => api.get(`/api/workspaces/${workspaceSlug}/`).then((r) => r.data),
+    queryFn: () =>
+      api.get(`/api/workspaces/${workspaceSlug}/`).then((r) => r.data),
   });
 
   const updateWorkspace = useUpdateWorkspace(workspaceSlug);
@@ -28,7 +36,11 @@ export default function SettingsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState("");
 
   useEffect(() => {
-    if (workspace) setForm({ name: workspace.name || "", description: workspace.description || "" });
+    if (workspace)
+      setForm({
+        name: workspace.name || "",
+        description: workspace.description || "",
+      });
   }, [workspace]);
 
   const isOwner = workspace?.owner?.email === user?.email;
@@ -56,11 +68,13 @@ export default function SettingsPage() {
     <div className="p-8 max-w-2xl space-y-10">
       <div>
         <h1 className="text-2xl font-semibold">Workspace Settings</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">Manage your workspace configuration</p>
+        <p className="text-muted-foreground text-sm mt-0.5">
+          Manage your workspace configuration
+        </p>
       </div>
 
       {/* General settings */}
-      <section className="rounded-xl border bg-card p-6">
+      <section className="rounded-md border bg-card p-6">
         <h2 className="text-base font-medium mb-5">General</h2>
         <form onSubmit={handleSave} className="space-y-4">
           <div className="space-y-1.5">
@@ -73,21 +87,30 @@ export default function SettingsPage() {
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="ws-desc">Description <span className="text-muted-foreground font-normal">(optional)</span></Label>
+            <Label htmlFor="ws-desc">
+              Description{" "}
+              <span className="text-muted-foreground font-normal">
+                (optional)
+              </span>
+            </Label>
             <textarea
               id="ws-desc"
               className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring resize-none"
               rows={3}
               placeholder="What is this workspace for?"
               value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, description: e.target.value })
+              }
             />
           </div>
           <div className="flex items-center gap-3">
             <Button type="submit" disabled={updateWorkspace.isPending}>
               {updateWorkspace.isPending ? "Saving…" : "Save changes"}
             </Button>
-            {saveSuccess && <span className="text-sm text-green-600">Saved!</span>}
+            {saveSuccess && (
+              <span className="text-sm text-green-600">Saved!</span>
+            )}
             {updateWorkspace.isError && (
               <span className="text-sm text-destructive">Failed to save.</span>
             )}
@@ -96,22 +119,45 @@ export default function SettingsPage() {
       </section>
 
       {/* Developer & integration quick-links */}
-      <section className="rounded-xl border bg-card p-6">
+      <section className="rounded-md border bg-card p-6">
         <h2 className="text-base font-medium mb-1">Developer & Integrations</h2>
-        <p className="text-sm text-muted-foreground mb-4">Connect third-party tools, build on the JCN API, and migrate your data.</p>
+        <p className="text-sm text-muted-foreground mb-4">
+          Connect third-party tools, build on the JCN API, and migrate your
+          data.
+        </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {[
-            { to: "integrations", icon: Plug,    label: "Integrations",  desc: "Slack, Teams, Google Chat" },
-            { to: "api",          icon: Key,      label: "API Keys",      desc: "Programmatic access"       },
-            { to: "webhooks",     icon: Webhook,  label: "Webhooks",      desc: "Outbound event webhooks"   },
-            { to: "import",       icon: Upload,   label: "Import",        desc: "Migrate from Jira, Trello…"},
+            {
+              to: "integrations",
+              icon: Plug,
+              label: "Integrations",
+              desc: "Slack, Teams, Google Chat",
+            },
+            {
+              to: "api",
+              icon: Key,
+              label: "API Keys",
+              desc: "Programmatic access",
+            },
+            {
+              to: "webhooks",
+              icon: Webhook,
+              label: "Webhooks",
+              desc: "Outbound event webhooks",
+            },
+            {
+              to: "import",
+              icon: Upload,
+              label: "Import",
+              desc: "Migrate from Jira, Trello…",
+            },
           ].map((item) => {
             const Icon = item.icon;
             return (
               <Link
                 key={item.to}
                 to={`/w/${workspace?.slug}/settings/${item.to}`}
-                className="flex items-center gap-3 px-4 py-3 bg-muted hover:bg-accent rounded-xl text-sm transition-colors group"
+                className="flex items-center gap-3 px-4 py-3 bg-muted hover:bg-accent rounded-md text-sm transition-colors group"
               >
                 <Icon className="w-4 h-4 text-primary flex-shrink-0" />
                 <div className="min-w-0">
@@ -127,18 +173,25 @@ export default function SettingsPage() {
 
       {/* Danger zone — owner only */}
       {isOwner && (
-        <section className="rounded-xl border border-destructive/40 bg-card p-6">
+        <section className="rounded-md border border-destructive/40 bg-card p-6">
           <div className="flex items-center gap-2 mb-1">
             <AlertTriangle className="w-4 h-4 text-destructive" />
-            <h2 className="text-base font-medium text-destructive">Danger Zone</h2>
+            <h2 className="text-base font-medium text-destructive">
+              Danger Zone
+            </h2>
           </div>
           <p className="text-sm text-muted-foreground mb-5">
-            Deleting the workspace is permanent. All projects, tasks, and members will be removed immediately.
+            Deleting the workspace is permanent. All projects, tasks, and
+            members will be removed immediately.
           </p>
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="delete-confirm">
-                Type <span className="font-semibold text-foreground">{workspace?.name}</span> to confirm
+                Type{" "}
+                <span className="font-semibold text-foreground">
+                  {workspace?.name}
+                </span>{" "}
+                to confirm
               </Label>
               <Input
                 id="delete-confirm"
@@ -149,10 +202,14 @@ export default function SettingsPage() {
             </div>
             <Button
               variant="destructive"
-              disabled={deleteConfirm !== workspace?.name || deleteWorkspace.isPending}
+              disabled={
+                deleteConfirm !== workspace?.name || deleteWorkspace.isPending
+              }
               onClick={handleDelete}
             >
-              {deleteWorkspace.isPending ? "Deleting…" : "Delete this workspace"}
+              {deleteWorkspace.isPending
+                ? "Deleting…"
+                : "Delete this workspace"}
             </Button>
           </div>
         </section>

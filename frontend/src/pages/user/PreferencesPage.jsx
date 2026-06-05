@@ -1,7 +1,15 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { User, Lock, Keyboard, Check, Eye, EyeOff, AlertCircle } from "lucide-react";
+import {
+  User,
+  Lock,
+  Keyboard,
+  Check,
+  Eye,
+  EyeOff,
+  AlertCircle,
+} from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,17 +37,17 @@ function Key({ label }) {
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 const TABS = [
-  { id: "profile",   label: "Profile",   icon: User },
-  { id: "security",  label: "Security",  icon: Lock },
+  { id: "profile", label: "Profile", icon: User },
+  { id: "security", label: "Security", icon: Lock },
   { id: "shortcuts", label: "Shortcuts", icon: Keyboard },
 ];
 
 // ── Profile Tab ───────────────────────────────────────────────────────────────
 function ProfileTab() {
   const { user } = useAuthStore();
-  const qc        = useQueryClient();
+  const qc = useQueryClient();
 
-  const [form, setForm]       = useState({ full_name: "" });
+  const [form, setForm] = useState({ full_name: "" });
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
@@ -91,8 +99,14 @@ function ProfileTab() {
 
         <div className="space-y-1.5">
           <Label>Email address</Label>
-          <Input value={user?.email || ""} disabled className="opacity-60 cursor-not-allowed" />
-          <p className="text-xs text-muted-foreground">Email cannot be changed from this page.</p>
+          <Input
+            value={user?.email || ""}
+            disabled
+            className="opacity-60 cursor-not-allowed"
+          />
+          <p className="text-xs text-muted-foreground">
+            Email cannot be changed from this page.
+          </p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -115,13 +129,22 @@ function ProfileTab() {
 
 // ── Security Tab ──────────────────────────────────────────────────────────────
 function SecurityTab() {
-  const [form, setForm]         = useState({ current_password: "", new_password: "", confirm_password: "" });
-  const [showPw, setShowPw]     = useState({ current: false, new: false, confirm: false });
-  const [success, setSuccess]   = useState(false);
+  const [form, setForm] = useState({
+    current_password: "",
+    new_password: "",
+    confirm_password: "",
+  });
+  const [showPw, setShowPw] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  });
+  const [success, setSuccess] = useState(false);
   const [serverError, setServerError] = useState("");
 
   const changePassword = useMutation({
-    mutationFn: (data) => api.post("/api/users/me/change-password/", data).then((r) => r.data),
+    mutationFn: (data) =>
+      api.post("/api/users/me/change-password/", data).then((r) => r.data),
     onSuccess: () => {
       setForm({ current_password: "", new_password: "", confirm_password: "" });
       setServerError("");
@@ -129,7 +152,9 @@ function SecurityTab() {
       setTimeout(() => setSuccess(false), 4000);
     },
     onError: (err) => {
-      setServerError(err?.response?.data?.detail || "Failed to change password.");
+      setServerError(
+        err?.response?.data?.detail || "Failed to change password.",
+      );
     },
   });
 
@@ -155,7 +180,9 @@ function SecurityTab() {
           id={id}
           type={showPw[field] ? "text" : "password"}
           value={form[`${field}_password`]}
-          onChange={(e) => setForm({ ...form, [`${field}_password`]: e.target.value })}
+          onChange={(e) =>
+            setForm({ ...form, [`${field}_password`]: e.target.value })
+          }
           className="pr-10"
           required
         />
@@ -165,7 +192,11 @@ function SecurityTab() {
           className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
           tabIndex={-1}
         >
-          {showPw[field] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          {showPw[field] ? (
+            <EyeOff className="w-4 h-4" />
+          ) : (
+            <Eye className="w-4 h-4" />
+          )}
         </button>
       </div>
     </div>
@@ -175,13 +206,23 @@ function SecurityTab() {
     <div className="space-y-6 max-w-sm">
       <div>
         <h3 className="font-medium mb-0.5">Change password</h3>
-        <p className="text-sm text-muted-foreground">Must be at least 8 characters.</p>
+        <p className="text-sm text-muted-foreground">
+          Must be at least 8 characters.
+        </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <PasswordField id="current-pw"  label="Current password"  field="current" />
-        <PasswordField id="new-pw"      label="New password"       field="new"     />
-        <PasswordField id="confirm-pw"  label="Confirm new password" field="confirm" />
+        <PasswordField
+          id="current-pw"
+          label="Current password"
+          field="current"
+        />
+        <PasswordField id="new-pw" label="New password" field="new" />
+        <PasswordField
+          id="confirm-pw"
+          label="Confirm new password"
+          field="confirm"
+        />
 
         {serverError && (
           <div className="flex items-start gap-2 text-sm text-destructive bg-destructive/8 border border-destructive/20 rounded-lg px-3 py-2">
@@ -212,7 +253,8 @@ function ShortcutsTab() {
       <div>
         <h3 className="font-medium mb-0.5">Keyboard shortcuts</h3>
         <p className="text-sm text-muted-foreground">
-          All shortcuts are global unless noted. Press <Key label="?" /> anywhere to see this as an overlay.
+          All shortcuts are global unless noted. Press <Key label="?" />{" "}
+          anywhere to see this as an overlay.
         </p>
       </div>
 
@@ -228,7 +270,9 @@ function ShortcutsTab() {
                   key={i}
                   className="flex items-center justify-between gap-4 py-2 border-b border-border/50 last:border-0"
                 >
-                  <span className="text-sm text-foreground">{shortcut.description}</span>
+                  <span className="text-sm text-foreground">
+                    {shortcut.description}
+                  </span>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     {shortcut.display.map((k, ki) => (
                       <Key key={ki} label={k} />
@@ -242,8 +286,9 @@ function ShortcutsTab() {
       </div>
 
       {/* Future: custom bindings note */}
-      <p className="text-xs text-muted-foreground/70 border border-dashed border-border rounded-xl px-4 py-3">
-        Custom keybindings are coming in a future update. Shortcuts are read-only for now.
+      <p className="text-xs text-muted-foreground/70 border border-dashed border-border rounded-md px-4 py-3">
+        Custom keybindings are coming in a future update. Shortcuts are
+        read-only for now.
       </p>
     </div>
   );
@@ -256,13 +301,13 @@ export default function PreferencesPage() {
   // Support linking directly to a tab via ?tab=shortcuts etc.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const tab    = params.get("tab");
+    const tab = params.get("tab");
     if (tab && TABS.some((t) => t.id === tab)) setActiveTab(tab);
   }, []);
 
   const TAB_CONTENT = {
-    profile:   <ProfileTab />,
-    security:  <SecurityTab />,
+    profile: <ProfileTab />,
+    security: <SecurityTab />,
     shortcuts: <ShortcutsTab />,
   };
 
@@ -299,9 +344,10 @@ export default function PreferencesPage() {
               {TABS.find((t) => t.id === activeTab)?.label}
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {activeTab === "profile"   && "Update your personal information."}
-              {activeTab === "security"  && "Manage your account password."}
-              {activeTab === "shortcuts" && "View all available keyboard shortcuts."}
+              {activeTab === "profile" && "Update your personal information."}
+              {activeTab === "security" && "Manage your account password."}
+              {activeTab === "shortcuts" &&
+                "View all available keyboard shortcuts."}
             </p>
           </div>
 

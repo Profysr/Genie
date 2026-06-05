@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Loader } from "@/components/ui/Loader";
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import api from "@/lib/api";
@@ -37,13 +38,7 @@ export default function PublicFormPage() {
     submit.mutate({ answers, email });
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-      </div>
-    );
-  }
+  if (isLoading) return <Loader size="lg" className="min-h-screen bg-background" />;
 
   if (isError || !form) {
     return (

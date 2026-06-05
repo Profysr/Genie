@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMembers, useInviteMember, useUpdateMemberRole, useRemoveMember } from "@/hooks/useMembers";
@@ -41,8 +42,9 @@ export default function MembersPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["workspace-invites", workspaceSlug] }),
   });
 
-  const [email, setEmail]           = useState("");
-  const [role, setRole]             = useState("member");
+  const [email, setEmail]               = useState("");
+  const [role, setRole]                 = useState("member");
+  const [confirmState, setConfirmState] = useState(null);
   const [inviteError, setInviteError]     = useState("");
   const [inviteSuccess, setInviteSuccess] = useState("");
   const [copiedToken, setCopiedToken]     = useState(null);
@@ -250,10 +252,10 @@ export default function MembersPage() {
                       )}
                       {isAdmin && !isSelf && !isWorkspaceOwner && (
                         <button
-                          onClick={() => {
-                            if (confirm(`Remove ${member.user?.full_name || member.user?.email}?`))
-                              removeMember.mutate(member.id);
-                          }}
+                          onClick={() => setConfirmState({
+                            message: `Remove ${member.user?.full_name || member.user?.email} from this workspace?`,
+                            onConfirm: () => removeMember.mutate(member.id),
+                          })}
                           className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                           title="Remove member"
                         >
@@ -269,6 +271,14 @@ export default function MembersPage() {
         </div>
       </div>
 
+      {confirmState && (
+        <ConfirmModal
+          title="Remove member?"
+          message={confirmState.message}
+          onConfirm={() => { confirmState.onConfirm(); setConfirmState(null); }}
+          onCancel={() => setConfirmState(null)}
+        />
+      )}
     </div>
   );
 }

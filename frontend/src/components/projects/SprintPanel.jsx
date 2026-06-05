@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Plus, Play, CheckCircle, Trash2, Zap, ArrowRight } from "lucide-react";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { useSprints, useCreateSprint, useUpdateSprint, useDeleteSprint, useSprintBurndown } from "@/hooks/useSprints";
 import BurndownChart from "@/components/projects/BurndownChart";
 import { Button } from "@/components/ui/button";
@@ -26,8 +27,9 @@ export default function SprintPanel({ workspaceSlug, projectId, activeSprint, on
   const deleteSprint = useDeleteSprint(workspaceSlug, projectId);
   const { data: burndown } = useSprintBurndown(workspaceSlug, projectId, activeSprint?.id);
 
-  const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ name: "", goal: "", start_date: "", end_date: "" });
+  const [creating, setCreating]         = useState(false);
+  const [form, setForm]                 = useState({ name: "", goal: "", start_date: "", end_date: "" });
+  const [confirmState, setConfirmState] = useState(null);
 
   const handleCreate = (e) => {
     e.preventDefault();
@@ -181,7 +183,7 @@ export default function SprintPanel({ workspaceSlug, projectId, activeSprint, on
                         </button>
                       )}
                       <button
-                        onClick={e => { e.stopPropagation(); if (confirm(`Delete "${sprint.name}"?`)) deleteSprint.mutate(sprint.id); }}
+                        onClick={e => { e.stopPropagation(); setConfirmState({ message: `Delete "${sprint.name}"? This cannot be undone.`, onConfirm: () => deleteSprint.mutate(sprint.id) }); }}
                         className="text-muted-foreground hover:text-destructive p-1 rounded hover:bg-accent"
                         title="Delete sprint"
                       >
@@ -217,6 +219,15 @@ export default function SprintPanel({ workspaceSlug, projectId, activeSprint, on
           </div>
         )}
       </div>
+
+      {confirmState && (
+        <ConfirmModal
+          title="Delete sprint?"
+          message={confirmState.message}
+          onConfirm={() => { confirmState.onConfirm(); setConfirmState(null); }}
+          onCancel={() => setConfirmState(null)}
+        />
+      )}
     </div>
   );
 }

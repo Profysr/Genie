@@ -1,4 +1,10 @@
-import { createContext, useContext, useCallback, useReducer, useRef } from "react";
+import {
+  createContext,
+  useContext,
+  useCallback,
+  useReducer,
+  useRef,
+} from "react";
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -6,9 +12,9 @@ const ToastContext = createContext(null);
 
 const ICONS = {
   success: <CheckCircle className="w-4 h-4 text-emerald-500" />,
-  error:   <AlertCircle className="w-4 h-4 text-red-500" />,
+  error: <AlertCircle className="w-4 h-4 text-red-500" />,
   warning: <AlertTriangle className="w-4 h-4 text-amber-500" />,
-  info:    <Info className="w-4 h-4 text-primary" />,
+  info: <Info className="w-4 h-4 text-primary" />,
   default: null,
 };
 
@@ -41,7 +47,7 @@ export function ToastProvider({ children }) {
       timers.current[id] = setTimeout(() => dismiss(id), duration);
       return id;
     },
-    [dismiss]
+    [dismiss],
   );
 
   return (
@@ -56,10 +62,10 @@ export function ToastProvider({ children }) {
           <div
             key={t.id}
             className={cn(
-              "pointer-events-auto w-full max-w-sm rounded-xl border bg-card shadow-popover",
+              "pointer-events-auto w-full max-w-sm rounded-md border bg-card shadow-popover",
               "flex items-start gap-3 px-4 py-3",
               "animate-toast-in",
-              i > 0 && "opacity-70 scale-95"
+              i > 0 && "opacity-70 scale-95",
             )}
             style={{ animationDelay: `${i * 20}ms` }}
           >
@@ -68,10 +74,14 @@ export function ToastProvider({ children }) {
             )}
             <div className="flex-1 min-w-0">
               {t.title && (
-                <p className="text-sm font-semibold text-foreground leading-snug">{t.title}</p>
+                <p className="text-sm font-semibold text-foreground leading-snug">
+                  {t.title}
+                </p>
               )}
               {t.description && (
-                <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{t.description}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                  {t.description}
+                </p>
               )}
             </div>
             <button
@@ -95,11 +105,14 @@ export function useToast() {
   // Attach convenience methods directly on the function so that both patterns work:
   //   const { toast } = useToast(); toast.success("msg")   ← most common in this codebase
   //   const h = useToast(); h.success("msg")               ← also valid
-  toast.success = (title, description) => toast({ title, description, type: "success" });
-  toast.error   = (title, description) => toast({ title, description, type: "error" });
-  toast.warning = (title, description) => toast({ title, description, type: "warning" });
-  toast.info    = (title, description) => toast({ title, description, type: "info" });
+  toast.success = (title, description) =>
+    toast({ title, description, type: "success" });
+  toast.error = (title, description) =>
+    toast({ title, description, type: "error" });
+  toast.warning = (title, description) =>
+    toast({ title, description, type: "warning" });
+  toast.info = (title, description) =>
+    toast({ title, description, type: "info" });
 
   return { toast };
 }
-

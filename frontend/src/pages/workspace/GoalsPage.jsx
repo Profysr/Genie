@@ -77,7 +77,7 @@ function ProgressRing({ pct, confidence, size = 56 }) {
 
 // ── KR progress bar ───────────────────────────────────────────────────────────
 function KRProgressBar({ kr, workspaceSlug, objectiveId, canEdit }) {
-  const [linkOpen,  setLinkOpen]  = useState(false);
+  const [linkOpen, setLinkOpen] = useState(false);
   const [tasksOpen, setTasksOpen] = useState(false);
   const linkedTasks = kr.linked_tasks ?? [];
   const deleteKR = useDeleteKeyResult(workspaceSlug, objectiveId);
@@ -124,7 +124,7 @@ function KRProgressBar({ kr, workspaceSlug, objectiveId, canEdit }) {
     linkTasks.mutate(next);
   };
 
-  const doneCount  = linkedTasks.filter((t) => t.is_done).length;
+  const doneCount = linkedTasks.filter((t) => t.is_done).length;
   const totalCount = linkedTasks.length;
 
   return (
@@ -136,19 +136,25 @@ function KRProgressBar({ kr, workspaceSlug, objectiveId, canEdit }) {
             onClick={() => setTasksOpen((v) => !v)}
             className="flex items-center gap-1.5 flex-1 min-w-0 text-left group/title"
           >
-            {tasksOpen
-              ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-              : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />}
+            {tasksOpen ? (
+              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+            ) : (
+              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+            )}
             <span className="text-sm font-medium truncate group-hover/title:text-primary transition-colors">
               {kr.title}
             </span>
           </button>
         ) : (
-          <span className="text-sm font-medium flex-1 min-w-0 truncate">{kr.title}</span>
+          <span className="text-sm font-medium flex-1 min-w-0 truncate">
+            {kr.title}
+          </span>
         )}
         <div className="flex items-center gap-1 flex-shrink-0">
           <span className="text-xs text-muted-foreground">
-            {totalCount > 0 ? `${doneCount}/${totalCount} tasks` : "No tasks linked"}
+            {totalCount > 0
+              ? `${doneCount}/${totalCount} tasks`
+              : "No tasks linked"}
           </span>
           {canEdit && (
             <button
@@ -183,7 +189,9 @@ function KRProgressBar({ kr, workspaceSlug, objectiveId, canEdit }) {
       </div>
 
       <div className="flex justify-end">
-        <span className="text-[10px] text-muted-foreground">{kr.progress}% complete</span>
+        <span className="text-[10px] text-muted-foreground">
+          {kr.progress}% complete
+        </span>
       </div>
 
       {/* Collapsible linked task list */}
@@ -198,10 +206,14 @@ function KRProgressBar({ kr, workspaceSlug, objectiveId, canEdit }) {
               ) : (
                 <div className="w-4 h-4 rounded-full border-2 border-border flex-shrink-0" />
               )}
-              <span className={cn(
-                "text-xs flex-1 truncate",
-                t.is_done ? "line-through text-muted-foreground" : "text-foreground",
-              )}>
+              <span
+                className={cn(
+                  "text-xs flex-1 truncate",
+                  t.is_done
+                    ? "line-through text-muted-foreground"
+                    : "text-foreground",
+                )}
+              >
                 {t.title}
               </span>
               {t.status_name && (
@@ -216,7 +228,7 @@ function KRProgressBar({ kr, workspaceSlug, objectiveId, canEdit }) {
 
       {/* Link tasks popover */}
       {linkOpen && (
-        <div className="mt-2 border border-border rounded-xl bg-popover shadow-popover p-3 space-y-2">
+        <div className="mt-2 border border-border rounded-md bg-popover shadow-popover p-3 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold">
               Link tasks to this key result
@@ -289,7 +301,7 @@ function ObjectiveCard({ objective, workspaceSlug }) {
   };
 
   return (
-    <div className="bg-card border border-border rounded-2xl shadow-card overflow-hidden">
+    <div className="bg-card border border-border rounded-md shadow-card overflow-hidden">
       {/* Card header */}
       <div className="flex items-start gap-4 p-4">
         <ProgressRing
@@ -465,7 +477,6 @@ export default function GoalsPage() {
   const { data: members = [] } = useMembers(workspaceSlug);
   const createObjective = useCreateObjective(workspaceSlug);
 
-
   const totalKRs = objectives.flatMap((o) => o.key_results || []).length;
   const onTrackCount = objectives.filter(
     (o) => o.confidence === "on_track",
@@ -479,9 +490,9 @@ export default function GoalsPage() {
   const EmptyState = () => (
     <div className="max-w-2xl mx-auto space-y-8 py-10">
       {/* OKR explainer */}
-      <div className="rounded-2xl border border-border bg-muted/30 p-6 space-y-5">
+      <div className="rounded-md border border-border bg-muted/30 p-6 space-y-5">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center flex-shrink-0">
+          <div className="w-10 h-10 bg-primary/10 text-primary rounded-md flex items-center justify-center flex-shrink-0">
             <Target className="w-5 h-5" />
           </div>
           <div>
@@ -522,7 +533,7 @@ export default function GoalsPage() {
           ].map((s) => (
             <div
               key={s.step}
-              className="bg-background rounded-xl border border-border p-3.5 space-y-1.5"
+              className="bg-background rounded-md border border-border p-3.5 space-y-1.5"
             >
               <span className="text-[10px] font-bold text-primary uppercase tracking-widest">
                 Step {s.step}
@@ -648,7 +659,9 @@ export default function GoalsPage() {
         title="New Objective"
         icon={Target}
         iconColor="text-primary"
-        confirmLabel={createObjective.isPending ? "Creating…" : "Create Objective"}
+        confirmLabel={
+          createObjective.isPending ? "Creating…" : "Create Objective"
+        }
         isConfirmDisabled={!form.title.trim() || createObjective.isPending}
         isLoading={createObjective.isPending}
         onConfirm={() => {
@@ -664,34 +677,46 @@ export default function GoalsPage() {
       >
         <div className="space-y-3">
           <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">Title</label>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
+              Title
+            </label>
             <input
               autoFocus
               required
               className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background focus:outline-none focus:ring-1 focus:ring-ring"
               placeholder="e.g. Grow MRR to $100k"
               value={form.title}
-              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, title: e.target.value }))
+              }
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">Description (optional)</label>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
+              Description (optional)
+            </label>
             <textarea
               rows={2}
               className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background resize-none focus:outline-none focus:ring-1 focus:ring-ring"
               placeholder="What does success look like?"
               value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, description: e.target.value }))
+              }
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">Time Period</label>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
+              Time Period
+            </label>
             <div className="flex gap-1.5 flex-wrap">
               {TIME_PERIODS.filter((p) => p.value !== "all").map((p) => (
                 <button
                   key={p.value}
                   type="button"
-                  onClick={() => setForm((f) => ({ ...f, time_period: p.value }))}
+                  onClick={() =>
+                    setForm((f) => ({ ...f, time_period: p.value }))
+                  }
                   className={cn(
                     "px-3 py-1 rounded-md text-xs font-medium border transition-colors",
                     form.time_period === p.value

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Loader } from "@/components/ui/Loader";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/authStore";
@@ -14,14 +15,19 @@ export default function AcceptInvitePage() {
   const [error, setError] = useState("");
 
   // Fetch invite details — public endpoint, no auth needed
-  const { data: invite, isLoading, isError } = useQuery({
+  const {
+    data: invite,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ["invite", token],
     queryFn: () => api.get(`/api/invites/${token}/`).then((r) => r.data),
     retry: false,
   });
 
   const acceptMutation = useMutation({
-    mutationFn: () => api.post(`/api/invites/${token}/accept/`).then((r) => r.data),
+    mutationFn: () =>
+      api.post(`/api/invites/${token}/accept/`).then((r) => r.data),
     onSuccess: (workspace) => {
       setAccepted(true);
       setTimeout(() => navigate(`/w/${workspace.slug}`), 2000);
@@ -39,7 +45,11 @@ export default function AcceptInvitePage() {
   }, [invite, accessToken]);
 
   if (isLoading) {
-    return <InviteShell><div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin mx-auto" /></InviteShell>;
+    return (
+      <InviteShell>
+        <Loader />
+      </InviteShell>
+    );
   }
 
   if (isError) {
@@ -63,7 +73,11 @@ export default function AcceptInvitePage() {
         <CheckCircle className="w-10 h-10 text-green-500 mx-auto mb-3" />
         <h2 className="text-lg font-semibold text-center">You're in!</h2>
         <p className="text-sm text-muted-foreground text-center mt-1">
-          Redirecting you to <span className="font-medium text-foreground">{invite?.workspace?.name}</span>…
+          Redirecting you to{" "}
+          <span className="font-medium text-foreground">
+            {invite?.workspace?.name}
+          </span>
+          …
         </p>
       </InviteShell>
     );
@@ -76,7 +90,9 @@ export default function AcceptInvitePage() {
         <XCircle className="w-10 h-10 text-destructive mx-auto mb-3" />
         <h2 className="text-lg font-semibold text-center">Wrong account</h2>
         <p className="text-sm text-muted-foreground text-center mt-1">
-          This invite is for <span className="font-medium text-foreground">{invite?.email}</span>, but you're signed in as{" "}
+          This invite is for{" "}
+          <span className="font-medium text-foreground">{invite?.email}</span>,
+          but you're signed in as{" "}
           <span className="font-medium text-foreground">{user?.email}</span>.
         </p>
         <p className="text-sm text-muted-foreground text-center mt-1">
@@ -89,20 +105,31 @@ export default function AcceptInvitePage() {
   // Not logged in — show invite info + redirect to login
   return (
     <InviteShell>
-      <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-lg mx-auto mb-4">
+      <div className="w-12 h-12 rounded-md bg-primary/10 text-primary flex items-center justify-center font-bold text-lg mx-auto mb-4">
         {invite?.workspace?.name?.[0]?.toUpperCase()}
       </div>
       <h2 className="text-lg font-semibold text-center">You've been invited</h2>
       <p className="text-sm text-muted-foreground text-center mt-1">
-        <span className="font-medium text-foreground">{invite?.invited_by}</span> invited you to join{" "}
-        <span className="font-medium text-foreground">{invite?.workspace?.name}</span> as{" "}
-        <span className="capitalize font-medium text-foreground">{invite?.role}</span>.
+        <span className="font-medium text-foreground">
+          {invite?.invited_by}
+        </span>{" "}
+        invited you to join{" "}
+        <span className="font-medium text-foreground">
+          {invite?.workspace?.name}
+        </span>{" "}
+        as{" "}
+        <span className="capitalize font-medium text-foreground">
+          {invite?.role}
+        </span>
+        .
       </p>
       <p className="text-xs text-muted-foreground text-center mt-2">
         This invite is for <span className="font-medium">{invite?.email}</span>
       </p>
 
-      {error && <p className="text-sm text-destructive text-center mt-3">{error}</p>}
+      {error && (
+        <p className="text-sm text-destructive text-center mt-3">{error}</p>
+      )}
 
       <div className="mt-6 space-y-2">
         <Button
@@ -113,7 +140,10 @@ export default function AcceptInvitePage() {
         </Button>
         <p className="text-xs text-muted-foreground text-center">
           Don't have an account?{" "}
-          <Link to={`/register?next=/invites/${token}`} className="text-primary hover:underline">
+          <Link
+            to={`/register?next=/invites/${token}`}
+            className="text-primary hover:underline"
+          >
             Sign up
           </Link>
         </p>
@@ -125,7 +155,7 @@ export default function AcceptInvitePage() {
 function InviteShell({ children }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">
-      <div className="w-full max-w-sm bg-card border rounded-2xl p-8 shadow-sm">
+      <div className="w-full max-w-sm bg-card border rounded--md p-8 shadow-sm">
         {children}
       </div>
     </div>

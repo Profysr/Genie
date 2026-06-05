@@ -3,13 +3,25 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/authStore";
 import { useProjects } from "@/hooks/useProjects";
 import api from "@/lib/api";
-import { FolderKanban, Users, CheckSquare, Plus, ArrowRight } from "lucide-react";
+import {
+  FolderKanban,
+  Users,
+  CheckSquare,
+  Plus,
+  ArrowRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import GettingStartedChecklist from "@/components/dashboard/GettingStartedChecklist";
 
 const PROJECT_COLORS = [
-  "#6366f1", "#ec4899", "#f59e0b", "#22c55e",
-  "#3b82f6", "#8b5cf6", "#14b8a6", "#ef4444",
+  "#6366f1",
+  "#ec4899",
+  "#f59e0b",
+  "#22c55e",
+  "#3b82f6",
+  "#8b5cf6",
+  "#14b8a6",
+  "#ef4444",
 ];
 
 export default function DashboardPage() {
@@ -21,7 +33,9 @@ export default function DashboardPage() {
   const { data: members = [] } = useQuery({
     queryKey: ["workspace-members", workspaceSlug],
     queryFn: () =>
-      api.get(`/api/workspaces/${workspaceSlug}/members/`).then((r) => r.data.results || r.data),
+      api
+        .get(`/api/workspaces/${workspaceSlug}/members/`)
+        .then((r) => r.data.results || r.data),
   });
 
   const totalTasks = projects.reduce((sum, p) => sum + (p.task_count || 0), 0);
@@ -81,13 +95,17 @@ export default function DashboardPage() {
           return (
             <div
               key={stat.label}
-              className="rounded-xl border bg-card p-5 flex items-center gap-4 shadow-card"
+              className="rounded-md border bg-card p-5 flex items-center gap-4 shadow-card"
             >
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${stat.iconBg}`}>
+              <div
+                className={`w-12 h-12 rounded-md flex items-center justify-center flex-shrink-0 ${stat.iconBg}`}
+              >
                 <Icon className={`w-6 h-6 ${stat.iconColor}`} />
               </div>
               <div>
-                <p className="text-3xl font-bold tracking-tight">{stat.value}</p>
+                <p className="text-3xl font-bold tracking-tight">
+                  {stat.value}
+                </p>
                 <p className="text-sm text-muted-foreground">{stat.label}</p>
               </div>
             </div>
@@ -97,8 +115,8 @@ export default function DashboardPage() {
 
       {/* Projects */}
       {projects.length === 0 ? (
-        <div className="rounded-xl border bg-card p-12 text-center shadow-card">
-          <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
+        <div className="rounded-md border bg-card p-12 text-center shadow-card">
+          <div className="w-14 h-14 rounded--md bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
             <FolderKanban className="w-7 h-7" />
           </div>
           <p className="font-semibold text-lg">No projects yet</p>
@@ -112,7 +130,9 @@ export default function DashboardPage() {
       ) : (
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-foreground">Recent Projects</h2>
+            <h2 className="text-sm font-semibold text-foreground">
+              Recent Projects
+            </h2>
             <button
               onClick={() => navigate(`/w/${workspaceSlug}/projects`)}
               className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
@@ -122,27 +142,35 @@ export default function DashboardPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {projects.slice(0, 6).map((project) => {
-              const color = PROJECT_COLORS[project.name.charCodeAt(0) % PROJECT_COLORS.length];
+              const color =
+                PROJECT_COLORS[
+                  project.name.charCodeAt(0) % PROJECT_COLORS.length
+                ];
               const doneTasks = project.done_task_count || 0;
-              const pct = project.task_count > 0
-                ? Math.round((doneTasks / project.task_count) * 100)
-                : 0;
+              const pct =
+                project.task_count > 0
+                  ? Math.round((doneTasks / project.task_count) * 100)
+                  : 0;
               return (
                 <button
                   key={project.id}
-                  onClick={() => navigate(`/w/${workspaceSlug}/projects/${project.id}`)}
-                  className="text-left rounded-xl border bg-card p-4 hover:shadow-card-hover hover:border-primary/30 transition-all duration-200 group"
+                  onClick={() =>
+                    navigate(`/w/${workspaceSlug}/projects/${project.id}`)
+                  }
+                  className="text-left rounded-md border bg-card p-4 hover:shadow-card-hover hover:border-primary/30 transition-all duration-200 group"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div
-                      className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold text-white shadow-sm"
+                      className="w-9 h-9 rounded-md flex items-center justify-center text-sm font-bold text-white shadow-sm"
                       style={{ backgroundColor: color }}
                     >
                       {project.name[0].toUpperCase()}
                     </div>
                     <ArrowRight className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
-                  <p className="font-semibold text-sm truncate">{project.name}</p>
+                  <p className="font-semibold text-sm truncate">
+                    {project.name}
+                  </p>
                   {project.description && (
                     <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
                       {project.description}
@@ -163,7 +191,9 @@ export default function DashboardPage() {
                         </div>
                       </div>
                     ) : (
-                      <p className="text-xs text-muted-foreground">No tasks yet</p>
+                      <p className="text-xs text-muted-foreground">
+                        No tasks yet
+                      </p>
                     )}
                   </div>
                 </button>

@@ -1,26 +1,43 @@
 import { useState, useEffect } from "react";
+import { Loader } from "@/components/ui/Loader";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  Plus, FormInput, Trash2, GripVertical, Copy, ExternalLink,
-  ToggleLeft, ToggleRight, ChevronDown, Eye, Send, ArrowLeft,
+  Plus,
+  FormInput,
+  Trash2,
+  GripVertical,
+  Copy,
+  ExternalLink,
+  ToggleLeft,
+  ToggleRight,
+  ChevronDown,
+  Eye,
+  Send,
+  ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
-  useForms, useForm, useCreateForm, useUpdateForm,
-  useDeleteForm, useUpdateFormFields, useFormSubmissions, useUpdateSubmissionStatus,
+  useForms,
+  useForm,
+  useCreateForm,
+  useUpdateForm,
+  useDeleteForm,
+  useUpdateFormFields,
+  useFormSubmissions,
+  useUpdateSubmissionStatus,
 } from "@/hooks/useForms";
 import { useToast } from "@/components/ui/toast";
 import { format } from "date-fns";
 
 const FIELD_TYPES = [
-  { value: "short_text",  label: "Short Text" },
-  { value: "long_text",   label: "Long Text" },
-  { value: "email",       label: "Email" },
-  { value: "number",      label: "Number" },
-  { value: "dropdown",    label: "Dropdown" },
+  { value: "short_text", label: "Short Text" },
+  { value: "long_text", label: "Long Text" },
+  { value: "email", label: "Email" },
+  { value: "number", label: "Number" },
+  { value: "dropdown", label: "Dropdown" },
   { value: "multiselect", label: "Multi-Select" },
-  { value: "date",        label: "Date" },
+  { value: "date", label: "Date" },
 ];
 
 export default function FormsPage() {
@@ -38,13 +55,11 @@ export default function FormsPage() {
   const handleCreate = () => {
     createForm.mutate(
       { name: "New Form", description: "" },
-      { onSuccess: (f) => setSelectedFormId(f.id) }
+      { onSuccess: (f) => setSelectedFormId(f.id) },
     );
   };
 
-  if (isLoading) {
-    return <div className="flex-1 flex items-center justify-center"><div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" /></div>;
-  }
+  if (isLoading) return <Loader className="flex-1" />;
 
   return (
     <div className="flex h-full">
@@ -53,27 +68,40 @@ export default function FormsPage() {
         <div className="flex items-center justify-between px-3 py-3 border-b">
           <div className="flex items-center gap-1.5">
             <button
-              onClick={() => navigate(`/w/${workspaceSlug}/projects/${projectId}`)}
+              onClick={() =>
+                navigate(`/w/${workspaceSlug}/projects/${projectId}`)
+              }
               className="p-1 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
               title="Back to board"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
             </button>
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Forms</span>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+              Forms
+            </span>
           </div>
-          <button onClick={handleCreate} className="p-1 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground">
+          <button
+            onClick={handleCreate}
+            className="p-1 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+          >
             <Plus className="w-3.5 h-3.5" />
           </button>
         </div>
         <div className="flex-1 overflow-y-auto py-2">
           {forms.length === 0 ? (
             <div className="px-3 py-8 text-center text-xs text-muted-foreground">
-              No forms yet.<br />
-              <button onClick={handleCreate} className="text-primary hover:underline mt-1">Create first form</button>
+              No forms yet.
+              <br />
+              <button
+                onClick={handleCreate}
+                className="text-primary hover:underline mt-1"
+              >
+                Create first form
+              </button>
             </div>
           ) : (
             <div className="space-y-0.5 px-2">
-              {forms.map(f => (
+              {forms.map((f) => (
                 <button
                   key={f.id}
                   onClick={() => setSelectedFormId(f.id)}
@@ -81,7 +109,7 @@ export default function FormsPage() {
                     "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-left",
                     selectedFormId === f.id
                       ? "bg-primary/10 text-primary font-medium"
-                      : "text-foreground/80 hover:bg-accent"
+                      : "text-foreground/80 hover:bg-accent",
                   )}
                 >
                   <FormInput className="w-3.5 h-3.5 flex-shrink-0" />
@@ -100,7 +128,10 @@ export default function FormsPage() {
           workspaceSlug={workspaceSlug}
           projectId={projectId}
           formId={selectedFormId}
-          onDelete={() => { deleteForm.mutate(selectedFormId); setSelectedFormId(null); }}
+          onDelete={() => {
+            deleteForm.mutate(selectedFormId);
+            setSelectedFormId(null);
+          }}
           tab={tab}
           setTab={setTab}
         />
@@ -108,7 +139,9 @@ export default function FormsPage() {
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <FormInput className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-            <p className="text-muted-foreground text-sm">Select a form or create a new one.</p>
+            <p className="text-muted-foreground text-sm">
+              Select a form or create a new one.
+            </p>
             <Button size="sm" className="mt-4" onClick={handleCreate}>
               <Plus className="w-4 h-4 mr-1.5" /> New Form
             </Button>
@@ -119,9 +152,16 @@ export default function FormsPage() {
   );
 }
 
-function FormEditor({ workspaceSlug, projectId, formId, onDelete, tab, setTab }) {
+function FormEditor({
+  workspaceSlug,
+  projectId,
+  formId,
+  onDelete,
+  tab,
+  setTab,
+}) {
   const { data: form, isLoading } = useForm(workspaceSlug, projectId, formId);
-  const updateForm   = useUpdateForm(workspaceSlug, projectId, formId);
+  const updateForm = useUpdateForm(workspaceSlug, projectId, formId);
   const updateFields = useUpdateFormFields(workspaceSlug, projectId, formId);
   const { toast } = useToast();
 
@@ -160,22 +200,24 @@ function FormEditor({ workspaceSlug, projectId, formId, onDelete, tab, setTab })
     saveFields(updated);
   };
 
-  const addField = () => saveFields([...fields, {
-    label: "New field",
-    field_type: "short_text",
-    placeholder: "",
-    is_required: false,
-    options: [],
-    order: fields.length,
-  }]);
+  const addField = () =>
+    saveFields([
+      ...fields,
+      {
+        label: "New field",
+        field_type: "short_text",
+        placeholder: "",
+        is_required: false,
+        options: [],
+        order: fields.length,
+      },
+    ]);
 
   const removeField = (i) => saveFields(fields.filter((_, idx) => idx !== i));
 
   const shareUrl = `${window.location.origin}/forms/${form?.token}`;
 
-  if (isLoading) {
-    return <div className="flex-1 flex items-center justify-center"><div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" /></div>;
-  }
+  if (isLoading) return <Loader className="flex-1" />;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -186,15 +228,21 @@ function FormEditor({ workspaceSlug, projectId, formId, onDelete, tab, setTab })
           <input
             className="text-lg font-bold bg-transparent outline-none border-b border-transparent hover:border-border focus:border-primary transition-colors w-full"
             value={nameDraft}
-            onChange={e => setNameDraft(e.target.value)}
-            onBlur={() => { if (nameDraft.trim() && nameDraft !== form?.name) updateForm.mutate({ name: nameDraft.trim() }); }}
+            onChange={(e) => setNameDraft(e.target.value)}
+            onBlur={() => {
+              if (nameDraft.trim() && nameDraft !== form?.name)
+                updateForm.mutate({ name: nameDraft.trim() });
+            }}
           />
           <input
             className="text-xs text-muted-foreground bg-transparent outline-none w-full mt-0.5"
             placeholder="Add a description…"
             value={descDraft}
-            onChange={e => setDescDraft(e.target.value)}
-            onBlur={() => { if (descDraft !== form?.description) updateForm.mutate({ description: descDraft }); }}
+            onChange={(e) => setDescDraft(e.target.value)}
+            onBlur={() => {
+              if (descDraft !== form?.description)
+                updateForm.mutate({ description: descDraft });
+            }}
           />
         </div>
         <div className="flex items-center gap-2 ml-4">
@@ -202,14 +250,19 @@ function FormEditor({ workspaceSlug, projectId, formId, onDelete, tab, setTab })
             onClick={() => updateForm.mutate({ is_active: !form?.is_active })}
             className="flex items-center gap-1.5 text-xs border rounded-lg px-2.5 py-1.5"
           >
-            {form?.is_active
-              ? <ToggleRight className="w-4 h-4 text-emerald-500" />
-              : <ToggleLeft className="w-4 h-4 text-muted-foreground" />}
+            {form?.is_active ? (
+              <ToggleRight className="w-4 h-4 text-emerald-500" />
+            ) : (
+              <ToggleLeft className="w-4 h-4 text-muted-foreground" />
+            )}
             {form?.is_active ? "Active" : "Inactive"}
           </button>
           {/* Fix 1: toast.success now works — useToast called inside this component */}
           <button
-            onClick={() => { navigator.clipboard.writeText(shareUrl); toast.success("Link copied!"); }}
+            onClick={() => {
+              navigator.clipboard.writeText(shareUrl);
+              toast.success("Link copied!");
+            }}
             className="flex items-center gap-1.5 text-xs border rounded-lg px-2.5 py-1.5 hover:bg-accent transition-colors"
           >
             <Copy className="w-3.5 h-3.5" /> Copy link
@@ -222,7 +275,10 @@ function FormEditor({ workspaceSlug, projectId, formId, onDelete, tab, setTab })
           >
             <ExternalLink className="w-3.5 h-3.5" />
           </button>
-          <button onClick={onDelete} className="p-1.5 border rounded-lg text-muted-foreground hover:text-destructive hover:border-destructive/30 transition-colors">
+          <button
+            onClick={onDelete}
+            className="p-1.5 border rounded-lg text-muted-foreground hover:text-destructive hover:border-destructive/30 transition-colors"
+          >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -230,13 +286,18 @@ function FormEditor({ workspaceSlug, projectId, formId, onDelete, tab, setTab })
 
       {/* Tabs */}
       <div className="flex border-b px-6 flex-shrink-0">
-        {[["builder", "Builder"], ["submissions", `Submissions (${form?.submission_count || 0})`]].map(([value, label]) => (
+        {[
+          ["builder", "Builder"],
+          ["submissions", `Submissions (${form?.submission_count || 0})`],
+        ].map(([value, label]) => (
           <button
             key={value}
             onClick={() => setTab(value)}
             className={cn(
               "text-sm py-2.5 px-1 mr-6 border-b-2 transition-colors",
-              tab === value ? "border-primary text-primary font-medium" : "border-transparent text-muted-foreground hover:text-foreground"
+              tab === value
+                ? "border-primary text-primary font-medium"
+                : "border-transparent text-muted-foreground hover:text-foreground",
             )}
           >
             {label}
@@ -259,13 +320,18 @@ function FormEditor({ workspaceSlug, projectId, formId, onDelete, tab, setTab })
             ))}
             <button
               onClick={addField}
-              className="w-full py-3 border-2 border-dashed rounded-xl text-sm text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors flex items-center justify-center gap-2"
+              className="w-full py-3 border-2 border-dashed rounded-md text-sm text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors flex items-center justify-center gap-2"
             >
               <Plus className="w-4 h-4" /> Add field
             </button>
           </div>
         ) : (
-          <SubmissionsPanel workspaceSlug={workspaceSlug} projectId={projectId} formId={formId} form={form} />
+          <SubmissionsPanel
+            workspaceSlug={workspaceSlug}
+            projectId={projectId}
+            formId={formId}
+            form={form}
+          />
         )}
       </div>
     </div>
@@ -275,57 +341,97 @@ function FormEditor({ workspaceSlug, projectId, formId, onDelete, tab, setTab })
 function FieldCard({ field, index, onChange, onFlush, onRemove }) {
   const [expanded, setExpanded] = useState(true);
   // Local drafts for text inputs — keeps typing smooth, no per-keystroke API calls
-  const [label, setLabel]       = useState(field.label);
+  const [label, setLabel] = useState(field.label);
   const [placeholder, setPlaceholder] = useState(field.placeholder);
 
   // Sync if parent resets this card (e.g. after a server round-trip)
-  useEffect(() => { setLabel(field.label); }, [field.label]);
-  useEffect(() => { setPlaceholder(field.placeholder); }, [field.placeholder]);
+  useEffect(() => {
+    setLabel(field.label);
+  }, [field.label]);
+  useEffect(() => {
+    setPlaceholder(field.placeholder);
+  }, [field.placeholder]);
 
   return (
-    <div className="border rounded-xl bg-card overflow-hidden">
-      <div className="flex items-center gap-2 px-4 py-3 cursor-pointer" onClick={() => setExpanded(e => !e)}>
+    <div className="border rounded-md bg-card overflow-hidden">
+      <div
+        className="flex items-center gap-2 px-4 py-3 cursor-pointer"
+        onClick={() => setExpanded((e) => !e)}
+      >
         <GripVertical className="w-4 h-4 text-muted-foreground/40 flex-shrink-0" />
-        <span className="flex-1 text-sm font-medium truncate">{label || "Untitled field"}</span>
-        <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{FIELD_TYPES.find(t => t.value === field.field_type)?.label}</span>
-        {field.is_required && <span className="text-xs text-red-500 font-medium">Required</span>}
-        <button onClick={(e) => { e.stopPropagation(); onRemove(); }} className="text-muted-foreground hover:text-destructive p-1">
+        <span className="flex-1 text-sm font-medium truncate">
+          {label || "Untitled field"}
+        </span>
+        <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+          {FIELD_TYPES.find((t) => t.value === field.field_type)?.label}
+        </span>
+        {field.is_required && (
+          <span className="text-xs text-red-500 font-medium">Required</span>
+        )}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          className="text-muted-foreground hover:text-destructive p-1"
+        >
           <Trash2 className="w-3.5 h-3.5" />
         </button>
-        <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", expanded && "rotate-180")} />
+        <ChevronDown
+          className={cn(
+            "w-4 h-4 text-muted-foreground transition-transform",
+            expanded && "rotate-180",
+          )}
+        />
       </div>
 
       {expanded && (
         <div className="border-t px-4 py-3 space-y-3 bg-muted/20">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">Label</label>
+              <label className="text-xs font-medium text-muted-foreground block mb-1">
+                Label
+              </label>
               <input
                 className="w-full border rounded-md px-2.5 py-1.5 text-sm bg-background outline-none focus:ring-1 focus:ring-ring"
                 value={label}
-                onChange={e => { setLabel(e.target.value); onChange({ label: e.target.value }); }}
+                onChange={(e) => {
+                  setLabel(e.target.value);
+                  onChange({ label: e.target.value });
+                }}
                 onBlur={() => onFlush({ label })}
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">Type</label>
+              <label className="text-xs font-medium text-muted-foreground block mb-1">
+                Type
+              </label>
               {/* Type change fires immediately — it's a single click, not keystroke spam */}
               <select
                 className="w-full border rounded-md px-2.5 py-1.5 text-sm bg-background outline-none"
                 value={field.field_type}
-                onChange={e => onFlush({ field_type: e.target.value })}
+                onChange={(e) => onFlush({ field_type: e.target.value })}
               >
-                {FIELD_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                {FIELD_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">Placeholder</label>
+              <label className="text-xs font-medium text-muted-foreground block mb-1">
+                Placeholder
+              </label>
               <input
                 className="w-full border rounded-md px-2.5 py-1.5 text-sm bg-background outline-none focus:ring-1 focus:ring-ring"
                 value={placeholder}
-                onChange={e => { setPlaceholder(e.target.value); onChange({ placeholder: e.target.value }); }}
+                onChange={(e) => {
+                  setPlaceholder(e.target.value);
+                  onChange({ placeholder: e.target.value });
+                }}
                 onBlur={() => onFlush({ placeholder })}
                 placeholder="Optional…"
               />
@@ -335,7 +441,7 @@ function FieldCard({ field, index, onChange, onFlush, onRemove }) {
                 <input
                   type="checkbox"
                   checked={field.is_required}
-                  onChange={e => onFlush({ is_required: e.target.checked })}
+                  onChange={(e) => onFlush({ is_required: e.target.checked })}
                   className="rounded"
                 />
                 Required field
@@ -344,12 +450,18 @@ function FieldCard({ field, index, onChange, onFlush, onRemove }) {
           </div>
           {["dropdown", "multiselect"].includes(field.field_type) && (
             <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">Options (one per line)</label>
+              <label className="text-xs font-medium text-muted-foreground block mb-1">
+                Options (one per line)
+              </label>
               <textarea
                 className="w-full border rounded-md px-2.5 py-1.5 text-sm bg-background outline-none focus:ring-1 focus:ring-ring resize-none"
                 rows={3}
                 value={(field.options || []).join("\n")}
-                onChange={e => onChange({ options: e.target.value.split("\n").filter(Boolean) })}
+                onChange={(e) =>
+                  onChange({
+                    options: e.target.value.split("\n").filter(Boolean),
+                  })
+                }
                 placeholder="Option A&#10;Option B&#10;Option C"
               />
             </div>
@@ -361,8 +473,16 @@ function FieldCard({ field, index, onChange, onFlush, onRemove }) {
 }
 
 function SubmissionsPanel({ workspaceSlug, projectId, formId, form }) {
-  const { data: submissions = [] } = useFormSubmissions(workspaceSlug, projectId, formId);
-  const updateStatus = useUpdateSubmissionStatus(workspaceSlug, projectId, formId);
+  const { data: submissions = [] } = useFormSubmissions(
+    workspaceSlug,
+    projectId,
+    formId,
+  );
+  const updateStatus = useUpdateSubmissionStatus(
+    workspaceSlug,
+    projectId,
+    formId,
+  );
   const [expanded, setExpanded] = useState(null);
 
   return (
@@ -371,39 +491,58 @@ function SubmissionsPanel({ workspaceSlug, projectId, formId, form }) {
         <div className="text-center py-16 text-muted-foreground">
           <Send className="w-10 h-10 mx-auto mb-3 opacity-20" />
           <p className="text-sm">No submissions yet.</p>
-          <p className="text-xs mt-1">Share the form link to start receiving responses.</p>
+          <p className="text-xs mt-1">
+            Share the form link to start receiving responses.
+          </p>
         </div>
       ) : (
-        submissions.map(sub => (
-          <div key={sub.id} className="border rounded-xl bg-card overflow-hidden">
+        submissions.map((sub) => (
+          <div
+            key={sub.id}
+            className="border rounded-md bg-card overflow-hidden"
+          >
             <div
               className="flex items-center gap-3 px-4 py-3 cursor-pointer"
-              onClick={() => setExpanded(e => e === sub.id ? null : sub.id)}
+              onClick={() => setExpanded((e) => (e === sub.id ? null : sub.id))}
             >
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">{sub.submitter_email || "Anonymous"}</p>
-                <p className="text-xs text-muted-foreground">{format(new Date(sub.submitted_at), "MMM d, yyyy · h:mm a")}</p>
+                <p className="text-sm font-medium">
+                  {sub.submitter_email || "Anonymous"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {format(new Date(sub.submitted_at), "MMM d, yyyy · h:mm a")}
+                </p>
               </div>
               <select
                 className="text-xs border rounded-md px-2 py-1 bg-background outline-none"
                 value={sub.status}
-                onChange={e => { updateStatus.mutate({ id: sub.id, status: e.target.value }); }}
-                onClick={e => e.stopPropagation()}
+                onChange={(e) => {
+                  updateStatus.mutate({ id: sub.id, status: e.target.value });
+                }}
+                onClick={(e) => e.stopPropagation()}
               >
                 <option value="new">New</option>
                 <option value="in_review">In Review</option>
                 <option value="closed">Closed</option>
               </select>
               {sub.task_title && (
-                <span className="text-xs text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full">Task created</span>
+                <span className="text-xs text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                  Task created
+                </span>
               )}
             </div>
             {expanded === sub.id && (
               <div className="border-t px-4 py-3 bg-muted/20 space-y-2">
-                {form?.fields?.map(field => (
+                {form?.fields?.map((field) => (
                   <div key={field.id}>
-                    <p className="text-xs font-medium text-muted-foreground">{field.label}</p>
-                    <p className="text-sm">{sub.answers?.[field.id] || <span className="italic text-muted-foreground">—</span>}</p>
+                    <p className="text-xs font-medium text-muted-foreground">
+                      {field.label}
+                    </p>
+                    <p className="text-sm">
+                      {sub.answers?.[field.id] || (
+                        <span className="italic text-muted-foreground">—</span>
+                      )}
+                    </p>
                   </div>
                 ))}
               </div>

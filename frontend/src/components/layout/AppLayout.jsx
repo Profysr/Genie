@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { lazy, Suspense, useEffect, useState, useRef } from "react";
 import { Outlet, NavLink, useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/authStore";
@@ -6,8 +6,17 @@ import { useThemeStore } from "@/store/themeStore";
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
 import {
-  LogOut, ChevronDown, Search, Plus, Check, Square,
-  BellOff, SlidersHorizontal, Keyboard, UserCircle, MoreHorizontal,
+  LogOut,
+  ChevronDown,
+  Search,
+  Plus,
+  Check,
+  Square,
+  BellOff,
+  SlidersHorizontal,
+  Keyboard,
+  UserCircle,
+  MoreHorizontal,
 } from "lucide-react";
 import { useInboxUnreadCount } from "@/hooks/useInbox";
 import { resolvedNavGroups, workspaceUrl } from "@/lib/navLinks";
@@ -15,9 +24,12 @@ import { useActiveTimer, useStopTimer } from "@/hooks/useTimeTracking";
 import { useAnnouncePresence } from "@/hooks/usePresence";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import NotificationBell from "@/components/layout/NotificationBell";
-import CommandPalette from "@/components/CommandPalette";
-import ShortcutOverlay from "@/components/ShortcutOverlay";
-import UserSettingsModal from "@/components/UserSettingsModal";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
+
+// Only rendered on interaction — load their bundles on first open, not at app start
+const CommandPalette = lazy(() => import("@/components/CommandPalette"));
+const ShortcutOverlay = lazy(() => import("@/components/ShortcutOverlay"));
+const UserSettingsModal = lazy(() => import("@/components/UserSettingsModal"));
 
 export default function AppLayout() {
   const { workspaceSlug } = useParams();
@@ -27,7 +39,8 @@ export default function AppLayout() {
 
   const { data: workspace } = useQuery({
     queryKey: ["workspace", workspaceSlug],
-    queryFn: () => api.get(`/api/workspaces/${workspaceSlug}/`).then((r) => r.data),
+    queryFn: () =>
+      api.get(`/api/workspaces/${workspaceSlug}/`).then((r) => r.data),
     enabled: !!workspaceSlug,
   });
 
@@ -40,7 +53,7 @@ export default function AppLayout() {
 
   useEffect(() => {
     if (!meData) return;
-    if (meData.theme)        setTheme(meData.theme);
+    if (meData.theme) setTheme(meData.theme);
     if (meData.accent_color) setAccent(meData.accent_color);
     if (meData.density_mode) setDensity(meData.density_mode);
   }, [meData]);
@@ -53,14 +66,14 @@ export default function AppLayout() {
   const navGroups = resolvedNavGroups().map((group) => ({
     ...group,
     items: group.items.map((item) => ({
-      to:    workspaceUrl(workspaceSlug, item.path),
-      icon:  item.icon,
+      to: workspaceUrl(workspaceSlug, item.path),
+      icon: item.icon,
       label: item.label,
-      key:   item.key,
+      key: item.key,
     })),
   }));
 
-  const initials    = workspace?.name?.[0]?.toUpperCase() || "W";
+  const initials = workspace?.name?.[0]?.toUpperCase() || "W";
   const userInitial = user?.display_name?.[0]?.toUpperCase() || "U";
 
   const { data: activeTimer } = useActiveTimer(workspaceSlug);
@@ -71,15 +84,15 @@ export default function AppLayout() {
   useAnnouncePresence(workspaceSlug, "project", workspaceSlug);
 
   // v3.9.0 — command palette + shortcut overlay + user settings modal
-  const [paletteOpen,   setPaletteOpen]   = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const [settingsOpen,  setSettingsOpen]  = useState(false);
-  const [settingsTab,   setSettingsTab]   = useState("me");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState("me");
 
   useKeyboardShortcuts({
-    onOpenPalette:   () => setPaletteOpen((o) => !o),
+    onOpenPalette: () => setPaletteOpen((o) => !o),
     onOpenShortcuts: () => setShortcutsOpen((o) => !o),
-    onCreateTask:    () => {
+    onCreateTask: () => {
       // Dispatch a custom event; KanbanPage (and other pages) can listen
       window.dispatchEvent(new CustomEvent("jcn:create-task"));
     },
@@ -109,7 +122,10 @@ export default function AppLayout() {
   const focusRef = useRef(null);
   useEffect(() => {
     if (!focusMenuOpen) return;
-    const h = (e) => { if (focusRef.current && !focusRef.current.contains(e.target)) setFocusMenuOpen(false); };
+    const h = (e) => {
+      if (focusRef.current && !focusRef.current.contains(e.target))
+        setFocusMenuOpen(false);
+    };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [focusMenuOpen]);
@@ -161,7 +177,7 @@ export default function AppLayout() {
                         "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors active:scale-[0.98]",
                         isActive
                           ? "bg-primary/10 text-primary font-semibold"
-                          : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                          : "text-muted-foreground hover:bg-accent hover:text-foreground",
                       )
                     }
                   >
@@ -187,8 +203,12 @@ export default function AppLayout() {
               className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg bg-violet-500/10 border border-violet-500/20 text-violet-600 hover:bg-violet-500/15 transition-colors"
             >
               <BellOff className="w-3.5 h-3.5 flex-shrink-0" />
-              <span className="text-xs font-medium flex-1 text-left">Focus Mode on</span>
-              <span className="text-[10px] text-violet-500 opacity-80">tap to disable</span>
+              <span className="text-xs font-medium flex-1 text-left">
+                Focus Mode on
+              </span>
+              <span className="text-[10px] text-violet-500 opacity-80">
+                tap to disable
+              </span>
             </button>
           ) : (
             <>
@@ -200,11 +220,18 @@ export default function AppLayout() {
                 <span className="text-xs">Focus Mode</span>
               </button>
               {focusMenuOpen && (
-                <div className="absolute bottom-full left-0 right-0 mb-1 z-50 bg-popover border border-border rounded-xl shadow-popover py-1">
-                  {[["1h","1 hour"], ["4h","4 hours"], ["8h","8 hours"]].map(([k, label]) => (
+                <div className="absolute bottom-full left-0 right-0 mb-1 z-50 bg-popover border border-border rounded-md shadow-popover py-1">
+                  {[
+                    ["1h", "1 hour"],
+                    ["4h", "4 hours"],
+                    ["8h", "8 hours"],
+                  ].map(([k, label]) => (
                     <button
                       key={k}
-                      onClick={() => { enableFocusMode(parseFloat(k)); setFocusMenuOpen(false); }}
+                      onClick={() => {
+                        enableFocusMode(parseFloat(k));
+                        setFocusMenuOpen(false);
+                      }}
                       className="w-full text-left px-3 py-2 text-xs hover:bg-accent transition-colors"
                     >
                       Mute for {label}
@@ -221,7 +248,9 @@ export default function AppLayout() {
           <div className="mx-3 mb-1 flex items-center gap-2 px-2.5 py-2 rounded-lg bg-red-500/10 border border-red-500/20">
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-red-600 leading-none">Timer running</p>
+              <p className="text-xs font-medium text-red-600 leading-none">
+                Timer running
+              </p>
               <p className="text-[10px] text-muted-foreground truncate mt-0.5">
                 {activeTimer.task_title || "Task"}
               </p>
@@ -240,11 +269,13 @@ export default function AppLayout() {
         <UserPanel
           user={user}
           userInitial={userInitial}
-          onOpenSettings={(tab) => { setSettingsTab(tab); setSettingsOpen(true); }}
+          onOpenSettings={(tab) => {
+            setSettingsTab(tab);
+            setSettingsOpen(true);
+          }}
           onOpenShortcuts={() => setShortcutsOpen(true)}
           onLogout={handleLogout}
         />
-
       </aside>
 
       {/* Main content */}
@@ -252,22 +283,40 @@ export default function AppLayout() {
         <Outlet />
       </main>
 
-      {/* v3.9.0 — global overlays owned here */}
-      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
-      {shortcutsOpen && <ShortcutOverlay onClose={() => setShortcutsOpen(false)} />}
-      {settingsOpen  && (
-        <UserSettingsModal
-          defaultTab={settingsTab}
-          onClose={() => setSettingsOpen(false)}
+      {/* v3.9.0 — global overlays owned here (lazy — chunk downloads on first open) */}
+      <Suspense fallback={null}>
+        <CommandPalette
+          open={paletteOpen}
+          onClose={() => setPaletteOpen(false)}
         />
-      )}
+      </Suspense>
+      <Suspense fallback={null}>
+        {shortcutsOpen && (
+          <ShortcutOverlay onClose={() => setShortcutsOpen(false)} />
+        )}
+      </Suspense>
+      <Suspense fallback={null}>
+        {settingsOpen && (
+          <UserSettingsModal
+            defaultTab={settingsTab}
+            onClose={() => setSettingsOpen(false)}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }
 
 // ── UserPanel ─────────────────────────────────────────────────────────────────
-function UserPanel({ user, userInitial, onOpenSettings, onOpenShortcuts, onLogout }) {
+function UserPanel({
+  user,
+  userInitial,
+  onOpenSettings,
+  onOpenShortcuts,
+  onLogout,
+}) {
   const [open, setOpen] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
   const ref = useRef(null);
 
   useEffect(() => {
@@ -279,10 +328,16 @@ function UserPanel({ user, userInitial, onOpenSettings, onOpenShortcuts, onLogou
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  const action = (fn) => () => { fn(); setOpen(false); };
+  const action = (fn) => () => {
+    fn();
+    setOpen(false);
+  };
 
   return (
-    <div ref={ref} className="px-3 pb-3 pt-2 border-t border-border/60 relative">
+    <div
+      ref={ref}
+      className="px-3 pb-3 pt-2 border-t border-border/60 relative"
+    >
       {/* Trigger row — a div with two interactive zones to avoid button-in-button */}
       <div className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-accent transition-colors group">
         {/* Left: avatar + name/email — clicking opens dropdown */}
@@ -321,7 +376,7 @@ function UserPanel({ user, userInitial, onOpenSettings, onOpenShortcuts, onLogou
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute left-3 right-3 bottom-full mb-1 z-50 bg-popover border border-border rounded-xl shadow-popover py-1">
+        <div className="absolute left-3 right-3 bottom-full mb-1 z-50 bg-popover border border-border rounded-md shadow-popover py-1">
           <button
             onClick={action(() => onOpenSettings("me"))}
             className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-accent transition-colors text-left"
@@ -342,17 +397,32 @@ function UserPanel({ user, userInitial, onOpenSettings, onOpenShortcuts, onLogou
           >
             <Keyboard className="w-4 h-4 text-muted-foreground" />
             <span className="flex-1">Keyboard shortcuts</span>
-            <kbd className="text-[10px] font-semibold bg-muted border border-border rounded px-1 py-0.5 leading-none">?</kbd>
+            <kbd className="text-[10px] font-semibold bg-muted border border-border rounded px-1 py-0.5 leading-none">
+              ?
+            </kbd>
           </button>
-          <div className="border-t border-border/60 mx-2 my-1" />
+          <div className="border-t border-border mx-2 my-1" />
           <button
-            onClick={action(onLogout)}
+            onClick={action(() => setConfirmLogout(true))}
             className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-accent transition-colors text-left text-destructive hover:text-destructive"
           >
             <LogOut className="w-4 h-4" />
             Sign out
           </button>
         </div>
+      )}
+
+      {confirmLogout && (
+        <ConfirmModal
+          title="Sign out?"
+          message="Are you sure, you want to Logout? You'll be returned to the login screen."
+          confirmLabel="Sign out"
+          onConfirm={() => {
+            setConfirmLogout(false);
+            onLogout();
+          }}
+          onCancel={() => setConfirmLogout(false)}
+        />
       )}
     </div>
   );
@@ -367,14 +437,17 @@ function WorkspaceSwitcher({ currentWorkspace, currentSlug, canCreate }) {
 
   const { data: allWorkspaces = [] } = useQuery({
     queryKey: ["workspaces"],
-    queryFn: () => api.get("/api/workspaces/").then((r) => r.data.results || r.data),
+    queryFn: () =>
+      api.get("/api/workspaces/").then((r) => r.data.results || r.data),
     staleTime: 60_000,
   });
 
   // Close on outside click
   useEffect(() => {
     if (!open) return;
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
@@ -382,7 +455,10 @@ function WorkspaceSwitcher({ currentWorkspace, currentSlug, canCreate }) {
   const initials = currentWorkspace?.name?.[0]?.toUpperCase() || "W";
 
   return (
-    <div ref={ref} className="px-3 pt-3 pb-2.5 border-b border-border/60 relative">
+    <div
+      ref={ref}
+      className="px-3 pt-3 pb-2.5 border-b border-border/60 relative"
+    >
       <button
         onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 hover:bg-accent transition-colors group active:scale-[0.98]"
@@ -393,14 +469,16 @@ function WorkspaceSwitcher({ currentWorkspace, currentSlug, canCreate }) {
         <span className="flex-1 text-left truncate text-sm font-semibold text-foreground">
           {currentWorkspace?.name || "Loading…"}
         </span>
-        <ChevronDown className={cn(
-          "w-3.5 h-3.5 text-muted-foreground transition-transform",
-          open && "rotate-180"
-        )} />
+        <ChevronDown
+          className={cn(
+            "w-3.5 h-3.5 text-muted-foreground transition-transform",
+            open && "rotate-180",
+          )}
+        />
       </button>
 
       {open && (
-        <div className="absolute left-3 right-3 top-full mt-1 z-50 bg-popover border rounded-xl shadow-popover py-1">
+        <div className="absolute left-3 right-3 top-full mt-1 z-50 bg-popover border rounded-md shadow-popover py-1">
           <p className="px-3 pt-2 pb-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
             Your workspaces
           </p>
@@ -408,7 +486,10 @@ function WorkspaceSwitcher({ currentWorkspace, currentSlug, canCreate }) {
           {allWorkspaces.map((ws) => (
             <button
               key={ws.id}
-              onClick={() => { navigate(`/w/${ws.slug}`); setOpen(false); }}
+              onClick={() => {
+                navigate(`/w/${ws.slug}`);
+                setOpen(false);
+              }}
               className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-accent transition-colors text-left"
             >
               <div className="w-6 h-6 rounded-md bg-primary/15 text-primary flex items-center justify-center text-[11px] font-bold flex-shrink-0">
@@ -425,7 +506,10 @@ function WorkspaceSwitcher({ currentWorkspace, currentSlug, canCreate }) {
             <>
               <div className="border-t mx-2 my-1" />
               <button
-                onClick={() => { navigate("/onboarding"); setOpen(false); }}
+                onClick={() => {
+                  navigate("/onboarding");
+                  setOpen(false);
+                }}
                 className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-accent transition-colors text-left text-muted-foreground hover:text-foreground"
               >
                 <div className="w-6 h-6 rounded-md border border-dashed border-border flex items-center justify-center flex-shrink-0">

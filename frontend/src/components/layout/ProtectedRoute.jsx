@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuthStore } from "@/store/authStore";
+import { Loader } from "@/components/ui/Loader";
 
 export default function ProtectedRoute() {
   const { user, accessToken, fetchMe } = useAuthStore();
@@ -24,9 +25,5 @@ function FetchUser({ fetchMe }) {
     fetchMe().catch(() => {});
   }, [fetchMe]);
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-    </div>
-  );
+  return <Loader size="xl" className="min-h-screen bg-background" />;
 }
