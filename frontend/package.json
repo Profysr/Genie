@@ -10,6 +10,7 @@
     "lint": "eslint src --ext js,jsx"
   },
   "dependencies": {
+    "@floating-ui/dom": "^1.7.6",
     "@hello-pangea/dnd": "^16.6.0",
     "@radix-ui/react-avatar": "^1.1.0",
     "@radix-ui/react-dialog": "^1.1.1",
@@ -27,6 +28,7 @@
     "@tiptap/extension-highlight": "^3.24.0",
     "@tiptap/extension-italic": "^3.25.0",
     "@tiptap/extension-link": "^3.24.0",
+    "@tiptap/extension-mention": "^3.26.0",
     "@tiptap/extension-placeholder": "^3.24.0",
     "@tiptap/extension-strike": "^3.25.0",
     "@tiptap/extension-table": "^3.24.0",
@@ -40,6 +42,7 @@
     "@tiptap/extension-underline": "^3.25.0",
     "@tiptap/react": "^3.24.0",
     "@tiptap/starter-kit": "^3.24.0",
+    "@tiptap/suggestion": "^3.26.0",
     "axios": "^1.7.2",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
@@ -49,9 +52,9 @@
     "react-dom": "^18.3.1",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^6.24.1",
+    "recharts": "^2.12.7",
     "tailwind-merge": "^2.4.0",
     "tiptap-markdown": "^0.9.0",
-    "recharts": "^2.12.7",
     "zustand": "^4.5.4"
   },
   "devDependencies": {

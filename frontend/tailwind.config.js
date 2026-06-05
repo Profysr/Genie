@@ -54,7 +54,7 @@ export default {
       borderRadius: {
         none: "var(--radius-none)",
         sm: "var(--radius-sm)",
-        DEFAULT: "var(--radius-md)",
+        DEFAULT: "var(--radius-sm)",
         md: "var(--radius-md)",
         lg: "var(--radius-lg)",
         xl: "var(--radius-xl)",

@@ -51,7 +51,7 @@ import { useMembers } from "@/hooks/useMembers";
 import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import MentionTextarea from "@/components/tasks/MentionTextarea";
+import CommentEditor from "@/components/tasks/CommentEditor";
 import { Loader } from "@/components/ui/Loader";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import TaskAttachmentsSection from "@/components/tasks/TaskAttachmentsSection";
@@ -122,9 +122,9 @@ export default function TaskDetailPanel({
   const toggleSubtask = useToggleSubtask(workspaceSlug, projectId, taskId);
   const deleteSubtask = useDeleteSubtask(workspaceSlug, projectId, taskId);
   const deleteTask = useDeleteTask(workspaceSlug, projectId);
-  const createChild  = useCreateChildTask(workspaceSlug, projectId, taskId);
-  const attachChild  = useAttachChildTask(workspaceSlug, projectId, taskId);
-  const cloneTask    = useCloneTask(workspaceSlug, projectId);
+  const createChild = useCreateChildTask(workspaceSlug, projectId, taskId);
+  const attachChild = useAttachChildTask(workspaceSlug, projectId, taskId);
+  const cloneTask = useCloneTask(workspaceSlug, projectId);
   const { data: allTasks = [] } = useTasks(workspaceSlug, projectId);
   const { toast } = useToast();
 
@@ -171,7 +171,8 @@ export default function TaskDetailPanel({
 
   const [commentBody, setCommentBody] = useState("");
   const [newSubtask, setNewSubtask] = useState("");
-  const [newChildTitle, setNewChildTitle]   = useState("");
+  const commentEditorRef = useRef(null);
+  const [newChildTitle, setNewChildTitle] = useState("");
   const [showChildPicker, setShowChildPicker] = useState(false);
   const [childPickerQuery, setChildPickerQuery] = useState("");
   const [editingTitle, setEditingTitle] = useState(false);
@@ -263,6 +264,7 @@ export default function TaskDetailPanel({
     if (!commentBody.trim()) return;
     createComment.mutate(commentBody.trim(), {
       onSuccess: () => {
+        commentEditorRef.current?.clear();
         setCommentBody("");
         setCommentFocused(false);
       },
@@ -575,7 +577,10 @@ export default function TaskDetailPanel({
                 </button>
                 {canEdit && (
                   <button
-                    onClick={() => { setShowChildPicker((v) => !v); setChildPickerQuery(""); }}
+                    onClick={() => {
+                      setShowChildPicker((v) => !v);
+                      setChildPickerQuery("");
+                    }}
                     className="text-[11px] text-primary hover:text-primary/80 flex items-center gap-0.5 flex-shrink-0 ml-2"
                   >
                     <Link2 className="w-3 h-3" /> Attach
@@ -584,53 +589,76 @@ export default function TaskDetailPanel({
               </div>
 
               {/* Attach existing task picker */}
-              {showChildPicker && (() => {
-                const attachable = allTasks.filter(
-                  (t) => !t.parent_id && t.id !== taskId && !childTasks.some((c) => c.id === t.id)
-                );
-                const filtered = attachable
-                  .filter((t) => t.title.toLowerCase().includes(childPickerQuery.toLowerCase()))
-                  .slice(0, 8);
-                return (
-                  <div className="mb-2 border rounded-lg bg-card shadow-sm overflow-hidden">
-                    <div className="px-2.5 py-2 border-b flex items-center justify-between">
-                      <span className="text-xs font-medium text-muted-foreground">Attach existing task</span>
-                      <button onClick={() => setShowChildPicker(false)} className="text-muted-foreground hover:text-foreground">
-                        <X className="w-3.5 h-3.5" />
-                      </button>
+              {showChildPicker &&
+                (() => {
+                  const attachable = allTasks.filter(
+                    (t) =>
+                      !t.parent_id &&
+                      t.id !== taskId &&
+                      !childTasks.some((c) => c.id === t.id),
+                  );
+                  const filtered = attachable
+                    .filter((t) =>
+                      t.title
+                        .toLowerCase()
+                        .includes(childPickerQuery.toLowerCase()),
+                    )
+                    .slice(0, 8);
+                  return (
+                    <div className="mb-2 border rounded-lg bg-card shadow-sm overflow-hidden">
+                      <div className="px-2.5 py-2 border-b flex items-center justify-between">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          Attach existing task
+                        </span>
+                        <button
+                          onClick={() => setShowChildPicker(false)}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <input
+                        autoFocus
+                        className="w-full px-2.5 py-2 text-xs border-b bg-transparent outline-none placeholder:text-muted-foreground"
+                        placeholder="Search tasks…"
+                        value={childPickerQuery}
+                        onChange={(e) => setChildPickerQuery(e.target.value)}
+                      />
+                      <div className="max-h-40 overflow-y-auto py-1">
+                        {filtered.length === 0 ? (
+                          <p className="px-3 py-3 text-xs text-muted-foreground text-center">
+                            No tasks available
+                          </p>
+                        ) : (
+                          filtered.map((t) => (
+                            <button
+                              key={t.id}
+                              onClick={() => {
+                                attachChild.mutate(t.id);
+                                setShowChildPicker(false);
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-accent transition-colors text-left"
+                            >
+                              <div
+                                className="w-2 h-2 rounded-full flex-shrink-0"
+                                style={{
+                                  backgroundColor:
+                                    t.status_detail?.color || "#94a3b8",
+                                }}
+                              />
+                              <span className="truncate flex-1">{t.title}</span>
+                              {t.status_detail && (
+                                <span className="text-[10px] text-muted-foreground flex-shrink-0">
+                                  {t.status_detail.name}
+                                </span>
+                              )}
+                            </button>
+                          ))
+                        )}
+                      </div>
                     </div>
-                    <input
-                      autoFocus
-                      className="w-full px-2.5 py-2 text-xs border-b bg-transparent outline-none placeholder:text-muted-foreground"
-                      placeholder="Search tasks…"
-                      value={childPickerQuery}
-                      onChange={(e) => setChildPickerQuery(e.target.value)}
-                    />
-                    <div className="max-h-40 overflow-y-auto py-1">
-                      {filtered.length === 0 ? (
-                        <p className="px-3 py-3 text-xs text-muted-foreground text-center">No tasks available</p>
-                      ) : (
-                        filtered.map((t) => (
-                          <button
-                            key={t.id}
-                            onClick={() => { attachChild.mutate(t.id); setShowChildPicker(false); }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-accent transition-colors text-left"
-                          >
-                            <div
-                              className="w-2 h-2 rounded-full flex-shrink-0"
-                              style={{ backgroundColor: t.status_detail?.color || "#94a3b8" }}
-                            />
-                            <span className="truncate flex-1">{t.title}</span>
-                            {t.status_detail && (
-                              <span className="text-[10px] text-muted-foreground flex-shrink-0">{t.status_detail.name}</span>
-                            )}
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                );
-              })()}
+                  );
+                })()}
 
               {childrenOpen && (
                 <div className="space-y-1.5 ml-1">
@@ -851,35 +879,19 @@ export default function TaskDetailPanel({
                             : "border-border",
                         )}
                       >
-                        <MentionTextarea
-                          value={commentBody}
-                          onChange={(val) => {
-                            setCommentBody(val);
-                            const now = Date.now();
-                            if (now - typingPingRef.current > 3000) {
-                              typingPingRef.current = now;
-                              import("@/lib/api").then(({ default: api }) => {
-                                api
-                                  .post(
-                                    `/api/workspaces/${workspaceSlug}/presence/`,
-                                    {
-                                      resource_type: "task",
-                                      resource_id: taskId,
-                                    },
-                                  )
-                                  .catch(() => {});
-                              });
-                            }
-                          }}
-                          onFocus={() => setCommentFocused(true)}
-                          onSubmit={handleCommentSubmit}
+                        <CommentEditor
+                          ref={commentEditorRef}
                           members={members}
+                          onSubmit={handleCommentSubmit}
+                          onFocus={() => setCommentFocused(true)}
+                          onChange={setCommentBody}
                         />
                         {commentFocused && (
                           <div className="flex items-center justify-end gap-2 px-3 pb-2.5">
                             <button
                               type="button"
                               onClick={() => {
+                                commentEditorRef.current?.clear();
                                 setCommentBody("");
                                 setCommentFocused(false);
                               }}
@@ -1259,11 +1271,6 @@ export default function TaskDetailPanel({
 
           {/* RIGHT COLUMN — details sidebar (Jira style) */}
           <div className="w-72 flex-shrink-0 overflow-y-auto px-4 py-5 space-y-1 bg-muted/20">
-            {/* Status — prominent animated dropdown */}
-            {/* <div className="mb-5">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">
-                Status
-              </p> */}
             <DetailRow label="Status">
               <Dropdown
                 // fullWidth
@@ -1277,32 +1284,23 @@ export default function TaskDetailPanel({
                 onChange={(v) => update.mutate({ status_id: v })}
                 renderTrigger={(opt) =>
                   opt ? (
-                    <span
-                      className="flex items-center gap-2 font-semibold"
-                      style={{ color: opt.color }}
+                    <div
+                      className="flex items-center gap-2 font-semibold text-xs px-3 py-1 rounded"
+                      style={{ backgroundColor: opt.color + "75" }}
                     >
-                      <span
-                        className="w-2 h-2 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: opt.color }}
-                      />
                       {opt.label}
-                    </span>
+                    </div>
                   ) : null
                 }
                 renderOption={(opt) => (
                   <span
-                    className="flex items-center gap-2"
-                    style={{ color: opt.color }}
+                    className="flex items-center gap-2 px-2 py-0.5 rounded text-xs"
+                    style={{ backgroundColor: opt.color + "80" }}
                   >
-                    <span
-                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: opt.color }}
-                    />
                     {opt.label}
                   </span>
                 )}
               />
-              {/* </div> */}
             </DetailRow>
 
             {/* Detail rows — animated dropdowns */}
@@ -1312,16 +1310,6 @@ export default function TaskDetailPanel({
                 value={task.priority}
                 options={PRIORITY_OPTIONS.map((p) => ({ ...p }))}
                 onChange={(v) => update.mutate({ priority: v })}
-                // renderTrigger={(opt) =>
-                //   opt && (
-                //     <span className={cn("text-sm", opt.color)}>
-                //       {opt.label}
-                //     </span>
-                //   )
-                // }
-                // renderOption={(opt) => (
-                //   <span className={cn("text-sm", opt.color)}>{opt.label}</span>
-                // )}
                 renderTrigger={(opt) => {
                   if (!opt) return null;
                   const Icon = opt.icon; // Capitalize so React knows it's a component
@@ -1508,12 +1496,13 @@ export default function TaskDetailPanel({
                         .map((x) => x.id);
                       update.mutate({ label_ids: newIds });
                     }}
-                    className="group flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
-                    style={{ backgroundColor: l.color + "22", color: l.color }}
+                    // Added 'relative' and extra right padding 'pr-6' so the text doesn't overlap the X icon
+                    className="group relative flex items-center gap-1 px-3 py-0.5 rounded text-xs font-medium transition-all"
+                    style={{ backgroundColor: l.color + "50" }}
                     title="Click to remove"
                   >
                     {l.name}
-                    <X className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <X className="absolute -top-1 -right-1 bg-white rounded-full text-destructive p-0.5 w-3.5 h-3.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity" />
                   </button>
                 ))}
                 {canEdit && (
@@ -1812,7 +1801,7 @@ function Dropdown({
       {/* Animated panel */}
       <div
         className={cn(
-          "absolute left-0 right-0 z-[60] bg-popover border border-border rounded-md shadow-xl overflow-hidden transition-all duration-200 origin-top",
+          "absolute right-0 z-[60] min-w-52 bg-popover border border-border rounded shadow-xl overflow-hidden transition-all duration-200 origin-top",
           open
             ? "opacity-100 scale-y-100 translate-y-0.5"
             : "opacity-0 scale-y-95 -translate-y-1 pointer-events-none",
@@ -1867,7 +1856,6 @@ function MetaField({ label, icon, children }) {
 }
 
 // ── v3.6.0 — Approval helpers ─────────────────────────────────────────────────
-
 const REVIEWER_STATUS_CONFIG = {
   pending: { label: "Pending", cls: "bg-muted text-muted-foreground" },
   approved: { label: "Approved", cls: "bg-emerald-500/10 text-emerald-600" },
