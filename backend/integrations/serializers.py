@@ -1,33 +1,67 @@
 from rest_framework import serializers
-from .models import (
-    SlackIntegration, TeamsIntegration,
-    GoogleChatIntegration, IntegrationChannelMapping,
-)
-
-
-class SlackIntegrationSerializer(serializers.ModelSerializer):
-    class Meta:
-        model  = SlackIntegration
-        fields = [
-            "id", "team_id", "team_name", "bot_user_id",
-            "incoming_webhook_channel", "is_active",
-            "created_at", "updated_at",
-        ]
-        read_only_fields = fields  # all read-only; write via OAuth flow
+from .models import TeamsIntegration, GoogleChatIntegration, IntegrationChannelMapping
 
 
 class TeamsIntegrationSerializer(serializers.ModelSerializer):
     class Meta:
         model  = TeamsIntegration
-        fields = ["id", "webhook_url", "display_name", "is_active", "created_at", "updated_at"]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        fields = ["id", "webhook_url", "space_name", "is_active", "created_at", "updated_at"]
+        read_only_fields = ["id", "is_active", "created_at", "updated_at"]
+        extra_kwargs = {"webhook_url": {"required": True}}
+
+    def validate_webhook_url(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("This field is required.")
+        return value
+
+    def validate_space_name(self, value):
+        return value.strip() or "JCN"
+
+    def create(self, validated_data):
+        ws = validated_data.pop("workspace")
+        instance, _ = TeamsIntegration.objects.update_or_create(
+            workspace=ws,
+            defaults={**validated_data, "is_active": True},
+        )
+        return instance
+
+    def update(self, instance, validated_data):
+        for attr, val in validated_data.items():
+            setattr(instance, attr, val)
+        instance.save()
+        return instance
 
 
 class GoogleChatIntegrationSerializer(serializers.ModelSerializer):
     class Meta:
         model  = GoogleChatIntegration
         fields = ["id", "webhook_url", "space_name", "is_active", "created_at", "updated_at"]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "is_active", "created_at", "updated_at"]
+        extra_kwargs = {"webhook_url": {"required": True}}
+
+    def validate_webhook_url(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("This field is required.")
+        return value
+
+    def validate_space_name(self, value):
+        return value.strip()
+
+    def create(self, validated_data):
+        ws = validated_data.pop("workspace")
+        instance, _ = GoogleChatIntegration.objects.update_or_create(
+            workspace=ws,
+            defaults={**validated_data, "is_active": True},
+        )
+        return instance
+
+    def update(self, instance, validated_data):
+        for attr, val in validated_data.items():
+            setattr(instance, attr, val)
+        instance.save()
+        return instance
 
 
 class IntegrationChannelMappingSerializer(serializers.ModelSerializer):
@@ -37,8 +71,7 @@ class IntegrationChannelMappingSerializer(serializers.ModelSerializer):
         model  = IntegrationChannelMapping
         fields = [
             "id", "project", "project_name", "platform",
-            "channel_id", "channel_name", "webhook_url",
-            "notification_format", "enabled_events", "is_active",
+            "webhook_url", "notification_format", "enabled_events", "is_active",
             "created_at",
         ]
         read_only_fields = ["id", "project_name", "created_at"]

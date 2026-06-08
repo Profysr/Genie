@@ -1,27 +1,93 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useProjects } from "@/hooks/useProjects";
+import { usePortfolio } from "@/hooks/useMyWork";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import CreateProjectModal from "@/components/projects/CreateProjectModal";
-import { Plus, ArrowRight } from "lucide-react";
+import { Plus, ArrowRight, AlertTriangle, Zap } from "lucide-react";
 import { APP_COLORS as PROJECT_COLORS } from "@/lib/constants";
+import { cn } from "@/lib/utils";
+
+const HEALTH = {
+  on_track: {
+    label: "On Track",
+    dot: "bg-emerald-400",
+    bar: "bg-emerald-400",
+    badge:
+      "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+  },
+  at_risk: {
+    label: "At Risk",
+    dot: "bg-yellow-400",
+    bar: "bg-yellow-400",
+    badge:
+      "bg-yellow-50 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300",
+  },
+  off_track: {
+    label: "Off Track",
+    dot: "bg-red-400",
+    bar: "bg-red-400",
+    badge: "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
+  },
+};
+
+function HealthBadge({ health }) {
+  const cfg = HEALTH[health];
+  if (!cfg) return null;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold flex-shrink-0",
+        cfg.badge,
+      )}
+    >
+      <span className={cn("w-1.5 h-1.5 rounded-full", cfg.dot)} />
+      {cfg.label}
+    </span>
+  );
+}
 
 export default function ProjectsPage() {
   const { workspaceSlug } = useParams();
   const navigate = useNavigate();
-  const { data: projects, isLoading } = useProjects(workspaceSlug);
+  const { data: projects, isLoading } = usePortfolio(workspaceSlug);
   const [showCreate, setShowCreate] = useState(false);
 
+  const list = projects ?? [];
+  // const onTrack = list.filter((p) => p.health === "on_track").length;
+  // const atRisk = list.filter((p) => p.health === "at_risk").length;
+  // const offTrack = list.filter((p) => p.health === "off_track").length;
+  // const hasHealth = list.some((p) => p.health);
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">
-            {projects?.length ?? 0} project{projects?.length !== 1 ? "s" : ""}{" "}
-            in this workspace
-          </p>
+          <div className="flex items-center gap-3 mt-1 flex-wrap">
+            <p className="text-muted-foreground text-sm">
+              {list.length} project{list.length !== 1 ? "s" : ""} in this
+              workspace
+            </p>
+            {/* {hasHealth && (atRisk > 0 || offTrack > 0) && (
+              <>
+                {atRisk > 0 && (
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-yellow-50 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300">
+                    {atRisk} at risk
+                  </span>
+                )}
+                {offTrack > 0 && (
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300">
+                    {offTrack} off track
+                  </span>
+                )}
+                {onTrack > 0 && (
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                    {onTrack} on track
+                  </span>
+                )}
+              </>
+            )} */}
+          </div>
         </div>
         <Button onClick={() => setShowCreate(true)}>
           <Plus className="w-4 h-4 mr-1.5" /> New Project
@@ -32,7 +98,7 @@ export default function ProjectsPage() {
         <div className="text-muted-foreground text-sm">Loading…</div>
       )}
 
-      {!isLoading && projects?.length === 0 && (
+      {!isLoading && list.length === 0 && (
         <EmptyState
           illustration="projects"
           title="No projects yet"
@@ -46,15 +112,25 @@ export default function ProjectsPage() {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {projects?.map((project) => {
+        {list.map((project) => {
           const color =
             PROJECT_COLORS[project.name.charCodeAt(0) % PROJECT_COLORS.length];
-          const doneTasks = project.done_task_count || 0;
+          const done = project.done_tasks ?? 0;
+          const total = project.total_tasks ?? 0;
           const pct =
-            project.task_count > 0
-              ? Math.round((doneTasks / project.task_count) * 100)
-              : 0;
+            project.completion_pct ??
+            (total > 0 ? Math.round((done / total) * 100) : 0);
+          const healthCfg = HEALTH[project.health];
+          const barCls = healthCfg ? healthCfg.bar : "bg-primary";
 
+          // "id": "f5a13197-9ea8-431a-85c9-45c9d63def23",
+          //         "name": "hello world",
+          //         "health": "at_risk",
+          //         "total_tasks": 12,
+          //         "done_tasks": 5,
+          //         "overdue_tasks": 3,
+          //         "completion_pct": 42,
+          //         "active_sprints": []
           return (
             <button
               key={project.id}
@@ -63,31 +139,43 @@ export default function ProjectsPage() {
               }
               className="text-left rounded-md border bg-card p-5 hover:shadow-card-hover hover:border-primary/30 transition-all duration-200 group shadow-card"
             >
-              <div className="flex items-start justify-between mb-3">
+              {/* Header */}
+              <div className="flex items-start justify-between gap-2 mb-3">
                 <div
-                  className="w-10 h-10 rounded-md flex items-center justify-center font-bold text-sm text-white shadow-sm"
+                  className="w-10 h-10 rounded-md flex items-center justify-center font-bold text-sm text-white shadow-sm flex-shrink-0"
                   style={{ backgroundColor: color }}
                 >
                   {project.name[0].toUpperCase()}
                 </div>
-                <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity mt-1" />
+                <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                  {project.health && <HealthBadge health={project.health} />}
+                  <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                </div>
               </div>
+
               <p className="font-semibold truncate">{project.name}</p>
               {project.description && (
                 <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                   {project.description}
                 </p>
               )}
+
+              {/* Progress */}
               <div className="mt-4">
-                {project.task_count > 0 ? (
+                {total > 0 ? (
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>{project.task_count} tasks</span>
+                      <span>
+                        {done}/{total} tasks
+                      </span>
                       <span className="font-medium">{pct}%</span>
                     </div>
-                    <div className="h-1 bg-muted rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-primary rounded-full transition-all"
+                        className={cn(
+                          "h-full rounded-full transition-all",
+                          barCls,
+                        )}
                         style={{ width: `${pct}%` }}
                       />
                     </div>
@@ -95,6 +183,27 @@ export default function ProjectsPage() {
                 ) : (
                   <p className="text-xs text-muted-foreground">No tasks yet</p>
                 )}
+              </div>
+
+              {/* Footer indicators */}
+              <div className="flex items-center gap-3 mt-3 flex-wrap">
+                {project.overdue_tasks > 0 && (
+                  <span className="flex items-center gap-1 text-[11px] font-medium text-red-500">
+                    <AlertTriangle className="w-3 h-3" />
+                    {project.overdue_tasks} overdue
+                  </span>
+                )}
+                <span className={cn(
+                  "flex items-center gap-1 text-[11px] truncate",
+                  project.active_sprints?.length > 0
+                    ? "text-muted-foreground"
+                    : "text-muted-foreground/40 italic",
+                )}>
+                  <Zap className="w-3 h-3 flex-shrink-0" />
+                  {project.active_sprints?.length > 0
+                    ? project.active_sprints[0].name
+                    : "No active sprint"}
+                </span>
               </div>
             </button>
           );

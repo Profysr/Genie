@@ -20,3 +20,23 @@ export function useWorkspaces() {
     staleTime: 60_000,
   });
 }
+
+export const useUpdateWorkspace = (workspaceSlug) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data) =>
+      api.patch(`/api/workspaces/${workspaceSlug}/`, data).then((r) => r.data),
+    onSuccess: (updated) => {
+      qc.invalidateQueries({ queryKey: ["workspaces"] });
+      qc.setQueryData(["workspace", workspaceSlug], updated);
+    },
+  });
+};
+
+export const useDeleteWorkspace = (workspaceSlug) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.delete(`/api/workspaces/${workspaceSlug}/`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["workspaces"] }),
+  });
+};

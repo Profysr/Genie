@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useUpdateWorkspace, useDeleteWorkspace } from "@/hooks/useMembers";
-import { useWorkspace } from "@/hooks/useWorkspace";
+import { useDeleteWorkspace, useUpdateWorkspace, useWorkspace } from "@/hooks/useWorkspace";
 import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +21,6 @@ export default function SettingsPage() {
   const { user } = useAuthStore();
 
   const { data: workspace, isLoading } = useWorkspace(workspaceSlug);
-
   const updateWorkspace = useUpdateWorkspace(workspaceSlug);
   const deleteWorkspace = useDeleteWorkspace(workspaceSlug);
 
@@ -59,112 +57,119 @@ export default function SettingsPage() {
     return <div className="p-8 text-sm text-muted-foreground">Loading…</div>;
   }
 
+  const OtherPages = [
+    {
+      to: "integrations",
+      icon: Plug,
+      label: "Integrations",
+      desc: "Teams, Google Chat webhooks",
+    },
+    {
+      to: "api",
+      icon: Key,
+      label: "API Keys",
+      desc: "Programmatic access",
+    },
+    {
+      to: "webhooks",
+      icon: Webhook,
+      label: "Webhooks",
+      desc: "Outbound event webhooks",
+    },
+    {
+      to: "import",
+      icon: Upload,
+      label: "Import",
+      desc: "Migrate from Jira, Trello…",
+    },
+  ];
+
   return (
-    <div className="p-8 max-w-2xl space-y-10">
+    <div className="p-8 space-y-4">
       <div>
         <h1 className="text-2xl font-semibold">Workspace Settings</h1>
         <p className="text-muted-foreground text-sm mt-0.5">
           Manage your workspace configuration
         </p>
       </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+        {/* General settings */}
+        <section className="lg:col-span-2 rounded-md border bg-card p-4">
+          <h2 className="text-base font-medium mb-5">General</h2>
+          <form onSubmit={handleSave} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="ws-name">Workspace name</Label>
+              <Input
+                id="ws-name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ws-desc">
+                Description{" "}
+                <span className="text-muted-foreground font-normal">
+                  (optional)
+                </span>
+              </Label>
+              <textarea
+                id="ws-desc"
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring resize-none"
+                rows={3}
+                placeholder="What is this workspace for?"
+                value={form.description}
+                onChange={(e) =>
+                  setForm({ ...form, description: e.target.value })
+                }
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <Button type="submit" disabled={updateWorkspace.isPending}>
+                {updateWorkspace.isPending ? "Saving…" : "Save changes"}
+              </Button>
+              {saveSuccess && (
+                <span className="text-sm text-green-600">Saved!</span>
+              )}
+              {updateWorkspace.isError && (
+                <span className="text-sm text-destructive">
+                  Failed to save.
+                </span>
+              )}
+            </div>
+          </form>
+        </section>
 
-      {/* General settings */}
-      <section className="rounded-md border bg-card p-6">
-        <h2 className="text-base font-medium mb-5">General</h2>
-        <form onSubmit={handleSave} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="ws-name">Workspace name</Label>
-            <Input
-              id="ws-name"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              required
-            />
+        {/* Developer & integration quick-links */}
+        <section className="lg:col-span-1 rounded-md border bg-card p-4">
+          <h2 className="text-base font-medium mb-1">
+            Developer & Integrations
+          </h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            Connect third-party tools, build on the JCN API, and migrate your
+            data.
+          </p>
+          <div className="grid grid-cols-1 gap-2">
+            {OtherPages.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.to}
+                  to={`/w/${workspace?.slug}/settings/${item.to}`}
+                  className="flex items-center gap-3 px-4 py-3 bg-muted hover:bg-accent rounded-md text-sm transition-colors group"
+                >
+                  <Icon className="w-4 h-4 text-primary flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="font-medium">{item.label}</p>
+                    <p className="text-xs text-muted-foreground">{item.desc}</p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                </Link>
+              );
+            })}
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="ws-desc">
-              Description{" "}
-              <span className="text-muted-foreground font-normal">
-                (optional)
-              </span>
-            </Label>
-            <textarea
-              id="ws-desc"
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring resize-none"
-              rows={3}
-              placeholder="What is this workspace for?"
-              value={form.description}
-              onChange={(e) =>
-                setForm({ ...form, description: e.target.value })
-              }
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <Button type="submit" disabled={updateWorkspace.isPending}>
-              {updateWorkspace.isPending ? "Saving…" : "Save changes"}
-            </Button>
-            {saveSuccess && (
-              <span className="text-sm text-green-600">Saved!</span>
-            )}
-            {updateWorkspace.isError && (
-              <span className="text-sm text-destructive">Failed to save.</span>
-            )}
-          </div>
-        </form>
-      </section>
-
-      {/* Developer & integration quick-links */}
-      <section className="rounded-md border bg-card p-6">
-        <h2 className="text-base font-medium mb-1">Developer & Integrations</h2>
-        <p className="text-sm text-muted-foreground mb-4">
-          Connect third-party tools, build on the JCN API, and migrate your
-          data.
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {[
-            {
-              to: "integrations",
-              icon: Plug,
-              label: "Integrations",
-              desc: "Slack, Teams, Google Chat",
-            },
-            {
-              to: "api",
-              icon: Key,
-              label: "API Keys",
-              desc: "Programmatic access",
-            },
-            {
-              to: "webhooks",
-              icon: Webhook,
-              label: "Webhooks",
-              desc: "Outbound event webhooks",
-            },
-            {
-              to: "import",
-              icon: Upload,
-              label: "Import",
-              desc: "Migrate from Jira, Trello…",
-            },
-          ].map((item) => {
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.to}
-                to={`/w/${workspace?.slug}/settings/${item.to}`}
-                className="flex items-center gap-3 px-4 py-3 bg-muted hover:bg-accent rounded-md text-sm transition-colors group"
-              >
-                <Icon className="w-4 h-4 text-primary flex-shrink-0" />
-                <div className="min-w-0">
-                  <p className="font-medium">{item.label}</p>
-                  <p className="text-xs text-muted-foreground">{item.desc}</p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-muted-foreground ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-              </Link>
-            );
-          })}
-        </div>
-      </section>
+        </section>
+      </div>
 
       {/* Danger zone — owner only */}
       {isOwner && (

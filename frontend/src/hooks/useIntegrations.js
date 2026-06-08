@@ -13,37 +13,7 @@ export function useIntegrationStatus(workspaceSlug) {
   });
 }
 
-// ── Slack ─────────────────────────────────────────────────────────────────────
-
-export function useSlackChannels(workspaceSlug, { enabled = false } = {}) {
-  return useQuery({
-    queryKey: ["integrations", workspaceSlug, "slack-channels"],
-    queryFn: () =>
-      api
-        .get(`/api/workspaces/${workspaceSlug}/integrations/slack/channels/`)
-        .then((r) => r.data.channels || []),
-    enabled: !!(workspaceSlug && enabled),
-    staleTime: 60_000,
-  });
-}
-
-export function useDisconnectSlack(workspaceSlug) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: () =>
-      api.delete(`/api/workspaces/${workspaceSlug}/integrations/slack/`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["integrations", workspaceSlug] }),
-  });
-}
-
-// Slack OAuth is a full-page redirect — no hook needed;
-// the connect button opens a new tab or redirects to the backend URL.
-export function slackOAuthUrl(workspaceSlug) {
-  return `/api/integrations/slack/oauth/begin/?workspace_slug=${workspaceSlug}`;
-}
-
 // ── Teams ─────────────────────────────────────────────────────────────────────
-
 export function useSaveTeams(workspaceSlug) {
   const qc = useQueryClient();
   return useMutation({
@@ -74,7 +44,6 @@ export function useTestTeams(workspaceSlug) {
 }
 
 // ── Google Chat ───────────────────────────────────────────────────────────────
-
 export function useSaveGoogleChat(workspaceSlug) {
   const qc = useQueryClient();
   return useMutation({
@@ -105,7 +74,6 @@ export function useTestGoogleChat(workspaceSlug) {
 }
 
 // ── Channel mappings ──────────────────────────────────────────────────────────
-
 export function useChannelMappings(workspaceSlug, { platform } = {}) {
   return useQuery({
     queryKey: ["integrations", workspaceSlug, "mappings", platform],

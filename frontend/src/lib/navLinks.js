@@ -2,7 +2,6 @@ import {
   LayoutDashboard,
   FolderKanban,
   Inbox,
-  Briefcase,
   Map,
   Clock,
   Users,
@@ -72,13 +71,6 @@ export const NAV_ITEMS = [
     path: "reports",
   },
   {
-    key: "portfolio",
-    icon: Briefcase,
-    label: "Portfolio",
-    desc: "Cross-project health",
-    path: "portfolio",
-  },
-  {
     key: "roadmap",
     icon: Map,
     label: "Roadmap",
@@ -103,7 +95,7 @@ export const NAV_ITEMS = [
     key: "integrations",
     icon: Plug,
     label: "Integrations",
-    desc: "Slack, Teams, Google Chat",
+    desc: "Teams, Google Chat webhooks",
     path: "settings/integrations",
   },
   {
@@ -152,7 +144,7 @@ export const NAV_GROUPS = [
   },
   {
     label: "Views",
-    items: ["portfolio", "roadmap", "timesheets"],
+    items: ["roadmap", "timesheets"],
   },
   {
     label: "Workspace",

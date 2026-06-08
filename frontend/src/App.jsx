@@ -30,7 +30,6 @@ const DashboardsPage = lazy(() => import("@/pages/workspace/DashboardsPage"));
 const AnalyticsPage = lazy(() => import("@/pages/workspace/AnalyticsPage"));
 const ReportsPage = lazy(() => import("@/pages/workspace/ReportsPage"));
 const TimesheetsPage = lazy(() => import("@/pages/workspace/TimesheetsPage"));
-const PortfolioPage = lazy(() => import("@/pages/workspace/PortfolioPage"));
 const InboxPage = lazy(() => import("@/pages/workspace/InboxPage"));
 const GoalsPage = lazy(() => import("@/pages/workspace/GoalsPage"));
 const MyWorkPage = lazy(() => import("@/pages/workspace/MyWorkPage"));
@@ -123,7 +122,6 @@ export default function App() {
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="timesheets" element={<TimesheetsPage />} />
-            <Route path="portfolio" element={<PortfolioPage />} />
             <Route path="inbox" element={<InboxPage />} />
             <Route path="goals" element={<GoalsPage />} />
             <Route path="my-work" element={<MyWorkPage />} />
@@ -137,7 +135,7 @@ export default function App() {
             />
             <Route path="settings/api" element={<APIKeysPage />} />
             <Route path="settings/webhooks" element={<WebhooksPage />} />
-            <Route path="settings/import" element={<ImportPage />} />
+            <Route path="settings/import" element={<ImportPage />} />`
           </Route>
         </Route>
       </Route>
