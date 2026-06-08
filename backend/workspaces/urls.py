@@ -6,7 +6,7 @@ from .views import (
   InviteDetailView, AcceptInviteView,
   NotificationListView, NotificationMarkReadView,
   OnboardingStateView, WorkspaceTemplateListView, WorkspaceTemplateApplyView,
-  InboxListView, InboxItemUpdateView, InboxBulkUpdateView,
+  InboxListView, InboxItemUpdateView, InboxBulkUpdateView, InboxUnreadCountView,
   NotificationPreferenceView,
   # v4.5.0
   APIKeyListCreateView, APIKeyDetailView,
@@ -43,6 +43,7 @@ urlpatterns = [
   # v3.7.0 — Inbox + Notification Preferences
   path("inbox/", InboxListView.as_view()),
   path("inbox/bulk/", InboxBulkUpdateView.as_view()),
+  path("inbox/unread-count/", InboxUnreadCountView.as_view()),
   path("inbox/<uuid:item_id>/", InboxItemUpdateView.as_view()),
   path("workspaces/<slug:slug>/notification-preferences/", NotificationPreferenceView.as_view()),
 

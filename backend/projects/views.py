@@ -24,7 +24,6 @@ from .models import (
     TimeEntry,
     ProjectMember, GuestToken,
     Board,
-    Dashboard,
     UserPresence, CommentReaction,
     Approval, ApprovalReviewer,
     Objective, KeyResult,
@@ -45,7 +44,6 @@ from .serializers import (
     TimeEntrySerializer,
     ProjectMemberSerializer, GuestTokenSerializer,
     BoardSerializer,
-    DashboardSerializer,
     MyWorkTaskSerializer,
     UserPresenceSerializer, CommentReactionSerializer,
     ApprovalSerializer, ApprovalReviewerSerializer,
@@ -2784,59 +2782,6 @@ class CalendarICSView(APIView):
         response = HttpResponse(content, content_type="text/calendar; charset=utf-8")
         response["Content-Disposition"] = f'attachment; filename="{project.name}-calendar.ics"'
         return response
-
-
-# ── v3.3.0 — Custom Dashboards ────────────────────────────────────────────────
-def _ensure_builtin_dashboards(workspace):
-    """Create the two non-deletable built-in dashboards if they don't exist yet."""
-    if not Dashboard.objects.filter(workspace=workspace, is_builtin=True).exists():
-        Dashboard.objects.bulk_create([
-            Dashboard(workspace=workspace, name="Overview",  is_builtin=True, order=0, widgets=[]),
-            Dashboard(workspace=workspace, name="Analytics", is_builtin=True, order=1, widgets=[]),
-        ])
-
-
-class DashboardListCreateView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request, workspace_slug):
-        workspace = get_workspace_for_user(workspace_slug, request.user)
-        _ensure_builtin_dashboards(workspace)
-        dashboards = workspace.dashboards.all()
-        return Response(DashboardSerializer(dashboards, many=True).data)
-
-    def post(self, request, workspace_slug):
-        workspace = get_workspace_for_user(workspace_slug, request.user)
-        serializer = DashboardSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        dashboard = serializer.save(workspace=workspace, created_by=request.user)
-        return Response(DashboardSerializer(dashboard).data, status=status.HTTP_201_CREATED)
-
-
-class DashboardDetailView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def _get(self, workspace_slug, dashboard_id, user):
-        workspace = get_workspace_for_user(workspace_slug, user)
-        return get_object_or_404(Dashboard, id=dashboard_id, workspace=workspace)
-
-    def get(self, request, workspace_slug, dashboard_id):
-        d = self._get(workspace_slug, dashboard_id, request.user)
-        return Response(DashboardSerializer(d).data)
-
-    def patch(self, request, workspace_slug, dashboard_id):
-        d = self._get(workspace_slug, dashboard_id, request.user)
-        serializer = DashboardSerializer(d, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(DashboardSerializer(d).data)
-
-    def delete(self, request, workspace_slug, dashboard_id):
-        d = self._get(workspace_slug, dashboard_id, request.user)
-        if d.is_builtin:
-            return Response({"error": "Built-in dashboards cannot be deleted."}, status=status.HTTP_403_FORBIDDEN)
-        d.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ── v3.4.0 — My Work ─────────────────────────────────────────────────────────

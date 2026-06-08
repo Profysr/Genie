@@ -4,11 +4,11 @@ import api from "@/lib/api";
 const base = (ws, pid) =>
   `/api/workspaces/${ws}/projects/${pid}/guest-tokens/`;
 
-export function useGuestTokens(workspaceSlug, projectId) {
+export function useGuestTokens(workspaceSlug, projectId, { enabled = true } = {}) {
   return useQuery({
     queryKey: ["guest-tokens", workspaceSlug, projectId],
     queryFn:  () => api.get(base(workspaceSlug, projectId)).then((r) => r.data),
-    enabled:  !!workspaceSlug && !!projectId,
+    enabled:  enabled && !!workspaceSlug && !!projectId,
   });
 }
 

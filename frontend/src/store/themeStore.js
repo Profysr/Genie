@@ -46,6 +46,17 @@ export const useThemeStore = create(
         const { theme, accent, density } = get();
         applyTheme(theme, accent, density);
       },
+
+      // Apply server-provided preferences locally WITHOUT persisting them back.
+      hydrate: (prefs = {}) => {
+        const next = {
+          theme: prefs.theme ?? get().theme,
+          accent: prefs.accent_color ?? get().accent,
+          density: prefs.density_mode ?? get().density,
+        };
+        set(next);
+        applyTheme(next.theme, next.accent, next.density);
+      },
     }),
     { name: "jcn-theme" },
   ),

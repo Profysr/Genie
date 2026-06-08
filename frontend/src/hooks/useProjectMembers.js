@@ -4,11 +4,11 @@ import api from "@/lib/api";
 const base = (ws, pid) =>
   `/api/workspaces/${ws}/projects/${pid}/members/`;
 
-export function useProjectMembers(workspaceSlug, projectId) {
+export function useProjectMembers(workspaceSlug, projectId, { enabled = true } = {}) {
   return useQuery({
     queryKey: ["project-members", workspaceSlug, projectId],
     queryFn:  () => api.get(base(workspaceSlug, projectId)).then((r) => r.data),
-    enabled:  !!workspaceSlug && !!projectId,
+    enabled:  enabled && !!workspaceSlug && !!projectId,
   });
 }
 

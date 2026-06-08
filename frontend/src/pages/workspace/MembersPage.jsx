@@ -3,6 +3,7 @@ import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMembers, useInviteMember, useUpdateMemberRole, useRemoveMember } from "@/hooks/useMembers";
+import { useWorkspace } from "@/hooks/useWorkspace";
 import { useAuthStore } from "@/store/authStore";
 import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -23,10 +24,7 @@ export default function MembersPage() {
   const qc = useQueryClient();
 
   const { data: members = [], isLoading } = useMembers(workspaceSlug);
-  const { data: workspace } = useQuery({
-    queryKey: ["workspace", workspaceSlug],
-    queryFn: () => api.get(`/api/workspaces/${workspaceSlug}/`).then((r) => r.data),
-  });
+  const { data: workspace } = useWorkspace(workspaceSlug);
   const { data: pendingInvites = [] } = useQuery({
     queryKey: ["workspace-invites", workspaceSlug],
     queryFn: () => api.get(`/api/workspaces/${workspaceSlug}/invites/pending/`).then((r) => r.data),

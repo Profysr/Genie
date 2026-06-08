@@ -240,6 +240,23 @@ class InboxListView(APIView):
         return Response(InboxItemSerializer(qs[:100], many=True).data)
 
 
+class InboxUnreadCountView(APIView):
+    """
+    GET /api/inbox/unread-count/?workspace=<slug> — lightweight unread count for badges.
+    Avoids fetching the full inbox list just to render the bell/nav badge.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        workspace_slug = request.query_params.get("workspace")
+        qs = InboxItem.objects.filter(
+            user=request.user, status=InboxItem.Status.UNREAD
+        )
+        if workspace_slug:
+            qs = qs.filter(workspace__slug=workspace_slug)
+        return Response({"count": qs.count()})
+
+
 class InboxItemUpdateView(APIView):
     """PATCH /api/inbox/<id>/ — update status (read/archived/snoozed) on one item."""
     permission_classes = [permissions.IsAuthenticated]

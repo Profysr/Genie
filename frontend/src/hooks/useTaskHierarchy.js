@@ -59,11 +59,11 @@ export function useCloneTask(workspaceSlug, projectId) {
 const templateBase = (ws, proj) =>
   `/api/workspaces/${ws}/projects/${proj}/task-templates/`;
 
-export function useTaskTemplates(workspaceSlug, projectId) {
+export function useTaskTemplates(workspaceSlug, projectId, { enabled = true } = {}) {
   return useQuery({
     queryKey: ["task-templates", workspaceSlug, projectId],
     queryFn: () => api.get(templateBase(workspaceSlug, projectId)).then(r => r.data),
-    enabled: !!projectId,
+    enabled: enabled && !!projectId,
   });
 }
 

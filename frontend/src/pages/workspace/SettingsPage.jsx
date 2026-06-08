@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import { useUpdateWorkspace, useDeleteWorkspace } from "@/hooks/useMembers";
+import { useWorkspace } from "@/hooks/useWorkspace";
 import { useAuthStore } from "@/store/authStore";
-import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,11 +21,7 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
 
-  const { data: workspace, isLoading } = useQuery({
-    queryKey: ["workspace", workspaceSlug],
-    queryFn: () =>
-      api.get(`/api/workspaces/${workspaceSlug}/`).then((r) => r.data),
-  });
+  const { data: workspace, isLoading } = useWorkspace(workspaceSlug);
 
   const updateWorkspace = useUpdateWorkspace(workspaceSlug);
   const deleteWorkspace = useDeleteWorkspace(workspaceSlug);

@@ -85,9 +85,12 @@ export default function ProjectMembersModal({
   const { data: projectMembers = [] } = useProjectMembers(
     workspaceSlug,
     projectId,
+    { enabled: open },
   );
   const { data: wsMembers = [] } = useMembers(workspaceSlug);
-  const { data: guestTokens = [] } = useGuestTokens(workspaceSlug, projectId);
+  const { data: guestTokens = [] } = useGuestTokens(workspaceSlug, projectId, {
+    enabled: open,
+  });
 
   const addMember = useAddProjectMember(workspaceSlug, projectId);
   const updateMember = useUpdateProjectMember(workspaceSlug, projectId);

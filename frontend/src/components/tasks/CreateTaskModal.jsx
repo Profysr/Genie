@@ -29,7 +29,9 @@ export default function CreateTaskModal({
   defaultDate = null,
 }) {
   const { mutate, isPending } = useCreateTask(workspaceSlug, projectId);
-  const { data: templates = [] } = useTaskTemplates(workspaceSlug, projectId);
+  const { data: templates = [] } = useTaskTemplates(workspaceSlug, projectId, {
+    enabled: open,
+  });
   const createTemplate = useCreateTaskTemplate(workspaceSlug, projectId);
 
   const [title, setTitle] = useState("");

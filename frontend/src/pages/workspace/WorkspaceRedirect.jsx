@@ -1,17 +1,12 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import api from "@/lib/api";
+import { useWorkspaces } from "@/hooks/useWorkspace";
 import { Loader } from "@/components/ui/Loader";
 
 export default function WorkspaceRedirect() {
   const navigate = useNavigate();
 
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["workspaces"],
-    queryFn: () =>
-      api.get("/api/workspaces/").then((r) => r.data.results || r.data),
-  });
+  const { data, isError } = useWorkspaces();
 
   useEffect(() => {
     if (isError) {

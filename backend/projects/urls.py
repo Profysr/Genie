@@ -43,8 +43,6 @@ from .views import (
     CalendarICSView,
     # v3.2.0
     AdvancedSearchView,
-    # v3.3.0
-    DashboardListCreateView, DashboardDetailView,
     # v3.4.0
     MyWorkView, PortfolioView,
     # v4.0.0 — Analytics Engine v2
@@ -193,12 +191,6 @@ urlpatterns += [
 # v3.2.0 — Advanced Search
 urlpatterns += [
     path("search/advanced/",                                     AdvancedSearchView.as_view()),
-]
-
-# v3.3.0 — Custom Dashboards
-urlpatterns += [
-    path(f"{_ws}/dashboards/",                                   DashboardListCreateView.as_view()),
-    path(f"{_ws}/dashboards/<uuid:dashboard_id>/",               DashboardDetailView.as_view()),
 ]
 
 # v3.4.0 — My Work + Portfolio

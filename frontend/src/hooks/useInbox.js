@@ -4,7 +4,10 @@ import api from "@/lib/api";
 export const inboxKey = (workspaceSlug, tab, eventType) =>
   ["inbox", workspaceSlug, tab, eventType].filter(Boolean);
 
-export function useInbox(workspaceSlug, { tab = "for_you", eventType } = {}) {
+export function useInbox(
+  workspaceSlug,
+  { tab = "for_you", eventType, enabled = true } = {},
+) {
   return useQuery({
     queryKey: inboxKey(workspaceSlug, tab, eventType),
     queryFn: () =>
@@ -17,15 +20,29 @@ export function useInbox(workspaceSlug, { tab = "for_you", eventType } = {}) {
           },
         })
         .then((r) => r.data),
-    enabled: !!workspaceSlug,
+    enabled: enabled && !!workspaceSlug,
     staleTime: 30_000,
   });
 }
 
-/** Total unread count for the bell badge. */
+/**
+ * Total unread count for the bell/nav badges.
+ * Uses a dedicated lightweight endpoint so the full inbox list is NOT fetched
+ * on load — that list loads lazily only when the notification panel opens.
+ */
 export function useInboxUnreadCount(workspaceSlug) {
-  const { data = [] } = useInbox(workspaceSlug, { tab: "for_you" });
-  return data.filter((item) => item.status === "unread").length;
+  const { data } = useQuery({
+    queryKey: ["inbox-unread-count", workspaceSlug],
+    queryFn: () =>
+      api
+        .get("/api/inbox/unread-count/", {
+          params: { workspace: workspaceSlug },
+        })
+        .then((r) => r.data.count),
+    enabled: !!workspaceSlug,
+    staleTime: 30_000,
+  });
+  return data ?? 0;
 }
 
 export function useUpdateInboxItem(workspaceSlug) {
@@ -35,6 +52,7 @@ export function useUpdateInboxItem(workspaceSlug) {
       api.patch(`/api/inbox/${id}/`, data).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["inbox", workspaceSlug] });
+      qc.invalidateQueries({ queryKey: ["inbox-unread-count", workspaceSlug] });
     },
   });
 }
@@ -46,6 +64,7 @@ export function useBulkUpdateInbox(workspaceSlug) {
       api.post("/api/inbox/bulk/", data).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["inbox", workspaceSlug] });
+      qc.invalidateQueries({ queryKey: ["inbox-unread-count", workspaceSlug] });
     },
   });
 }

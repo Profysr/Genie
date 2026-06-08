@@ -637,26 +637,6 @@ class TimeEntry(models.Model):
         return f"{self.user.email} — {self.task.title} ({self.duration_seconds}s)"
 
 
-# ── v3.3.0 — Custom Dashboards ────────────────────────────────────────────────
-class Dashboard(models.Model):
-    """Configurable widget canvas per workspace (v3.3.0)."""
-    id         = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    workspace  = models.ForeignKey("workspaces.Workspace", on_delete=models.CASCADE, related_name="dashboards")
-    name       = models.CharField(max_length=100)
-    widgets    = models.JSONField(default=list)   # [{id, type, title, config, position}]
-    is_builtin = models.BooleanField(default=False)  # overview/analytics — non-deletable
-    order      = models.PositiveIntegerField(default=0)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="dashboards")
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ["order", "name"]
-
-    def __str__(self):
-        return f"{self.workspace.name} / {self.name}"
-
-
 # ── v3.8.0 — OKR & Goal Tracking ─────────────────────────────────────────────
 
 class Objective(models.Model):

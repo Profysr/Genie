@@ -11,7 +11,6 @@ from .models import (
     TimeEntry,
     ProjectMember, GuestToken,
     Board,
-    Dashboard,
     UserPresence, CommentReaction,
     Approval, ApprovalReviewer,
     Objective, KeyResult,
@@ -64,14 +63,6 @@ class BoardSerializer(serializers.ModelSerializer):
             "visibility", "config", "order", "is_archived", "created_at", "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
-
-
-class DashboardSerializer(serializers.ModelSerializer):
-    class Meta:
-        model  = Dashboard
-        fields = ["id", "name", "widgets", "is_builtin", "order", "created_at", "updated_at"]
-        read_only_fields = ["id", "is_builtin", "created_at", "updated_at"]
-
 
 
 
