@@ -121,8 +121,6 @@ class Notification(models.Model):
 
 
 # ── v3.7.0 — Notifications Hub v2 ────────────────────────────────────────────
-
-
 class InboxItem(models.Model):
     """Persistent notification inbox — one row per user event, survives bell dismissals."""
 
@@ -212,9 +210,6 @@ class NotificationPreference(models.Model):
 
     def __str__(self):
         return f"{self.user.email} / {self.event_type}: in_app={self.in_app} email={self.email}"
-
-
-# ── v2.3.0 — Onboarding ───────────────────────────────────────────────────────
 
 # ── v4.5.0 — Public API & Webhooks ───────────────────────────────────────────
 import hashlib
@@ -344,6 +339,65 @@ class WebhookDelivery(models.Model):
     def __str__(self):
         return f"{self.event} → {self.webhook.url[:40]} ({self.response_code})"
 
+
+# ── v4.6.0 — Import & Migration Tools ────────────────────────────────────────
+class ImportJob(models.Model):
+    """Tracks a single import operation from an external tool into JCN."""
+
+    class Source(models.TextChoices):
+        JIRA    = "jira",    "Jira"
+        CLICKUP = "clickup", "ClickUp"
+        MONDAY  = "monday",  "Monday"
+        NOTION  = "notion",  "Notion"
+        GITHUB  = "github",  "GitHub Issues"
+        ASANA   = "asana",   "Asana"
+        CSV     = "csv",     "Simple CSV"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        PARSING = "parsing", "Parsing"
+        MAPPED = "mapped", "Mapping Ready"
+        IMPORTING = "importing", "Importing"
+        COMPLETE = "complete", "Complete"
+        FAILED = "failed", "Failed"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(
+        Workspace, on_delete=models.CASCADE, related_name="import_jobs"
+    )
+    source = models.CharField(max_length=20, choices=Source.choices)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.PENDING
+    )
+    file_name = models.CharField(max_length=255, blank=True)
+    # Parsed intermediate representation stored as JSON (list of dicts)
+    parsed_rows = models.JSONField(default=list)
+    # Auto-detected or user-confirmed mapping: {source_field: jcn_field}
+    field_mapping = models.JSONField(default=dict)
+    # First 10 rows for the preview step
+    preview_rows = models.JSONField(default=list)
+    # Runtime counters updated during import
+    progress_pct = models.IntegerField(default=0)
+    total_count = models.IntegerField(default=0)
+    imported_count = models.IntegerField(default=0)
+    skipped_count = models.IntegerField(default=0)
+    error_log = models.JSONField(default=list)
+    # UUIDs of created Task objects — used for rollback
+    imported_task_ids = models.JSONField(default=list)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="import_jobs",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Import({self.source}) → {self.workspace} [{self.status}]"
 
 # ── v2.3.0 — Onboarding ───────────────────────────────────────────────────────
 class OnboardingState(models.Model):

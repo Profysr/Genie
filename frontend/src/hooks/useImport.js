@@ -78,6 +78,18 @@ export function useRunImport(workspaceSlug) {
   });
 }
 
+/** Delete a job from history (not allowed while importing) */
+export function useDeleteImportJob(workspaceSlug) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (jobId) =>
+      api
+        .delete(`/api/workspaces/${workspaceSlug}/import/jobs/${jobId}/`)
+        .then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["import", workspaceSlug, "jobs"] }),
+  });
+}
+
 /** Rollback an import within 24 h */
 export function useRollbackImport(workspaceSlug) {
   const qc = useQueryClient();

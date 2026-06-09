@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from "react";
+import api from "@/lib/api";
 import { useParams } from "react-router-dom";
 import {
   Upload,
@@ -11,6 +12,7 @@ import {
   Loader2,
   ChevronRight,
   RefreshCw,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -20,24 +22,52 @@ import {
   useUpdateImportMapping,
   useRunImport,
   useRollbackImport,
+  useDeleteImportJob,
 } from "@/hooks/useImport";
 import { useWorkspaceSocket } from "@/hooks/useWorkspaceSocket";
 import { formatDistanceToNow } from "date-fns";
 import { useToast } from "@/components/ui/toast";
 
-// ── Source cards ──────────────────────────────────────────────────────────────
+// ── Source icons ──────────────────────────────────────────────────────────────
+import {
+  SiJira,
+  SiClickup,
+  SiAsana,
+  SiGithub,
+  SiNotion
+} from "react-icons/si";
+import { CgMonday } from "react-icons/cg";
+import { FileSpreadsheet } from "lucide-react";
 
-const SOURCE_LOGOS = {
-  jira: "🔵",
-  trello: "🟦",
-  clickup: "🟣",
-  asana: "🟠",
-  github: "⬛",
-  linear: "🔷",
-  notion: "⬜",
-  monday: "🟩",
-  csv: "📄",
+// Brand colour + icon component for each supported import source.
+// Adding a new source = one entry here, nothing else to change.
+const SOURCE_ICONS = {
+  jira: { icon: SiJira, color: "#0052CC" },
+  clickup: { icon: SiClickup, color: "#7B68EE" },
+  monday: { icon: CgMonday, color: "#F64048" },
+  notion: { icon: SiNotion, color: "currentColor" },
+  github: { icon: SiGithub, color: "currentColor" },
+  asana: { icon: SiAsana, color: "#F06A6A" },
+  csv: { icon: FileSpreadsheet, color: "#16A34A" },
 };
+
+// Export instructions shown in step 1 for each source
+const SOURCE_EXPORT_HINT = {
+  jira:    "Export from Jira: Issues → Export → XML export",
+  clickup: "Export from ClickUp: Space Settings → Import/Export → Export as CSV",
+  monday:  "Export from Monday: Board → ⋯ → Export board to Excel/CSV",
+  notion:  "Export from Notion: Settings → Export content → CSV",
+  github:  "Export from GitHub: Issues tab → Export to CSV (via GitHub CLI or third-party)",
+  asana:   "Export from Asana: Project → ⋯ → Export/Print → CSV",
+  csv:     "Upload any CSV file — you'll map the columns in the next step.",
+};
+
+function SourceIcon({ sourceId, size = 28 }) {
+  const entry = SOURCE_ICONS[sourceId];
+  if (!entry) return <FileSpreadsheet size={size} />;
+  const Icon = entry.icon;
+  return <Icon size={size} color={entry.color} />;
+}
 
 function SourceCard({ source, selected, onSelect }) {
   return (
@@ -50,7 +80,7 @@ function SourceCard({ source, selected, onSelect }) {
           : "border-border hover:border-primary/40 hover:bg-accent",
       )}
     >
-      <span className="text-3xl">{SOURCE_LOGOS[source.id] || "📥"}</span>
+      <SourceIcon sourceId={source.id} size={28} />
       <span className="text-sm font-medium">{source.label}</span>
       <span className="text-[10px] text-muted-foreground uppercase tracking-wide">
         {source.format}
@@ -60,7 +90,6 @@ function SourceCard({ source, selected, onSelect }) {
 }
 
 // ── File drop zone ────────────────────────────────────────────────────────────
-
 function DropZone({ source, onFile, uploading }) {
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef();
@@ -100,11 +129,7 @@ function DropZone({ source, onFile, uploading }) {
               Drop your file here or click to browse
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {source === "jira"
-                ? "Jira XML export"
-                : source === "trello"
-                  ? "Trello JSON board export"
-                  : "CSV export from your tool"}{" "}
+              {source === "jira" ? "Jira XML export" : "CSV export from your tool"}{" "}
               · Max 50 MB
             </p>
           </div>
@@ -114,9 +139,7 @@ function DropZone({ source, onFile, uploading }) {
         ref={inputRef}
         type="file"
         className="hidden"
-        accept={
-          source === "jira" ? ".xml" : source === "trello" ? ".json" : ".csv"
-        }
+        accept={source === "jira" ? ".xml" : ".csv"}
         onChange={(e) => handle(e.target.files[0])}
       />
     </div>
@@ -124,7 +147,6 @@ function DropZone({ source, onFile, uploading }) {
 }
 
 // ── Field mapping table ───────────────────────────────────────────────────────
-
 const JCN_FIELDS = [
   { v: "skip", l: "— Skip —" },
   { v: "title", l: "Title" },
@@ -246,7 +268,6 @@ function MappingTable({ mapping, headers, onChange, isCSV }) {
 }
 
 // ── Preview rows ──────────────────────────────────────────────────────────────
-
 function PreviewTable({ rows }) {
   if (!rows?.length)
     return (
@@ -294,7 +315,6 @@ function PreviewTable({ rows }) {
 }
 
 // ── Progress bar ──────────────────────────────────────────────────────────────
-
 function ProgressBar({ pct, status }) {
   const colors = {
     importing: "bg-primary",
@@ -320,7 +340,6 @@ function ProgressBar({ pct, status }) {
 }
 
 // ── Step indicator ────────────────────────────────────────────────────────────
-
 const STEPS = [
   "Select source",
   "Upload file",
@@ -361,9 +380,9 @@ function StepBar({ current }) {
 }
 
 // ── Job history row ───────────────────────────────────────────────────────────
-
-function JobHistoryRow({ job, workspaceSlug }) {
+function JobHistoryRow({ job, workspaceSlug, onResume }) {
   const rollback = useRollbackImport(workspaceSlug);
+  const deleteJob = useDeleteImportJob(workspaceSlug);
   const toast = useToast();
 
   const statusColor =
@@ -374,10 +393,12 @@ function JobHistoryRow({ job, workspaceSlug }) {
       parsing: "text-amber-600",
     }[job.status] || "text-muted-foreground";
 
+  const canDelete = job.status !== "importing";
+
   return (
     <div className="flex items-center justify-between px-4 py-3 border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
       <div className="flex items-center gap-3">
-        <span className="text-lg">{SOURCE_LOGOS[job.source] || "📥"}</span>
+        <SourceIcon sourceId={job.source} size={20} />
         <div>
           <p className="text-sm font-medium">{job.file_name || job.source}</p>
           <p className="text-xs text-muted-foreground">
@@ -407,13 +428,35 @@ function JobHistoryRow({ job, workspaceSlug }) {
             <RotateCcw className="w-3 h-3" /> Undo
           </button>
         )}
+        {job.status === "mapped" && onResume && (
+          <button
+            onClick={() => onResume(job.id)}
+            className="flex items-center gap-1 text-xs text-primary hover:underline font-medium"
+          >
+            <ChevronRight className="w-3.5 h-3.5" /> Resume
+          </button>
+        )}
+        {canDelete && (
+          <button
+            onClick={() =>
+              deleteJob.mutate(job.id, {
+                onSuccess: () => toast.success("Entry removed"),
+                onError: () => toast.error("Could not delete entry"),
+              })
+            }
+            disabled={deleteJob.isPending}
+            className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+            title="Remove from history"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-
 export default function ImportPage() {
   const { workspaceSlug } = useParams();
   const toast = useToast();
@@ -479,6 +522,25 @@ export default function ImportPage() {
     [source],
   );
 
+  const handleResume = useCallback(
+    async (jobId) => {
+      try {
+        const { data } = await api.get(
+          `/api/workspaces/${workspaceSlug}/import/jobs/${jobId}/`,
+        );
+        setSource(data.source);
+        setJobData(data);
+        setMapping(data.field_mapping || {});
+        // Headers are the keys of field_mapping for CSV; empty for XML (fixed mapping)
+        setHeaders(Object.keys(data.field_mapping || {}));
+        setStep(3); // jump straight to preview
+      } catch {
+        toast.error("Could not load job — please try re-uploading the file.");
+      }
+    },
+    [workspaceSlug],
+  );
+
   const handleSaveMapping = () => {
     // Normalise mapping before saving: {col: {jcn_field,...}} → {col: jcn_field}
     const flat = Object.fromEntries(
@@ -488,7 +550,7 @@ export default function ImportPage() {
       ]),
     );
     updateMapping.mutate(
-      { jobId: jobData.job_id, field_mapping: flat },
+      { jobId: jobData.id, field_mapping: flat },
       { onSuccess: () => setStep(3) },
     );
   };
@@ -500,9 +562,9 @@ export default function ImportPage() {
       status: "importing",
       imported: 0,
       skipped: 0,
-      total: jobData.total,
+      total: jobData.total_count,
     });
-    runImport.mutate(jobData.job_id, {
+    runImport.mutate(jobData.id, {
       onError: (e) =>
         toast.error("Import failed: " + (e.response?.data?.error || e.message)),
     });
@@ -517,27 +579,19 @@ export default function ImportPage() {
     setProgress({ pct: 0, status: "idle", imported: 0, skipped: 0, total: 0 });
   };
 
-  const isCSV = [
-    "clickup",
-    "asana",
-    "github",
-    "linear",
-    "notion",
-    "monday",
-    "csv",
-  ].includes(source);
+  const isCSV = source !== "jira";
 
   return (
     <div className="flex-1 overflow-auto">
-      <div className="max-w-3xl mx-auto px-6 py-8 space-y-6">
+      <div className="p-8 space-y-4">
         {/* Header */}
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2">
             <Upload className="w-5 h-5 text-primary" /> Import & Migration
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Switch to JCN in minutes. Import tasks from Jira, Trello, ClickUp,
-            Asana, and more.
+            Switch to JCN in minutes. Import tasks from Jira, ClickUp, Asana,
+            Notion, GitHub, Monday, or any CSV file.
           </p>
         </div>
 
@@ -551,7 +605,7 @@ export default function ImportPage() {
               <h2 className="text-base font-semibold mb-4">
                 Where are you migrating from?
               </h2>
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(125px,1fr))] gap-3">
                 {sources.map((s) => (
                   <SourceCard
                     key={s.id}
@@ -589,24 +643,7 @@ export default function ImportPage() {
               </div>
 
               <div className="bg-muted/30 rounded-md px-4 py-3 text-xs text-muted-foreground mb-4">
-                {source === "jira" &&
-                  "Export from Jira: Issues → Export → XML export"}
-                {source === "trello" &&
-                  "Export from Trello: Board → Show Menu → More → Print and Export → Export as JSON"}
-                {source === "clickup" &&
-                  "Export from ClickUp: Space Settings → Import/Export → Export as CSV"}
-                {source === "asana" &&
-                  "Export from Asana: Project → ⋯ → Export/Print → CSV"}
-                {source === "notion" &&
-                  "Export from Notion: Settings → Export content → CSV"}
-                {source === "linear" &&
-                  "Export from Linear: Settings → Import/Export → Export issues as CSV"}
-                {source === "github" &&
-                  "Export from GitHub: Issues tab → Export to CSV (via GitHub CLI or third-party)"}
-                {source === "monday" &&
-                  "Export from Monday: Board → ⋯ → Export board to Excel/CSV"}
-                {source === "csv" &&
-                  "Upload any CSV file — you'll map the columns in the next step."}
+                {SOURCE_EXPORT_HINT[source]}
               </div>
 
               <DropZone
@@ -638,7 +675,7 @@ export default function ImportPage() {
                   <h2 className="text-base font-semibold">Field Mapping</h2>
                 </div>
                 <span className="text-xs text-muted-foreground">
-                  {jobData.total} rows detected
+                  {jobData.total_count} rows detected
                 </span>
               </div>
 
@@ -692,11 +729,11 @@ export default function ImportPage() {
                   </h2>
                 </div>
                 <span className="text-xs text-muted-foreground">
-                  {jobData.total} tasks will be imported
+                  {jobData.total_count} tasks will be imported
                 </span>
               </div>
 
-              <PreviewTable rows={jobData.preview} />
+              <PreviewTable rows={jobData.preview_rows} />
 
               <div className="flex justify-between mt-5">
                 <button
@@ -709,7 +746,7 @@ export default function ImportPage() {
                   onClick={handleRunImport}
                   className="flex items-center gap-2 px-6 py-2 bg-emerald-600 text-white rounded-md text-sm font-semibold hover:bg-emerald-700 transition-colors"
                 >
-                  <Upload className="w-4 h-4" /> Import {jobData.total} tasks
+                  <Upload className="w-4 h-4" /> Import {jobData.total_count} tasks
                 </button>
               </div>
             </div>
@@ -780,7 +817,7 @@ export default function ImportPage() {
               </p>
             </div>
             {jobs.map((j) => (
-              <JobHistoryRow key={j.id} job={j} workspaceSlug={workspaceSlug} />
+              <JobHistoryRow key={j.id} job={j} workspaceSlug={workspaceSlug} onResume={handleResume} />
             ))}
           </div>
         )}

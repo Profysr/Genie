@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.utils.text import slugify
+from django.utils import timezone
 from .models import (
     Workspace,
     WorkspaceMember,
@@ -10,6 +11,7 @@ from .models import (
     WorkspaceAPIKey,
     Webhook,
     WebhookDelivery,
+    ImportJob,
 )
 from accounts.serializers import UserSerializer
 
@@ -240,5 +242,46 @@ class WebhookDeliverySerializer(serializers.ModelSerializer):
             "success",
             "attempt",
             "created_at",
+        ]
+        read_only_fields = fields
+
+
+# ── v4.6.0 — Import Jobs ──────────────────────────────────────────────────────
+class ImportJobSerializer(serializers.ModelSerializer):
+    """Read serializer for list and detail views."""
+
+    can_rollback = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ImportJob
+        fields = [
+            "id",
+            "source",
+            "status",
+            "file_name",
+            "total_count",
+            "imported_count",
+            "skipped_count",
+            "progress_pct",
+            "created_at",
+            "completed_at",
+            "can_rollback",
+        ]
+        read_only_fields = fields
+
+    def get_can_rollback(self, obj):
+        if obj.status != ImportJob.Status.COMPLETE or not obj.completed_at:
+            return False
+        return (timezone.now() - obj.completed_at).total_seconds() < 86400
+
+
+class ImportJobDetailSerializer(ImportJobSerializer):
+    """Extended read serializer that includes preview and mapping data."""
+
+    class Meta(ImportJobSerializer.Meta):
+        fields = ImportJobSerializer.Meta.fields + [
+            "preview_rows",
+            "field_mapping",
+            "error_log",
         ]
         read_only_fields = fields

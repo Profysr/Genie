@@ -26,6 +26,12 @@ from .views import (
     WebhookDetailView,
     WebhookTestView,
     WebhookDeliveryListView,
+    # v4.6.0
+    ImportSourcesView,
+    ImportJobListCreateView,
+    ImportJobDetailView,
+    ImportJobRunView,
+    ImportJobRollbackView,
 )
 
 urlpatterns = [
@@ -86,4 +92,10 @@ urlpatterns = [
         "workspaces/<slug:workspace_slug>/webhooks/<uuid:hook_id>/deliveries/",
         WebhookDeliveryListView.as_view(),
     ),
+    # v4.6.0 — Import & Migration Tools
+    path("workspaces/<slug:workspace_slug>/import/sources/", ImportSourcesView.as_view()),
+    path("workspaces/<slug:workspace_slug>/import/jobs/", ImportJobListCreateView.as_view()),
+    path("workspaces/<slug:workspace_slug>/import/jobs/<uuid:job_id>/", ImportJobDetailView.as_view()),
+    path("workspaces/<slug:workspace_slug>/import/jobs/<uuid:job_id>/run/", ImportJobRunView.as_view()),
+    path("workspaces/<slug:workspace_slug>/import/jobs/<uuid:job_id>/rollback/", ImportJobRollbackView.as_view()),
 ]
