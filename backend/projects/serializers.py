@@ -15,6 +15,7 @@ from .models import (
     Approval, ApprovalReviewer,
     Objective, KeyResult,
     Report, ReportShare, ScheduledReport,
+    DEFAULT_TASK_STATUSES,
 )
 from accounts.serializers import UserSerializer
 
@@ -433,12 +434,7 @@ class ProjectSerializer(serializers.ModelSerializer):
         workspace = self.context["workspace"]
         project   = Project.objects.create(workspace=workspace, created_by=request.user, **validated_data)
         TaskStatus.objects.bulk_create([
-            TaskStatus(project=project, **s) for s in [
-                {"name": "Backlog", "color": "#94a3b8", "order": 0, "is_done": False},
-                {"name": "In Progress", "color": "#6366f1", "order": 1, "is_done": False},
-                {"name": "In Review", "color": "#f59e0b", "order": 2, "is_done": False},
-                {"name": "Done", "color": "#22c55e", "order": 3, "is_done": True},
-            ]
+            TaskStatus(project=project, **s) for s in DEFAULT_TASK_STATUSES
         ])
         # Auto-create default board (v2.2.0)
         Board.objects.create(

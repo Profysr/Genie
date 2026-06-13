@@ -1,6 +1,8 @@
 import uuid
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 
 class UserManager(BaseUserManager):
@@ -20,24 +22,14 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
-    THEME_CHOICES = [("light", "Light"), ("dark", "Dark"), ("midnight", "Midnight")]
-    ACCENT_CHOICES = [
-        ("indigo", "Indigo"), ("blue", "Blue"), ("violet", "Violet"),
-        ("pink", "Pink"), ("rose", "Rose"), ("amber", "Amber"),
-        ("emerald", "Emerald"), ("cyan", "Cyan"), ("slate", "Slate"),
-    ]
-    DENSITY_CHOICES = [("comfortable", "Comfortable"), ("compact", "Compact"), ("cozy", "Cozy")]
-
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True)
     full_name = models.CharField(max_length=255, blank=True)
     avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
-    theme = models.CharField(max_length=16, choices=THEME_CHOICES, default="light")
-    accent_color = models.CharField(max_length=16, choices=ACCENT_CHOICES, default="indigo")
-    density_mode = models.CharField(max_length=16, choices=DENSITY_CHOICES, default="comfortable")
     # Controls whether this user can create new workspaces.
     # Workspace admins have True; users who joined via invite get False.
     can_create_workspace = models.BooleanField(default=True)
+
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -51,6 +43,26 @@ class User(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return self.email
 
-    @property
-    def display_name(self):
-        return self.full_name or self.email.split("@")[0]
+
+class UserProfile(models.Model):
+    THEME_CHOICES = [("light", "Light"), ("dark", "Dark"), ("midnight", "Midnight")]
+    ACCENT_CHOICES = [
+        ("indigo", "Indigo"), ("blue", "Blue"), ("violet", "Violet"),
+        ("pink", "Pink"), ("rose", "Rose"), ("amber", "Amber"),
+        ("emerald", "Emerald"), ("cyan", "Cyan"), ("slate", "Slate"),
+    ]
+    DENSITY_CHOICES = [("comfortable", "Comfortable"), ("compact", "Compact"), ("cozy", "Cozy")]
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
+    theme = models.CharField(max_length=16, choices=THEME_CHOICES, default="light")
+    accent_color = models.CharField(max_length=16, choices=ACCENT_CHOICES, default="indigo")
+    density_mode = models.CharField(max_length=16, choices=DENSITY_CHOICES, default="comfortable")
+
+    def __str__(self):
+        return f"Profile({self.user.email})"
+
+
+@receiver(post_save, sender=User)
+def create_user_profile(_sender, instance, created, **_kwargs):
+    if created:
+        UserProfile.objects.create(user=instance)

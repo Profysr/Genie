@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from dj_rest_auth.registration.serializers import RegisterSerializer as BaseRegisterSerializer
-from .models import User
+from .models import User, UserProfile
 
 
 class RegisterSerializer(BaseRegisterSerializer):
@@ -19,14 +19,41 @@ class RegisterSerializer(BaseRegisterSerializer):
         return user
 
 
+class MiniUserSerializer(serializers.ModelSerializer):
+    """Minimal read-only user representation for embedding in other serializers."""
+
+    class Meta:
+        model = User
+        fields = ["id", "email", "full_name"]
+        read_only_fields = fields
+
+
 class UserSerializer(serializers.ModelSerializer):
-    display_name = serializers.ReadOnlyField()
+    # Profile fields are kept flat so the API surface doesn't change for the frontend.
+    theme = serializers.CharField(source="profile.theme", required=False)
+    accent_color = serializers.CharField(source="profile.accent_color", required=False)
+    density_mode = serializers.CharField(source="profile.density_mode", required=False)
 
     class Meta:
         model = User
         fields = [
-            "id", "email", "full_name", "display_name", "avatar",
+            "id", "email", "full_name", "avatar",
             "theme", "accent_color", "density_mode",
             "can_create_workspace", "created_at",
         ]
         read_only_fields = ["id", "email", "created_at"]
+
+    def update(self, instance, validated_data):
+        profile_data = validated_data.pop("profile", {})
+
+        for attr, val in validated_data.items():
+            setattr(instance, attr, val)
+        instance.save()
+
+        if profile_data:
+            profile, _ = UserProfile.objects.get_or_create(user=instance)
+            for attr, val in profile_data.items():
+                setattr(profile, attr, val)
+            profile.save()
+
+        return instance

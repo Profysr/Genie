@@ -13,7 +13,6 @@ from .models import (
     Notification,
     OnboardingState,
     InboxItem,
-    NotificationPreference,
     WorkspaceAPIKey,
     Webhook,
     WebhookDelivery,
@@ -25,7 +24,6 @@ from .serializers import (
     WorkspaceInviteSerializer,
     NotificationSerializer,
     InboxItemSerializer,
-    NotificationPreferenceSerializer,
     WorkspaceAPIKeySerializer,
     APIKeyCreateSerializer,
     WebhookSerializer,
@@ -34,7 +32,9 @@ from .serializers import (
     ImportJobSerializer,
     ImportJobDetailSerializer,
 )
+from .constants import WORKSPACE_TEMPLATES, WEBHOOK_EVENTS
 from .importers.registry import get_parser, SUPPORTED_SOURCES
+from .tasks import deliver_webhook, run_import
 
 class WorkspaceListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -47,14 +47,6 @@ class WorkspaceListCreateView(APIView):
         return Response(serializer.data)
 
     def post(self, request):
-        if not request.user.can_create_workspace:
-            return Response(
-                {
-                    "detail": "Your account cannot create workspaces. "
-                    "Contact the workspace admin to get an invite."
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
         serializer = WorkspaceSerializer(
             data=request.data, context={"request": request}
         )
@@ -65,7 +57,7 @@ class WorkspaceListCreateView(APIView):
 
 class WorkspaceDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
-
+    
     def get_object(self, slug, user):
         return get_object_or_404(Workspace, slug=slug, members__user=user)
 
@@ -95,6 +87,12 @@ class WorkspaceDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+def _is_workspace_admin(workspace, user):
+    return WorkspaceMember.objects.filter(
+        workspace=workspace, user=user, role=WorkspaceMember.Role.ADMIN
+    ).exists()
+
+
 class WorkspaceMemberListView(ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = WorkspaceMemberSerializer
@@ -118,11 +116,7 @@ class WorkspaceMemberDetailView(APIView):
 
     def patch(self, request, slug, member_id):
         member, workspace = self.get_object(slug, member_id, request.user)
-        is_admin = WorkspaceMember.objects.filter(
-            workspace=workspace, user=request.user, role=WorkspaceMember.Role.ADMIN
-        ).exists()
-
-        if not is_admin:
+        if not _is_workspace_admin(workspace, request.user):
             return Response(
                 {"detail": "Only admins can update member roles."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -140,10 +134,7 @@ class WorkspaceMemberDetailView(APIView):
                 {"detail": "You cannot remove yourself."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        is_admin = WorkspaceMember.objects.filter(
-            workspace=workspace, user=request.user, role=WorkspaceMember.Role.ADMIN
-        ).exists()
-        if not is_admin:
+        if not _is_workspace_admin(workspace, request.user):
             return Response(
                 {"detail": "Only admins can remove members."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -175,20 +166,12 @@ class WorkspaceInviteListView(APIView):
         ).select_related("invited_by")
         return Response(WorkspaceInviteSerializer(invites, many=True).data)
 
-    def delete(self, request, slug):
-        """Cancel all pending invites for a given email (bulk cancel not used — see token endpoint)."""
-        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-
 class WorkspaceInviteCancelView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def delete(self, request, slug, token):
         workspace = get_object_or_404(Workspace, slug=slug, members__user=request.user)
-        is_admin = WorkspaceMember.objects.filter(
-            workspace=workspace, user=request.user, role=WorkspaceMember.Role.ADMIN
-        ).exists()
-        if not is_admin:
+        if not _is_workspace_admin(workspace, request.user):
             return Response(
                 {"detail": "Only admins can cancel invites."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -240,6 +223,7 @@ class AcceptInviteView(APIView):
         )
         invite.status = WorkspaceInvite.Status.ACCEPTED
         invite.save()
+
         # Users who join via invite cannot create their own workspaces —
         # they are consumers of an existing workspace, not workspace owners.
         if request.user.can_create_workspace:
@@ -251,8 +235,6 @@ class AcceptInviteView(APIView):
 
 
 # ── Notifications ─────────────────────────────────────────────────────────────
-
-
 class NotificationListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -280,8 +262,6 @@ class NotificationMarkReadView(APIView):
 
 
 # ── v3.7.0 — Inbox ────────────────────────────────────────────────────────────
-
-
 class InboxListView(APIView):
     """
     GET /api/inbox/?workspace=<slug>&tab=<for_you|all|done>&event_type=<type>
@@ -362,7 +342,7 @@ class InboxBulkUpdateView(APIView):
 
     def post(self, request):
         ids = request.data.get("ids", [])
-        action = request.data.get("action")  # "read" | "archive" | "snooze"
+        action = request.data.get("action")
         snooze_until = request.data.get("snoozed_until")
 
         if action not in ["read", "archive", "snooze"]:
@@ -389,117 +369,7 @@ class InboxBulkUpdateView(APIView):
         return Response({"updated": qs.count()})
 
 
-# ── v3.7.0 — Notification Preferences ────────────────────────────────────────
-
-
-class NotificationPreferenceView(APIView):
-    """
-    GET  /api/workspaces/<slug>/notification-preferences/  — list prefs for workspace
-    PUT  /api/workspaces/<slug>/notification-preferences/  — upsert prefs (accepts list)
-    """
-
-    permission_classes = [permissions.IsAuthenticated]
-
-    def _get_workspace(self, slug, user):
-        return get_object_or_404(Workspace, slug=slug, members__user=user)
-
-    def get(self, request, slug):
-        workspace = self._get_workspace(slug, request.user)
-        prefs = NotificationPreference.objects.filter(
-            user=request.user, workspace=workspace
-        )
-        return Response(NotificationPreferenceSerializer(prefs, many=True).data)
-
-    def put(self, request, slug):
-        workspace = self._get_workspace(slug, request.user)
-        items = request.data if isinstance(request.data, list) else [request.data]
-        result = []
-        for item in items:
-            pref, _ = NotificationPreference.objects.update_or_create(
-                user=request.user,
-                workspace=workspace,
-                event_type=item.get("event_type"),
-                project_id_override=item.get("project_id_override", ""),
-                defaults={
-                    "in_app": item.get("in_app", True),
-                    "email": item.get(
-                        "email", NotificationPreference.Frequency.INSTANT
-                    ),
-                    "quiet_hours_start": item.get("quiet_hours_start"),
-                    "quiet_hours_end": item.get("quiet_hours_end"),
-                    "digest_hour": item.get("digest_hour", 9),
-                },
-            )
-            result.append(pref)
-        return Response(NotificationPreferenceSerializer(result, many=True).data)
-
-
 # ── v2.3.0 — Onboarding ───────────────────────────────────────────────────────
-
-WORKSPACE_TEMPLATES = [
-    {
-        "key": "software",
-        "name": "Software Team",
-        "description": "Sprint-based engineering workflow with bug tracking and feature planning.",
-        "icon": "💻",
-        "projects": [
-            {"name": "Sprint Board", "board_type": "scrum"},
-            {"name": "Bug Tracker", "board_type": "list"},
-        ],
-    },
-    {
-        "key": "startup",
-        "name": "Startup",
-        "description": "Move fast across product, engineering and growth with a unified board.",
-        "icon": "🚀",
-        "projects": [
-            {"name": "Roadmap", "board_type": "timeline"},
-            {"name": "Sprint", "board_type": "scrum"},
-        ],
-    },
-    {
-        "key": "design",
-        "name": "Design Studio",
-        "description": "Creative project tracking from brief to delivery.",
-        "icon": "🎨",
-        "projects": [
-            {"name": "Active Projects", "board_type": "kanban"},
-            {"name": "Client Requests", "board_type": "list"},
-        ],
-    },
-    {
-        "key": "marketing",
-        "name": "Marketing Agency",
-        "description": "Campaign pipeline, content calendar and asset management.",
-        "icon": "📢",
-        "projects": [
-            {"name": "Campaigns", "board_type": "kanban"},
-            {"name": "Content Calendar", "board_type": "calendar"},
-        ],
-    },
-    {
-        "key": "education",
-        "name": "Education",
-        "description": "Course planning, assignments and student project tracking.",
-        "icon": "🎓",
-        "projects": [
-            {"name": "Curriculum", "board_type": "list"},
-            {"name": "Projects", "board_type": "kanban"},
-        ],
-    },
-    {
-        "key": "operations",
-        "name": "Operations",
-        "description": "Process management, SOPs and cross-team coordination.",
-        "icon": "⚙️",
-        "projects": [
-            {"name": "Processes", "board_type": "list"},
-            {"name": "OKRs", "board_type": "kanban"},
-        ],
-    },
-]
-
-
 class OnboardingStateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -516,8 +386,8 @@ class OnboardingStateView(APIView):
             "create_project": has_project,
             "add_task": has_task,
             "invite_teammate": has_member,
-            "connect_github": False,  # future
-            "setup_automation": False,  # future
+            "integration": False, 
+            "setup_automation": False, 
         }
 
     def _user_dismissed(self, state, user_id):
@@ -526,17 +396,13 @@ class OnboardingStateView(APIView):
 
     def _build_response(self, state, workspace, request):
         user_id = str(request.user.id)
-        user_is_admin = WorkspaceMember.objects.filter(
-            workspace=workspace, user=request.user, role=WorkspaceMember.Role.ADMIN
-        ).exists()
         return {
             "wizard_completed": state.wizard_completed,
             "team_type": state.team_type,
-            # Per-user dismissal — each user can dismiss independently
             "checklist_dismissed": self._user_dismissed(state, user_id),
             "checklist": self._checklist(workspace),
-            # Only admins should see the setup checklist
-            "user_is_admin": user_is_admin,
+            # Only the workspace creator sees the onboarding experience.
+            "user_is_admin": workspace.owner == request.user,
         }
 
     def get(self, request, slug):
@@ -578,7 +444,7 @@ class WorkspaceTemplateApplyView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, slug):
-        from projects.models import Project, TaskStatus, Board
+        from projects.models import Project, TaskStatus, Board, DEFAULT_TASK_STATUSES
 
         workspace = get_object_or_404(Workspace, slug=slug, members__user=request.user)
         key = request.data.get("template_key")
@@ -596,35 +462,7 @@ class WorkspaceTemplateApplyView(APIView):
                 created_by=request.user,
             )
             TaskStatus.objects.bulk_create(
-                [
-                    TaskStatus(project=project, **s)
-                    for s in [
-                        {
-                            "name": "Backlog",
-                            "color": "#94a3b8",
-                            "order": 0,
-                            "is_done": False,
-                        },
-                        {
-                            "name": "In Progress",
-                            "color": "#6366f1",
-                            "order": 1,
-                            "is_done": False,
-                        },
-                        {
-                            "name": "In Review",
-                            "color": "#f59e0b",
-                            "order": 2,
-                            "is_done": False,
-                        },
-                        {
-                            "name": "Done",
-                            "color": "#22c55e",
-                            "order": 3,
-                            "is_done": True,
-                        },
-                    ]
-                ]
+                [TaskStatus(project=project, **s) for s in DEFAULT_TASK_STATUSES]
             )
             Board.objects.create(
                 project=project,
@@ -699,20 +537,6 @@ class APIKeyDetailView(APIView):
 
 
 # ── v4.5.0 — Webhooks ─────────────────────────────────────────────────────────
-WEBHOOK_EVENTS = [
-    "task.created",
-    "task.updated",
-    "task.deleted",
-    "task.assigned",
-    "task.commented",
-    "task.completed",
-    "sprint.started",
-    "sprint.completed",
-    "member.added",
-    "member.removed",
-]
-
-
 class WebhookListCreateView(APIView):
     """
     GET  /api/workspaces/:slug/webhooks/ — list all webhooks for this workspace
@@ -724,8 +548,7 @@ class WebhookListCreateView(APIView):
     def get(self, request, workspace_slug):
         ws = get_object_or_404(Workspace, slug=workspace_slug)
         _require_admin(ws, request.user)
-        # secret_prefix (first 8 chars) is included so the user can identify the secret,
-        # but the full secret is never exposed again after creation
+        # secret_prefix (first 8 chars) is included so the user can identify the secret, but the full secret is never exposed again after creation
         return Response(WebhookSerializer(ws.webhooks.all(), many=True).data)
 
     def post(self, request, workspace_slug):
@@ -777,7 +600,6 @@ class WebhookTestView(APIView):
         ws = get_object_or_404(Workspace, slug=workspace_slug)
         _require_admin(ws, request.user)
         hook = get_object_or_404(Webhook, id=hook_id, workspace=ws)
-        from workspaces.tasks import deliver_webhook
 
         # Queued via Celery — the actual HTTP call happens in the background worker
         deliver_webhook.delay(
@@ -935,7 +757,6 @@ class ImportJobDetailView(APIView):
 
 class ImportJobRunView(APIView):
     """POST — kick off the Celery import task for an existing job."""
-
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, workspace_slug, job_id):
@@ -948,7 +769,6 @@ class ImportJobRunView(APIView):
                 status=400,
             )
 
-        from .tasks import run_import
         run_import.delay(str(job.id))
         return Response({"ok": True, "job_id": str(job.id)})
 

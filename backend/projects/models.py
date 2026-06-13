@@ -3,6 +3,8 @@ from django.db import models
 from django.conf import settings
 from workspaces.models import Workspace
 
+# !! Have to change this way, rename the projects with board as it makes more sense. Secondly, we should add a type with the board such as some boards refers to clients, some are general, some are for internal teams.
+
 class Project(models.Model):
     class Status(models.TextChoices):
         ACTIVE = "active", "Active"
@@ -53,6 +55,13 @@ class TaskStatus(models.Model):
     def __str__(self):
         return f"{self.project.name} / {self.name}"
 
+# !! same thing, create a constants file, I would prefer, a single constant file in the core folder and move all the constants there
+DEFAULT_TASK_STATUSES = (
+    {"name": "Backlog", "color": "#94a3b8", "order": 0, "is_done": False},
+    {"name": "In Progress", "color": "#6366f1", "order": 1, "is_done": False},
+    {"name": "In Review", "color": "#f59e0b", "order": 2, "is_done": False},
+    {"name": "Done", "color": "#22c55e", "order": 3, "is_done": True},
+)
 
 class Task(models.Model):
     class Priority(models.TextChoices):
@@ -1104,6 +1113,7 @@ class AuditEvent(models.Model):
 
     def __str__(self):
         return f"{self.actor} — {self.action} at {self.created_at}"
+
 
 # ── v4.0.0 — Analytics Engine v2 ─────────────────────────────────────────────
 class AnalyticsSnapshot(models.Model):

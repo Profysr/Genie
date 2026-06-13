@@ -26,12 +26,6 @@ class TeamsIntegrationSerializer(serializers.ModelSerializer):
         )
         return instance
 
-    def update(self, instance, validated_data):
-        for attr, val in validated_data.items():
-            setattr(instance, attr, val)
-        instance.save()
-        return instance
-
 
 class GoogleChatIntegrationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -55,12 +49,6 @@ class GoogleChatIntegrationSerializer(serializers.ModelSerializer):
             workspace=ws,
             defaults={**validated_data, "is_active": True},
         )
-        return instance
-
-    def update(self, instance, validated_data):
-        for attr, val in validated_data.items():
-            setattr(instance, attr, val)
-        instance.save()
         return instance
 
 

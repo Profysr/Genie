@@ -7,17 +7,16 @@ from .models import (
     WorkspaceInvite,
     Notification,
     InboxItem,
-    NotificationPreference,
     WorkspaceAPIKey,
     Webhook,
     WebhookDelivery,
     ImportJob,
 )
-from accounts.serializers import UserSerializer
+from accounts.serializers import MiniUserSerializer
 
 
 class WorkspaceSerializer(serializers.ModelSerializer):
-    owner = UserSerializer(read_only=True)
+    owner = MiniUserSerializer(read_only=True)
     member_count = serializers.SerializerMethodField()
     my_role = serializers.SerializerMethodField()
 
@@ -45,6 +44,14 @@ class WorkspaceSerializer(serializers.ModelSerializer):
             return member.role if member else None
         return None
 
+    def validate(self, data):
+        request = self.context.get("request")
+        if request and not self.instance and not request.user.can_create_workspace:
+            raise serializers.ValidationError(
+                "Your account cannot create workspaces. Contact the workspace admin to get an invite."
+            )
+        return data
+
     def create(self, validated_data):
         name = validated_data["name"]
         base_slug = slugify(name)
@@ -65,7 +72,7 @@ class WorkspaceSerializer(serializers.ModelSerializer):
 
 
 class WorkspaceMemberSerializer(serializers.ModelSerializer):
-    user = UserSerializer(read_only=True)
+    user = MiniUserSerializer(read_only=True)
 
     class Meta:
         model = WorkspaceMember
@@ -74,7 +81,7 @@ class WorkspaceMemberSerializer(serializers.ModelSerializer):
 
 
 class WorkspaceInviteSerializer(serializers.ModelSerializer):
-    invited_by = UserSerializer(read_only=True)
+    invited_by = MiniUserSerializer(read_only=True)
 
     class Meta:
         model = WorkspaceInvite
@@ -96,7 +103,7 @@ class WorkspaceInviteSerializer(serializers.ModelSerializer):
 
 
 class NotificationSerializer(serializers.ModelSerializer):
-    actor = UserSerializer(read_only=True)
+    actor = MiniUserSerializer(read_only=True)
 
     class Meta:
         model = Notification
@@ -134,24 +141,6 @@ class InboxItemSerializer(serializers.ModelSerializer):
             "meta",
             "created_at",
         ]
-
-
-class NotificationPreferenceSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = NotificationPreference
-        fields = [
-            "id",
-            "event_type",
-            "in_app",
-            "email",
-            "project_id_override",
-            "quiet_hours_start",
-            "quiet_hours_end",
-            "digest_hour",
-            "updated_at",
-        ]
-        read_only_fields = ["id", "updated_at"]
-
 
 # ── v4.5.0 — API Keys ─────────────────────────────────────────────────────────
 class WorkspaceAPIKeySerializer(serializers.ModelSerializer):

@@ -18,7 +18,6 @@ from .views import (
     InboxItemUpdateView,
     InboxBulkUpdateView,
     InboxUnreadCountView,
-    NotificationPreferenceView,
     # v4.5.0
     APIKeyListCreateView,
     APIKeyDetailView,
@@ -68,10 +67,6 @@ urlpatterns = [
     path("inbox/bulk/", InboxBulkUpdateView.as_view()),
     path("inbox/unread-count/", InboxUnreadCountView.as_view()),
     path("inbox/<uuid:item_id>/", InboxItemUpdateView.as_view()),
-    path(
-        "workspaces/<slug:slug>/notification-preferences/",
-        NotificationPreferenceView.as_view(),
-    ),
     # v4.5.0 — API Keys
     path("workspaces/<slug:workspace_slug>/api-keys/", APIKeyListCreateView.as_view()),
     path(

@@ -14,7 +14,6 @@ SUPPORTED_SOURCES = {
     "csv": {"label": "Simple CSV", "format": "csv", "module": csv_parser},
 }
 
-
 def get_parser(source: str):
     """Return the parser module for a given source key, or None."""
     entry = SUPPORTED_SOURCES.get(source)

@@ -50,8 +50,14 @@ class GoogleChatIntegration(models.Model):
 
 class IntegrationChannelMapping(models.Model):
     """
-    Maps a project (or the whole workspace) to a specific channel/space on a platform.
-    Controls which events are sent and in what format.
+    Per-project routing rules on top of a workspace integration.
+
+    TeamsIntegration / GoogleChatIntegration store one webhook URL per workspace.
+    This model lets you override that per project — e.g. route "Backend" project events to a different Teams channel than the workspace-wide default.
+    project=None means workspace-wide fallback (created automatically on connect).
+
+    enabled_events controls which task events fire for this mapping (empty = all).
+    This is outbound-only and unrelated to the in-app Notification model.
     """
 
     class Platform(models.TextChoices):

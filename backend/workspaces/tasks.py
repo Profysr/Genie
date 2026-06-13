@@ -24,16 +24,24 @@ import hmac
 import json
 import logging
 import time
+from itertools import islice
 
 import requests
 from asgiref.sync import async_to_sync
 from celery import shared_task
 from channels.layers import get_channel_layer
+from django.db import transaction
 from django.utils import timezone
 from .models import Webhook, WebhookDelivery
+from projects.models import DEFAULT_TASK_STATUSES, Project, Task, TaskStatus, Label
+
+from django.contrib.auth import get_user_model
+
+# Import models/helpers from your apps
+from workspaces.models import ImportJob
+from .importers.base import ParsedTask
 
 logger = logging.getLogger(__name__)
-
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
 def deliver_webhook(self, webhook_id, event, payload_dict):
@@ -148,6 +156,25 @@ def deliver_webhook(self, webhook_id, event, payload_dict):
 
 
 # ── v4.6.0 — Import Runner ────────────────────────────────────────────────────
+_IMPORT_CHUNK_SIZE = 100
+
+def _chunked(iterable, size: int):
+    """Yield successive fixed-size chunks from *iterable* without buffering the whole sequence."""
+    it = iter(iterable)
+    while chunk := list(islice(it, size)):
+        yield chunk
+
+
+def _ensure_import_statuses(project, TaskStatus) -> None:
+    existing = set(project.statuses.values_list("name", flat=True))
+    TaskStatus.objects.bulk_create(
+        [
+            TaskStatus(project=project, **s)
+            for s in DEFAULT_TASK_STATUSES
+            if s["name"] not in existing
+        ],
+        ignore_conflicts=True,
+    )
 
 
 def _broadcast_import(
@@ -184,33 +211,45 @@ def _broadcast_import(
     except Exception as exc:
         logger.warning("import broadcast failed: %s", exc)
 
-
 @shared_task(bind=True)
 def run_import(self, job_id):
     """
-    Execute an ImportJob:
-    1. Walk parsed_rows applying field_mapping.
-    2. Create Task objects, resolving status / assignee by name/email.
-    3. Broadcast progress every 5% via WebSocket.
-    4. Mark job complete / failed.
+    Orchestrates the entire import lifecycle.
+    The logic reads like a bulleted list of high-level steps.
     """
-    from workspaces.models import ImportJob
-    from projects.models import Project, Task, TaskStatus, Label
-    from .importers.base import ParsedTask
-    from django.contrib.auth import get_user_model
-
-    User = get_user_model()
-
+    # 1. Fetch the Job record safely
     try:
         job = ImportJob.objects.select_related("workspace", "created_by").get(id=job_id)
     except ImportJob.DoesNotExist:
         logger.error("run_import: job %s not found", job_id)
         return
 
-    ws_slug = job.workspace.slug
+    # 2. Set status to importing and notify frontend via WebSockets
+    _initialize_job_status(job)
+
+    # 3. Set up Project, Status maps, and User maps
+    project, status_map, user_map = _prepare_import_environment(job)
+
+    # 4. Process all rows in atomic chunks
+    imported_ids, skipped, errors = _process_import_rows(
+        job, project, status_map, user_map
+    )
+
+    # 5. Finalize database records and send completion broadcast
+    _finalize_job_status(job, imported_ids, skipped, errors)
+
+
+# ── 2. ISOLATED HELPER FUNCTIONS ──────────────────────────────────────────────
+def _initialize_job_status(job):
+    """Updates database and triggers the initial 'started' WebSocket notification."""
     job.status = ImportJob.Status.IMPORTING
     job.save(update_fields=["status"])
-    _broadcast_import(ws_slug, job_id, "importing", 0)
+    _broadcast_import(job.workspace.slug, job.id, "importing", 0)
+
+
+def _prepare_import_environment(job):
+    """Pre-fetches lookups and sets up project to eliminate N+1 DB operations."""
+    User = get_user_model()
 
     project, _ = Project.objects.get_or_create(
         workspace=job.workspace,
@@ -218,100 +257,169 @@ def run_import(self, job_id):
         defaults={"created_by": job.created_by},
     )
 
-    default_statuses = [
-        ("Backlog", "#94a3b8", 0, False),
-        ("In Progress", "#6366f1", 1, False),
-        ("In Review", "#f59e0b", 2, False),
-        ("Done", "#22c55e", 3, True),
-    ]
-    
-    existing_names = set(project.statuses.values_list("name", flat=True))
-    for name, color, order, is_done in default_statuses:
-        if name not in existing_names:
-            TaskStatus.objects.create(
-                project=project, name=name, color=color, order=order, is_done=is_done
-            )
+    _ensure_import_statuses(project, TaskStatus)
 
+    # Generate high-speed dictionaries/lookups in server RAM
     status_map = {s.name.lower(): s for s in project.statuses.all()}
     user_map = {
         u.email.lower(): u
         for u in User.objects.filter(workspace_memberships__workspace=job.workspace)
     }
 
-    rows = job.parsed_rows
-    total = len(rows)
+    # Sync total count to the database tracker
+    job.total_count = len(job.parsed_rows)
+    job.save(update_fields=["total_count"])
+
+    return project, status_map, user_map
+
+
+def _process_import_rows(job, project, status_map, user_map):
+    """Loops through rows using chunking strategies and returns operational metrics."""
+    existing_titles = set(
+        Task.objects.filter(project=project).values_list("title", flat=True)
+    )
+
     imported_ids = []
     skipped = 0
     errors = []
     last_pct = -1
+    processed = 0
+    total = job.total_count
 
-    job.total_count = total
-    job.save(update_fields=["total_count"])
+    for chunk_idx, chunk in enumerate(
+        _chunked(enumerate(job.parsed_rows), _IMPORT_CHUNK_SIZE)
+    ):
+        pending_tasks = []
+        label_map = []
 
-    for i, row_dict in enumerate(rows):
-        try:
-            pt = ParsedTask.from_dict(row_dict)
+        # Step A: Parse raw rows inside this chunk into Memory Instances
+        for i, row_dict in chunk:
+            try:
+                pt = ParsedTask.from_dict(row_dict)
+                if pt.external_id and pt.title in existing_titles:
+                    skipped += 1
+                    continue
 
-            if (
-                pt.external_id
-                and Task.objects.filter(project=project, title=pt.title).exists()
-            ):
+                task = _build_task_instance(pt, project, status_map, user_map, job)
+                if pt.labels:
+                    label_map.append((len(pending_tasks), pt.labels))
+
+                pending_tasks.append(task)
+
+            except Exception as exc:
+                errors.append({"row": i, "error": str(exc)[:200]})
                 skipped += 1
-                continue
+                logger.warning("import row %d failed: %s", i, exc)
 
-            status_obj = (
-                status_map.get(pt.status_name.lower())
-                or status_map.get("backlog")
-                or project.statuses.order_by("order").first()
+        # Step B: Write this chunk to the database inside a transaction block
+        if pending_tasks:
+            chunk_success = _execute_bulk_insert(
+                pending_tasks, label_map, project, existing_titles, imported_ids
             )
-            assignee = user_map.get((pt.assignee_email or "").lower())
-
-            task = Task.objects.create(
-                project=project,
-                title=pt.title,
-                description=pt.description,
-                status=status_obj,
-                priority=pt.priority,
-                task_type=pt.task_type,
-                assignee=assignee,
-                due_date=pt.due_date or None,
-                start_date=pt.start_date or None,
-                estimate_hours=pt.estimate_hours,
-                created_by=job.created_by,
-            )
-
-            for label_name in pt.labels:
-                label, _ = Label.objects.get_or_create(
-                    project=project,
-                    name=label_name[:50],
-                    defaults={"color": "#94a3b8"},
+            if not chunk_success:
+                skipped += len(pending_tasks)
+                errors.append(
+                    {
+                        "chunk": chunk_idx,
+                        "error": "Database write conflict or transaction rollback",
+                    }
                 )
-                task.labels.add(label)
 
-            imported_ids.append(str(task.id))
+        # Step C: Increment metrics and handle periodic 5% step live broadcasts
+        processed += len(chunk)
+        pct = int(processed / total * 100) if total else 100
 
-        except Exception as exc:
-            errors.append({"row": i, "error": str(exc)[:200]})
-            skipped += 1
-            logger.warning("import row %d failed: %s", i, exc)
-
-        pct = int((i + 1) / total * 100) if total else 100
         if pct >= last_pct + 5:
             last_pct = pct
-            job.progress_pct = pct
-            job.imported_count = len(imported_ids)
-            job.skipped_count = skipped
-            job.save(update_fields=["progress_pct", "imported_count", "skipped_count"])
-            _broadcast_import(
-                ws_slug,
-                job_id,
-                "importing",
-                pct,
-                imported=len(imported_ids),
-                skipped=skipped,
-                total=total,
-            )
+            _save_and_broadcast_progress(job, pct, len(imported_ids), skipped, total)
 
+    return imported_ids, skipped, errors
+
+
+def _build_task_instance(pt, project, status_map, user_map, job):
+    """Maps custom parsed dictionary keys onto a clean Django Task model instance."""
+    status_obj = (
+        status_map.get(pt.status_name.lower())
+        or status_map.get("backlog")
+        or project.statuses.order_by("order").first()
+    )
+    return Task(
+        project=project,
+        title=pt.title,
+        description=pt.description,
+        status=status_obj,
+        priority=pt.priority,
+        task_type=pt.task_type,
+        assignee=user_map.get((pt.assignee_email or "").lower()),
+        due_date=pt.due_date or None,
+        start_date=pt.start_date or None,
+        estimate_hours=pt.estimate_hours,
+        created_by=job.created_by,
+    )
+
+
+def _execute_bulk_insert(
+    pending_tasks, label_map, project, existing_titles, imported_ids
+):
+    """Executes atomic SQL multi-table bulk writes. Returns False if aborted."""
+    LabelThrough = Task.labels.through
+    try:
+        with transaction.atomic():
+            Task.objects.bulk_create(pending_tasks)
+
+            # Map up dynamic tags/labels if rows contain them
+            if label_map:
+                all_label_names = {name for _, names in label_map for name in names}
+                label_objs = {}
+                for name in all_label_names:
+                    lbl, _ = Label.objects.get_or_create(
+                        project=project,
+                        name=name[:50],
+                        defaults={"color": "#94a3b8"},
+                    )
+                    label_objs[name] = lbl
+
+                LabelThrough.objects.bulk_create(
+                    [
+                        LabelThrough(
+                            task_id=pending_tasks[idx].id, label_id=label_objs[name].id
+                        )
+                        for idx, names in label_map
+                        for name in names
+                    ],
+                    ignore_conflicts=True,
+                )
+
+        # Update lists after transaction successfully writes to disk
+        for task in pending_tasks:
+            imported_ids.append(str(task.id))
+            existing_titles.add(task.title)
+        return True
+    except Exception as exc:
+        logger.error("Database chunk execution failed and rolled back: %s", exc)
+        return False
+
+
+def _save_and_broadcast_progress(job, pct, imported_count, skipped, total):
+    """Updates periodic tracking fields on the DB and fires a WebSocket update."""
+    job.progress_pct = pct
+    job.imported_count = imported_count
+    job.skipped_count = skipped
+    job.save(update_fields=["progress_pct", "imported_count", "skipped_count"])
+
+    _broadcast_import(
+        job.workspace.slug,
+        job.id,
+        "importing",
+        pct,
+        imported=imported_count,
+        skipped=skipped,
+        total=total,
+    )
+
+
+def _finalize_job_status(job, imported_ids, skipped, errors):
+    """Marks the ImportJob complete and updates final tracking matrices."""
     job.status = ImportJob.Status.COMPLETE
     job.progress_pct = 100
     job.imported_count = len(imported_ids)
@@ -322,11 +430,11 @@ def run_import(self, job_id):
     job.save()
 
     _broadcast_import(
-        ws_slug,
-        job_id,
+        job.workspace.slug,
+        job.id,
         "complete",
         100,
         imported=len(imported_ids),
         skipped=skipped,
-        total=total,
+        total=job.total_count,
     )

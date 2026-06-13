@@ -45,6 +45,7 @@ pnpm-debug.log*
 
 # ── Editor / OS ───────────────────────────────────────────
 .vscode/
+.fallow/
 .idea/
 *.swp
 *.swo

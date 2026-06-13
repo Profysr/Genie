@@ -1,12 +1,14 @@
 """
 Integration notification services.
 
-Formats and dispatches outbound messages to Slack, Teams, and Google Chat.
+Formats and dispatches outbound messages to Teams and Google Chat.
 Called by fanout_notification() which is hooked into projects.views.notify().
 """
 import logging
+
 import requests
 from django.conf import settings
+from django.db import models
 
 logger = logging.getLogger(__name__)
 
@@ -19,82 +21,28 @@ PRIORITY_EMOJI = {
 }
 
 VERB_LABEL = {
-    "task_created":  "📋 Task Created",
-    "task_assigned": "👤 Task Assigned",
-    "task_commented":"💬 New Comment",
-    "task_completed":"✅ Task Completed",
-    "task_mentioned":"💬 You Were Mentioned",
-    "sprint_started":"🚀 Sprint Started",
-    "sprint_completed": "🏁 Sprint Completed",
+    "task_created":       "📋 Task Created",
+    "task_assigned":      "👤 Task Assigned",
+    "task_commented":     "💬 New Comment",
+    "task_completed":     "✅ Task Completed",
+    "task_mentioned":     "💬 You Were Mentioned",
+    "sprint_started":     "🚀 Sprint Started",
+    "sprint_completed":   "🏁 Sprint Completed",
     "approval_requested": "✋ Approval Requested",
 }
 
 
 # ── Message formatters ────────────────────────────────────────────────────────
-
 def _task_url(workspace_slug, project_id, task_id):
     frontend = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
     return f"{frontend}/w/{workspace_slug}/projects/{project_id}?task={task_id}"
 
 
-def format_slack_detailed(verb, task, actor, workspace_slug):
-    """Returns Slack Block Kit payload (list of blocks)."""
-    label    = VERB_LABEL.get(verb, verb.replace("_", " ").title())
-    pri_emoji = PRIORITY_EMOJI.get(getattr(task, "priority", "none"), "⚪")
-    url      = _task_url(workspace_slug, str(task.project_id), str(task.id))
-
-    blocks = [
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": f"*{label}*\n<{url}|{task.title}>",
-            },
-        },
-        {
-            "type": "context",
-            "elements": [
-                {
-                    "type": "mrkdwn",
-                    "text": (
-                        f"*Project:* {task.project.name}  |  "
-                        f"*Priority:* {pri_emoji} {(task.priority or 'none').title()}  |  "
-                        f"*By:* {actor.full_name or actor.email.split('@')[0]}"
-                    ),
-                }
-            ],
-        },
-        {"type": "divider"},
-    ]
-
-    # Add "Open in JCN" action button
-    blocks.append({
-        "type": "actions",
-        "elements": [
-            {
-                "type": "button",
-                "text": {"type": "plain_text", "text": "Open in JCN"},
-                "url": url,
-                "style": "primary",
-            }
-        ],
-    })
-
-    return blocks
-
-
-def format_slack_compact(verb, task, actor, workspace_slug):
-    label    = VERB_LABEL.get(verb, verb.replace("_", " ").title())
-    pri_emoji = PRIORITY_EMOJI.get(getattr(task, "priority", "none"), "⚪")
-    url      = _task_url(workspace_slug, str(task.project_id), str(task.id))
-    return f"{label}: <{url}|{task.title}> {pri_emoji} ({task.project.name})"
-
-
 def format_teams_card(verb, task, actor, workspace_slug):
     """Returns a Teams MessageCard dict (legacy connector card — no Power Apps needed)."""
-    label    = VERB_LABEL.get(verb, verb.replace("_", " ").title())
+    label     = VERB_LABEL.get(verb, verb.replace("_", " ").title())
     pri_emoji = PRIORITY_EMOJI.get(getattr(task, "priority", "none"), "⚪")
-    url      = _task_url(workspace_slug, str(task.project_id), str(task.id))
+    url       = _task_url(workspace_slug, str(task.project_id), str(task.id))
 
     return {
         "@type":      "MessageCard",
@@ -185,37 +133,8 @@ def format_google_chat_card(verb, task, actor, workspace_slug):
 
 
 # ── Senders ───────────────────────────────────────────────────────────────────
-
-def send_slack(bot_token, channel_id, blocks, fallback_text):
-    """Posts a message to a Slack channel using the bot token."""
-    try:
-        resp = requests.post(
-            "https://slack.com/api/chat.postMessage",
-            headers={"Authorization": f"Bearer {bot_token}", "Content-Type": "application/json"},
-            json={"channel": channel_id, "blocks": blocks, "text": fallback_text},
-            timeout=5,
-        )
-        data = resp.json()
-        if not data.get("ok"):
-            logger.warning("Slack post failed: %s", data.get("error"))
-    except Exception as exc:
-        logger.warning("Slack send error: %s", exc)
-
-
-def send_slack_webhook(webhook_url, blocks, fallback_text):
-    """Posts to a Slack incoming webhook (no bot token needed)."""
-    try:
-        requests.post(
-            webhook_url,
-            json={"blocks": blocks, "text": fallback_text},
-            timeout=5,
-        )
-    except Exception as exc:
-        logger.warning("Slack webhook send error: %s", exc)
-
-
 def send_teams(webhook_url, payload):
-    """Posts an Adaptive Card to a Teams incoming webhook."""
+    """Posts a MessageCard to a Teams incoming webhook."""
     try:
         resp = requests.post(webhook_url, json=payload, timeout=5)
         if resp.status_code >= 400:
@@ -235,12 +154,15 @@ def send_google_chat(webhook_url, payload):
 
 
 # ── Main fanout entry point ───────────────────────────────────────────────────
-
 def fanout_notification(workspace, verb, task, actor):
     """
-    Called by projects.views.notify() after every task event.
+    Called by projects.views after every task event.
     Fans out to all active integration channels mapped to the task's project.
-    Failures are caught and logged — never raise so the main request isn't broken.
+    Failures are caught and logged — never raises so the main request isn't broken.
+
+    Why called from projects and not workspaces: task events (created, assigned, etc.)
+    originate in the projects app. The integration layer is workspace-scoped but the
+    trigger is always a task action, so projects.views is the correct call site.
     """
     try:
         _fanout(workspace, verb, task, actor)
@@ -249,11 +171,10 @@ def fanout_notification(workspace, verb, task, actor):
 
 
 def _fanout(workspace, verb, task, actor):
-    from integrations.models import IntegrationChannelMapping, SlackIntegration, TeamsIntegration, GoogleChatIntegration
+    from integrations.models import IntegrationChannelMapping, TeamsIntegration, GoogleChatIntegration
 
     workspace_slug = workspace.slug
 
-    # Find all active mappings for this project OR workspace-wide fallback
     mappings = IntegrationChannelMapping.objects.filter(
         workspace=workspace,
         is_active=True,
@@ -265,34 +186,10 @@ def _fanout(workspace, verb, task, actor):
         return
 
     for mapping in mappings:
-        # Check if this event is in the enabled list (empty = all events)
         if mapping.enabled_events and verb not in mapping.enabled_events:
             continue
 
-        fmt = mapping.notification_format
-
-        if mapping.platform == IntegrationChannelMapping.Platform.SLACK:
-            try:
-                slack = workspace.slack_integration
-            except SlackIntegration.DoesNotExist:
-                continue
-            if not slack.is_active:
-                continue
-
-            if fmt == "compact":
-                text   = format_slack_compact(verb, task, actor, workspace_slug)
-                blocks = [{"type": "section", "text": {"type": "mrkdwn", "text": text}}]
-            else:
-                blocks = format_slack_detailed(verb, task, actor, workspace_slug)
-
-            fallback = VERB_LABEL.get(verb, verb) + ": " + task.title
-
-            if mapping.channel_id:
-                send_slack(slack.bot_token, mapping.channel_id, blocks, fallback)
-            elif slack.incoming_webhook_url:
-                send_slack_webhook(slack.incoming_webhook_url, blocks, fallback)
-
-        elif mapping.platform == IntegrationChannelMapping.Platform.TEAMS:
+        if mapping.platform == IntegrationChannelMapping.Platform.TEAMS:
             webhook = mapping.webhook_url
             if not webhook:
                 try:
@@ -301,8 +198,7 @@ def _fanout(workspace, verb, task, actor):
                     continue
             if not webhook:
                 continue
-            payload = format_teams_card(verb, task, actor, workspace_slug)
-            send_teams(webhook, payload)
+            send_teams(webhook, format_teams_card(verb, task, actor, workspace_slug))
 
         elif mapping.platform == IntegrationChannelMapping.Platform.GOOGLE_CHAT:
             webhook = mapping.webhook_url
@@ -313,9 +209,4 @@ def _fanout(workspace, verb, task, actor):
                     continue
             if not webhook:
                 continue
-            payload = format_google_chat_card(verb, task, actor, workspace_slug)
-            send_google_chat(webhook, payload)
-
-
-# Import needed for Q objects inside _fanout
-from django.db import models
+            send_google_chat(webhook, format_google_chat_card(verb, task, actor, workspace_slug))

@@ -3,7 +3,7 @@ from celery import Celery
 
 # Notice Redis is used twice here for two different purposes:
 
-# Setting	Purpose
+# Setting Purpose
 # CELERY_BROKER_URL	The task queue — Django pushes jobs here, the Celery worker reads from it
 # CELERY_RESULT_BACKEND	Stores task results/status so you can check if a task succeeded
 # CHANNEL_LAYERS (line 103)	WebSocket pub/sub — fans out messages to connected browser clients

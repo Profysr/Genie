@@ -47,21 +47,7 @@ services:
       - db
       - redis
 
-  frontend:
-    build: ./frontend
-    restart: always
-    volumes:
-      - ./frontend:/app
-      - node_modules:/app/node_modules
-    ports:
-      - "5173:5173"
-    env_file:
-      - ./frontend/.env
-    depends_on:
-      - backend
-
 volumes:
   postgres_data:
   media_data:
   redis_data:
-  node_modules:

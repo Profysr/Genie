@@ -35,8 +35,6 @@ ALL_EVENTS = [
 
 
 # ── Shared helpers ─────────────────────────────────────────────────────────────
-
-
 def _get_workspace(slug, user):
     """
     Fetch a workspace by slug and verify the requesting user is a member.
@@ -89,8 +87,6 @@ def _test_webhook(url, payload):
 
 
 # ── Integration status ─────────────────────────────────────────────────────────
-
-
 class IntegrationStatusView(APIView):
     """
     GET /api/workspaces/:slug/integrations/
@@ -147,14 +143,7 @@ class TeamsIntegrationView(APIView):
 
     def put(self, request, workspace_slug):
         ws = _get_workspace(workspace_slug, request.user)
-
-        # Grab the existing row so the serializer runs update() instead of create().
-        try:
-            instance = ws.teams_integration
-        except TeamsIntegration.DoesNotExist:
-            instance = None
-
-        s = TeamsIntegrationSerializer(instance, data=request.data)
+        s = TeamsIntegrationSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         integration = s.save(workspace=ws)
 
@@ -215,8 +204,6 @@ class TeamsTestView(APIView):
 
 
 # ── Google Chat ────────────────────────────────────────────────────────────────
-
-
 class GoogleChatIntegrationView(APIView):
     """
     GET    /api/workspaces/:slug/integrations/google-chat/   → fetch saved config
@@ -238,12 +225,7 @@ class GoogleChatIntegrationView(APIView):
 
     def put(self, request, workspace_slug):
         ws = _get_workspace(workspace_slug, request.user)
-        try:
-            instance = ws.google_chat_integration
-        except GoogleChatIntegration.DoesNotExist:
-            instance = None
-
-        s = GoogleChatIntegrationSerializer(instance, data=request.data)
+        s = GoogleChatIntegrationSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         integration = s.save(workspace=ws)
 
