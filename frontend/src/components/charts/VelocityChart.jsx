@@ -1,31 +1,90 @@
-import {
-  ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer, ReferenceLine,
-} from "recharts";
-import ChartCard from "./ChartCard";
+import { Bar } from 'react-chartjs-2';
+import './chartSetup';
+import { chartColors } from './chartTheme';
+import ChartCard from './ChartCard';
 
-const CHART_COLOR_SP    = "hsl(var(--primary))";
-const CHART_COLOR_TASKS = "#22c55e";
-const CHART_COLOR_AVG   = "#f59e0b";
+const GREEN = '#22c55e';
+const AMBER = '#f59e0b';
 
-function CustomTooltip({ active, payload, label }) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="bg-popover border border-border rounded-lg shadow-lg px-3 py-2 text-xs">
-      <p className="font-semibold mb-1">{label}</p>
-      {payload.map((p) => (
-        <div key={p.dataKey} className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
-          <span className="text-muted-foreground">{p.name}:</span>
-          <span className="font-semibold">{p.value}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-export default function VelocityChart({ data, avgSP, avgTasks, loading }) {
+export default function VelocityChart({ data, avgSP, loading }) {
   const isEmpty = !data?.sprints?.length;
+  const sprints = data?.sprints || [];
+  const c = chartColors();
+
+  const chartData = {
+    labels: sprints.map((s) => s.sprint_name),
+    datasets: [
+      {
+        type: 'bar',
+        label: 'Story Points',
+        data: sprints.map((s) => s.story_points),
+        backgroundColor: c.primary,
+        borderRadius: 4,
+        maxBarThickness: 48,
+      },
+      {
+        type: 'bar',
+        label: 'Tasks',
+        data: sprints.map((s) => s.tasks_completed),
+        backgroundColor: GREEN,
+        borderRadius: 4,
+        maxBarThickness: 48,
+      },
+      ...(avgSP > 0
+        ? [{
+            type: 'line',
+            label: `Avg ${avgSP} SP`,
+            data: sprints.map(() => avgSP),
+            borderColor: AMBER,
+            borderDash: [4, 2],
+            borderWidth: 2,
+            pointRadius: 0,
+            pointHoverRadius: 0,
+          }]
+        : []),
+    ],
+  };
+
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: {
+        labels: {
+          color: c.mutedForeground,
+          boxWidth: 12,
+          font: { size: 11 },
+          usePointStyle: true,
+          pointStyleWidth: 10,
+        },
+      },
+      tooltip: {
+        backgroundColor: c.popover,
+        borderColor: c.border,
+        borderWidth: 1,
+        titleColor: c.foreground,
+        bodyColor: c.mutedForeground,
+        padding: 10,
+        cornerRadius: 8,
+        callbacks: {
+          label: (ctx) => ` ${ctx.dataset.label}: ${ctx.raw}`,
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: { color: c.mutedForeground, font: { size: 11 } },
+        border: { display: false },
+      },
+      y: {
+        grid: { color: c.border },
+        ticks: { color: c.mutedForeground, font: { size: 11 } },
+        border: { display: false },
+      },
+    },
+  };
 
   return (
     <ChartCard
@@ -35,38 +94,9 @@ export default function VelocityChart({ data, avgSP, avgTasks, loading }) {
       empty={isEmpty}
       emptyText="Complete a sprint to see velocity data"
     >
-      <ResponsiveContainer width="100%" height={260}>
-        <ComposedChart data={data?.sprints || []} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-          <XAxis
-            dataKey="sprint_name"
-            tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-            tickLine={false}
-            axisLine={false}
-          />
-          <YAxis
-            tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-            tickLine={false}
-            axisLine={false}
-          />
-          <Tooltip content={<CustomTooltip />} />
-          <Legend
-            iconType="circle"
-            iconSize={8}
-            wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
-          />
-          <Bar dataKey="story_points" name="Story Points" fill={CHART_COLOR_SP} radius={[4, 4, 0, 0]} maxBarSize={48} />
-          <Bar dataKey="tasks_completed" name="Tasks" fill={CHART_COLOR_TASKS} radius={[4, 4, 0, 0]} maxBarSize={48} />
-          {avgSP > 0 && (
-            <ReferenceLine
-              y={avgSP}
-              stroke={CHART_COLOR_AVG}
-              strokeDasharray="4 2"
-              label={{ value: `Avg ${avgSP}SP`, fontSize: 10, fill: CHART_COLOR_AVG, position: "insideTopRight" }}
-            />
-          )}
-        </ComposedChart>
-      </ResponsiveContainer>
+      <div style={{ height: 260, position: 'relative' }}>
+        <Bar data={chartData} options={options} />
+      </div>
     </ChartCard>
   );
 }

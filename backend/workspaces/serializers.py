@@ -13,9 +13,11 @@ from .models import (
     ImportJob,
 )
 from accounts.serializers import MiniUserSerializer
+from core.fields import PrefixedUUIDField
 
 
 class WorkspaceSerializer(serializers.ModelSerializer):
+    id = PrefixedUUIDField(read_only=True)
     owner = MiniUserSerializer(read_only=True)
     member_count = serializers.SerializerMethodField()
     my_role = serializers.SerializerMethodField()
@@ -23,16 +25,10 @@ class WorkspaceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Workspace
         fields = [
-            "id",
-            "name",
-            "slug",
-            "logo",
-            "owner",
-            "member_count",
-            "my_role",
-            "created_at",
+            "id", "name", "slug", "logo", "owner",
+            "member_count", "my_role", "created_at",
         ]
-        read_only_fields = ["id", "slug", "owner", "created_at"]
+        read_only_fields = ["slug", "owner", "created_at"]
 
     def get_member_count(self, obj):
         return obj.members.count()
@@ -72,21 +68,23 @@ class WorkspaceSerializer(serializers.ModelSerializer):
 
 
 class WorkspaceMemberSerializer(serializers.ModelSerializer):
+    id = PrefixedUUIDField(read_only=True)
     user = MiniUserSerializer(read_only=True)
 
     class Meta:
         model = WorkspaceMember
         fields = ["id", "user", "role", "joined_at"]
-        read_only_fields = ["id", "user", "joined_at"]
+        read_only_fields = ["user", "joined_at"]
 
 
 class WorkspaceInviteSerializer(serializers.ModelSerializer):
+    id = PrefixedUUIDField(read_only=True)
     invited_by = MiniUserSerializer(read_only=True)
 
     class Meta:
         model = WorkspaceInvite
         fields = ["id", "token", "email", "role", "invited_by", "status", "created_at"]
-        read_only_fields = ["id", "token", "invited_by", "status", "created_at"]
+        read_only_fields = ["token", "invited_by", "status", "created_at"]
 
     def validate_email(self, value):
         workspace = self.context["workspace"]
@@ -103,61 +101,49 @@ class WorkspaceInviteSerializer(serializers.ModelSerializer):
 
 
 class NotificationSerializer(serializers.ModelSerializer):
+    id = PrefixedUUIDField(read_only=True)
     actor = MiniUserSerializer(read_only=True)
 
     class Meta:
         model = Notification
         fields = ["id", "actor", "verb", "meta", "read", "created_at"]
-        read_only_fields = ["id", "actor", "verb", "meta", "created_at"]
+        read_only_fields = ["actor", "verb", "meta", "created_at"]
 
 
 # ── v3.7.0 ────────────────────────────────────────────────────────────────────
 class InboxItemSerializer(serializers.ModelSerializer):
+    id = PrefixedUUIDField(read_only=True)
+
     class Meta:
         model = InboxItem
         fields = [
-            "id",
-            "actor_id",
-            "actor_name",
-            "verb",
-            "event_type",
-            "resource_name",
-            "project_id",
-            "project_name",
-            "meta",
-            "status",
-            "snoozed_until",
-            "created_at",
+            "id", "actor_id", "actor_name", "verb", "event_type",
+            "resource_name", "project_id", "project_name",
+            "meta", "status", "snoozed_until", "created_at",
         ]
         read_only_fields = [
-            "id",
-            "actor_id",
-            "actor_name",
-            "verb",
-            "event_type",
-            "resource_name",
-            "project_id",
-            "project_name",
-            "meta",
-            "created_at",
+            "actor_id", "actor_name", "verb", "event_type",
+            "resource_name", "project_id", "project_name",
+            "meta", "created_at",
         ]
+
 
 # ── v4.5.0 — API Keys ─────────────────────────────────────────────────────────
 class WorkspaceAPIKeySerializer(serializers.ModelSerializer):
     """Read serializer — never exposes the hash or full key."""
 
+    id = PrefixedUUIDField(read_only=True)
+
     class Meta:
         model = WorkspaceAPIKey
         fields = [
-            "id",
-            "name",
-            "key_prefix",
-            "scopes",
-            "last_used_at",
-            "expires_at",
-            "created_at",
+            "id", "name", "key_prefix", "scopes",
+            "last_used_at", "expires_at", "created_at",
         ]
-        read_only_fields = fields
+        read_only_fields = [
+            "name", "key_prefix", "scopes",
+            "last_used_at", "expires_at", "created_at",
+        ]
 
 
 class APIKeyCreateSerializer(serializers.Serializer):
@@ -187,20 +173,13 @@ class APIKeyCreateSerializer(serializers.Serializer):
 class WebhookSerializer(serializers.ModelSerializer):
     """Read/update serializer — exposes only the secret prefix, never the full secret."""
 
+    id = PrefixedUUIDField(read_only=True)
     secret_prefix = serializers.SerializerMethodField()
 
     class Meta:
         model = Webhook
-        fields = [
-            "id",
-            "name",
-            "url",
-            "events",
-            "is_active",
-            "secret_prefix",
-            "created_at",
-        ]
-        read_only_fields = ["id", "secret_prefix", "created_at"]
+        fields = ["id", "name", "url", "events", "is_active", "secret_prefix", "created_at"]
+        read_only_fields = ["secret_prefix", "created_at"]
 
     def get_secret_prefix(self, obj):
         return obj.secret[:8] + "…"
@@ -220,43 +199,39 @@ class WebhookCreateSerializer(serializers.Serializer):
 
 
 class WebhookDeliverySerializer(serializers.ModelSerializer):
+    id = PrefixedUUIDField(read_only=True)
+
     class Meta:
         model = WebhookDelivery
         fields = [
-            "id",
-            "event",
-            "response_code",
-            "response_body",
-            "duration_ms",
-            "success",
-            "attempt",
-            "created_at",
+            "id", "event", "response_code", "response_body",
+            "duration_ms", "success", "attempt", "created_at",
         ]
-        read_only_fields = fields
+        read_only_fields = [
+            "event", "response_code", "response_body",
+            "duration_ms", "success", "attempt", "created_at",
+        ]
 
 
 # ── v4.6.0 — Import Jobs ──────────────────────────────────────────────────────
 class ImportJobSerializer(serializers.ModelSerializer):
     """Read serializer for list and detail views."""
 
+    id = PrefixedUUIDField(read_only=True)
     can_rollback = serializers.SerializerMethodField()
 
     class Meta:
         model = ImportJob
         fields = [
-            "id",
-            "source",
-            "status",
-            "file_name",
-            "total_count",
-            "imported_count",
-            "skipped_count",
-            "progress_pct",
-            "created_at",
-            "completed_at",
-            "can_rollback",
+            "id", "source", "status", "file_name",
+            "total_count", "imported_count", "skipped_count",
+            "progress_pct", "created_at", "completed_at", "can_rollback",
         ]
-        read_only_fields = fields
+        read_only_fields = [
+            "source", "status", "file_name",
+            "total_count", "imported_count", "skipped_count",
+            "progress_pct", "created_at", "completed_at",
+        ]
 
     def get_can_rollback(self, obj):
         if obj.status != ImportJob.Status.COMPLETE or not obj.completed_at:
@@ -269,8 +244,6 @@ class ImportJobDetailSerializer(ImportJobSerializer):
 
     class Meta(ImportJobSerializer.Meta):
         fields = ImportJobSerializer.Meta.fields + [
-            "preview_rows",
-            "field_mapping",
-            "error_log",
+            "preview_rows", "field_mapping", "error_log",
         ]
         read_only_fields = fields

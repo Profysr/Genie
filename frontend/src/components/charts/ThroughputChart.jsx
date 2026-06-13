@@ -1,35 +1,99 @@
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, ReferenceLine,
-} from "recharts";
-import ChartCard from "./ChartCard";
+import { Bar } from 'react-chartjs-2';
+import './chartSetup';
+import { chartColors } from './chartTheme';
+import ChartCard from './ChartCard';
 
-function CustomTooltip({ active, payload, label }) {
-  if (!active || !payload?.[0]) return null;
-  return (
-    <div className="bg-popover border border-border rounded-lg shadow-lg px-3 py-2 text-xs">
-      <p className="font-semibold mb-0.5">{label}</p>
-      <p className="text-muted-foreground">
-        Completed: <span className="font-bold text-foreground">{payload[0].value}</span>
-      </p>
-    </div>
-  );
+const AMBER = '#f59e0b';
+
+function fmtLabel(v, period) {
+  if (!v) return '';
+  const d = new Date(v);
+  if (isNaN(d)) return v;
+  if (period === 'month') return d.toLocaleString('default', { month: 'short', year: '2-digit' });
+  return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
-export default function ThroughputChart({ data = [], period = "week", loading }) {
+export default function ThroughputChart({ data = [], period = 'week', loading }) {
   const isEmpty = data.length === 0;
-
   const avg = data.length
     ? Math.round(data.reduce((s, d) => s + d.count, 0) / data.length)
     : 0;
+  const periodLabel = { day: 'Daily', week: 'Weekly', month: 'Monthly' }[period] ?? 'Weekly';
+  const c = chartColors();
 
-  const periodLabel = { day: "Daily", week: "Weekly", month: "Monthly" }[period] ?? "Weekly";
+  const labels = data.map((d) => d.period);
 
-  const formatLabel = (v) => {
-    if (!v) return "";
-    const d = new Date(v);
-    if (period === "month") return d.toLocaleString("default", { month: "short", year: "2-digit" });
-    return `${d.getMonth() + 1}/${d.getDate()}`;
+  const chartData = {
+    labels,
+    datasets: [
+      {
+        type: 'bar',
+        label: 'Completed',
+        data: data.map((d) => d.count),
+        backgroundColor: c.primary,
+        borderRadius: 4,
+        maxBarThickness: 48,
+      },
+      ...(avg > 0
+        ? [{
+            type: 'line',
+            label: `Avg ${avg}`,
+            data: data.map(() => avg),
+            borderColor: AMBER,
+            borderDash: [4, 2],
+            borderWidth: 2,
+            pointRadius: 0,
+            pointHoverRadius: 0,
+          }]
+        : []),
+    ],
+  };
+
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: {
+        labels: {
+          color: c.mutedForeground,
+          boxWidth: 12,
+          font: { size: 11 },
+          usePointStyle: true,
+          pointStyleWidth: 10,
+        },
+      },
+      tooltip: {
+        backgroundColor: c.popover,
+        borderColor: c.border,
+        borderWidth: 1,
+        titleColor: c.foreground,
+        bodyColor: c.mutedForeground,
+        padding: 10,
+        cornerRadius: 8,
+        callbacks: {
+          title: (items) => fmtLabel(items[0]?.label, period),
+          label: (ctx) => ` ${ctx.dataset.label}: ${ctx.raw}`,
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: {
+          color: c.mutedForeground,
+          font: { size: 10 },
+          maxTicksLimit: 10,
+          callback: (val) => fmtLabel(labels[val] || '', period),
+        },
+        border: { display: false },
+      },
+      y: {
+        grid: { color: c.border },
+        ticks: { color: c.mutedForeground, font: { size: 11 }, precision: 0 },
+        border: { display: false },
+      },
+    },
   };
 
   return (
@@ -40,35 +104,9 @@ export default function ThroughputChart({ data = [], period = "week", loading })
       empty={isEmpty}
       emptyText="No completed tasks in this period"
     >
-      <ResponsiveContainer width="100%" height={240}>
-        <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-          <XAxis
-            dataKey="period"
-            tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
-            tickLine={false}
-            axisLine={false}
-            tickFormatter={formatLabel}
-            interval="preserveStartEnd"
-          />
-          <YAxis
-            tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-            tickLine={false}
-            axisLine={false}
-            allowDecimals={false}
-          />
-          <Tooltip content={<CustomTooltip />} cursor={{ fill: "hsl(var(--accent))" }} />
-          <Bar dataKey="count" name="Completed" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} maxBarSize={48} />
-          {avg > 0 && (
-            <ReferenceLine
-              y={avg}
-              stroke="#f59e0b"
-              strokeDasharray="4 2"
-              label={{ value: `Avg ${avg}`, fontSize: 10, fill: "#f59e0b", position: "insideTopRight" }}
-            />
-          )}
-        </BarChart>
-      </ResponsiveContainer>
+      <div style={{ height: 240, position: 'relative' }}>
+        <Bar data={chartData} options={options} />
+      </div>
     </ChartCard>
   );
 }

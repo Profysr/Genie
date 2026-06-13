@@ -1,12 +1,15 @@
 from rest_framework import serializers
 from .models import TeamsIntegration, GoogleChatIntegration, IntegrationChannelMapping
+from core.fields import PrefixedUUIDField
 
 
 class TeamsIntegrationSerializer(serializers.ModelSerializer):
+    id = PrefixedUUIDField(read_only=True)
+
     class Meta:
         model  = TeamsIntegration
         fields = ["id", "webhook_url", "space_name", "is_active", "created_at", "updated_at"]
-        read_only_fields = ["id", "is_active", "created_at", "updated_at"]
+        read_only_fields = ["is_active", "created_at", "updated_at"]
         extra_kwargs = {"webhook_url": {"required": True}}
 
     def validate_webhook_url(self, value):
@@ -28,10 +31,12 @@ class TeamsIntegrationSerializer(serializers.ModelSerializer):
 
 
 class GoogleChatIntegrationSerializer(serializers.ModelSerializer):
+    id = PrefixedUUIDField(read_only=True)
+
     class Meta:
         model  = GoogleChatIntegration
         fields = ["id", "webhook_url", "space_name", "is_active", "created_at", "updated_at"]
-        read_only_fields = ["id", "is_active", "created_at", "updated_at"]
+        read_only_fields = ["is_active", "created_at", "updated_at"]
         extra_kwargs = {"webhook_url": {"required": True}}
 
     def validate_webhook_url(self, value):
@@ -53,6 +58,7 @@ class GoogleChatIntegrationSerializer(serializers.ModelSerializer):
 
 
 class IntegrationChannelMappingSerializer(serializers.ModelSerializer):
+    id = PrefixedUUIDField(read_only=True)
     project_name = serializers.CharField(source="project.name", read_only=True, default=None)
 
     class Meta:
@@ -62,4 +68,4 @@ class IntegrationChannelMappingSerializer(serializers.ModelSerializer):
             "webhook_url", "notification_format", "enabled_events", "is_active",
             "created_at",
         ]
-        read_only_fields = ["id", "project_name", "created_at"]
+        read_only_fields = ["project_name", "created_at"]

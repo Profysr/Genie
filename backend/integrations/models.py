@@ -1,7 +1,8 @@
-import uuid
 from django.db import models
 from workspaces.models import Workspace
 from projects.models import Project
+
+from core.fields import UUIDv7Field
 
 
 class TeamsIntegration(models.Model):
@@ -10,7 +11,8 @@ class TeamsIntegration(models.Model):
     The user creates the webhook in Teams and pastes the URL here.
     """
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    PREFIX = "tim"
+    id = UUIDv7Field()
     workspace = models.OneToOneField(
         Workspace,
         on_delete=models.CASCADE,
@@ -32,7 +34,8 @@ class GoogleChatIntegration(models.Model):
     The user creates the webhook in a Google Chat Space and pastes the URL here.
     """
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    PREFIX = "gci"
+    id = UUIDv7Field()
     workspace = models.OneToOneField(
         Workspace,
         on_delete=models.CASCADE,
@@ -60,6 +63,8 @@ class IntegrationChannelMapping(models.Model):
     This is outbound-only and unrelated to the in-app Notification model.
     """
 
+    PREFIX = "icm"
+
     class Platform(models.TextChoices):
         TEAMS = "teams", "Microsoft Teams"
         GOOGLE_CHAT = "google_chat", "Google Chat"
@@ -73,7 +78,7 @@ class IntegrationChannelMapping(models.Model):
         # Better for dedicated notification channels where detail matters.
         DETAILED = "detailed", "Detailed"
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = UUIDv7Field()
     workspace = models.ForeignKey(
         Workspace,
         on_delete=models.CASCADE,

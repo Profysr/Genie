@@ -100,6 +100,18 @@
   to   { translate: 0 -100%; scale: 0.96; opacity: 0; }
 }
 
+@keyframes float {
+  0%, 100% { translate: 0 0; }
+  50%       { translate: 0 -20px; }
+}
+@keyframes floatReverse {
+  0%, 100% { translate: 0 0; }
+  50%       { translate: 0 20px; }
+}
+.animate-float         { animation: float        8s ease-in-out infinite; }
+.animate-float-reverse { animation: floatReverse 10s ease-in-out infinite; }
+.animate-float-slow    { animation: float        13s ease-in-out infinite; }
+
 /* Stagger animation helpers */
 .stagger-1  { animation-delay: 30ms; }
 .stagger-2  { animation-delay: 60ms; }

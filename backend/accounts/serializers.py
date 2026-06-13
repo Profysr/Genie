@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from dj_rest_auth.registration.serializers import RegisterSerializer as BaseRegisterSerializer
 from .models import User, UserProfile
+from core.fields import PrefixedUUIDField
 
 
 class RegisterSerializer(BaseRegisterSerializer):
@@ -22,14 +23,17 @@ class RegisterSerializer(BaseRegisterSerializer):
 class MiniUserSerializer(serializers.ModelSerializer):
     """Minimal read-only user representation for embedding in other serializers."""
 
+    id = PrefixedUUIDField(read_only=True)
+
     class Meta:
         model = User
         fields = ["id", "email"]
-        read_only_fields = fields
+        read_only_fields = ["email"]
 
 
 class UserSerializer(serializers.ModelSerializer):
-    # Profile fields are kept flat so the API surface doesn't change for the frontend.
+    id = PrefixedUUIDField(read_only=True)
+    # Profile fields kept flat so the API surface stays consistent for the frontend.
     theme = serializers.CharField(source="profile.theme", required=False)
     accent_color = serializers.CharField(source="profile.accent_color", required=False)
     density_mode = serializers.CharField(source="profile.density_mode", required=False)
@@ -41,7 +45,7 @@ class UserSerializer(serializers.ModelSerializer):
             "theme", "accent_color", "density_mode",
             "can_create_workspace", "created_at",
         ]
-        read_only_fields = ["id", "email", "created_at"]
+        read_only_fields = ["email", "created_at"]
 
     def update(self, instance, validated_data):
         profile_data = validated_data.pop("profile", {})

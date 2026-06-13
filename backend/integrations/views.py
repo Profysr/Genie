@@ -1,18 +1,13 @@
-"""
-Integration views — Teams and Google Chat webhook integrations,
-channel mappings, and test/disconnect endpoints.
-"""
-
 import logging
-
 import requests
 from django.shortcuts import get_object_or_404
 from rest_framework import permissions, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from workspaces.models import Workspace
 
+from core.fields import parse_id
+from workspaces.models import Workspace
 from .models import GoogleChatIntegration, IntegrationChannelMapping, TeamsIntegration
 from .serializers import (
     GoogleChatIntegrationSerializer,
@@ -34,24 +29,32 @@ ALL_EVENTS = [
 ]
 
 
-# ── Shared helpers ─────────────────────────────────────────────────────────────
-def _get_workspace(slug, user):
+# ==============================================================================
+# ── SHARED INTEGRATION UTILITIES ──────────────────────────────────────────────
+# ==============================================================================
+
+
+def _parse_pk(value):
+    """Safely handles custom prefixed IDs or native UUID strings."""
+    try:
+        return parse_id(value)
+    except (ValueError, AttributeError, TypeError):
+        return value
+
+
+def _get_workspace(workspace_id, user):
     """
-    Fetch a workspace by slug and verify the requesting user is a member.
-    Raises 404 if the workspace doesn't exist, 403 if they're not a member.
+    Fetches a workspace by its parsed ID and verifies user access.
+    Raises 404 if the workspace doesn't exist, 403 if they are not a member.
     """
-    ws = get_object_or_404(Workspace, slug=slug)
+    ws = get_object_or_404(Workspace, id=_parse_pk(workspace_id))
     if not ws.members.filter(user=user).exists():
-        raise PermissionDenied
+        raise PermissionDenied("You do not have permission to access this workspace.")
     return ws
 
 
 def _ensure_default_mapping(ws, platform):
-    """
-    When a platform is first connected, create a workspace-wide fallback mapping
-    (project=None) so notifications fire even before any project-specific rules
-    are set up. Does nothing if the mapping already exists.
-    """
+    """Creates a fallback workspace-wide mapping if it does not already exist."""
     IntegrationChannelMapping.objects.get_or_create(
         workspace=ws,
         project=None,
@@ -65,17 +68,12 @@ def _ensure_default_mapping(ws, platform):
 
 
 def _test_webhook(url, payload):
-    """
-    Fire a test POST at a webhook URL.
-    Returns a (success, error_response) tuple so callers can do:
-        ok, err = _test_webhook(url, payload)
-        return Response({"ok": True}) if ok else err
-    """
+    """Fires a safe, structured outbound network request to check a remote webhook."""
     try:
         resp = requests.post(url, json=payload, timeout=8)
         if resp.status_code >= 400:
             return False, Response(
-                {"error": f"Webhook returned {resp.status_code}"},
+                {"error": f"Webhook returned status code {resp.status_code}"},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
     except Exception as exc:
@@ -86,78 +84,68 @@ def _test_webhook(url, payload):
     return True, None
 
 
-# ── Integration status ─────────────────────────────────────────────────────────
-class IntegrationStatusView(APIView):
-    """
-    GET /api/workspaces/:slug/integrations/
+def _get_teams_data_or_none(ws):
+    """Safely extracts serializable MS Teams integration data or None."""
+    try:
+        return TeamsIntegrationSerializer(ws.teams_integration).data
+    except TeamsIntegration.DoesNotExist:
+        return None
 
-    Returns the current connection state for every supported platform.
-    A platform's value is null when it hasn't been connected yet.
-    """
+
+def _get_gchat_data_or_none(ws):
+    """Safely extracts serializable Google Chat integration data or None."""
+    try:
+        return GoogleChatIntegrationSerializer(ws.google_chat_integration).data
+    except GoogleChatIntegration.DoesNotExist:
+        return None
+
+
+# ==============================================================================
+# ── INTEGRATION MONITORING & STATUS ───────────────────────────────────────────
+# ==============================================================================
+
+
+class IntegrationStatusView(APIView):
+    """Returns the current workspace connection state across all supported external ecosystems."""
 
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, workspace_slug):
-        ws = _get_workspace(workspace_slug, request.user)
-
-        # Serialize each integration independently — if one isn't set up yet
-        try:
-            teams_data = TeamsIntegrationSerializer(ws.teams_integration).data
-        except TeamsIntegration.DoesNotExist:
-            teams_data = None
-
-        try:
-            gchat_data = GoogleChatIntegrationSerializer(
-                ws.google_chat_integration
-            ).data
-        except GoogleChatIntegration.DoesNotExist:
-            gchat_data = None
-
+    def get(self, request, workspace_id):
+        ws = _get_workspace(workspace_id, request.user)
         return Response(
-            {"teams": teams_data, "google_chat": gchat_data},
+            {
+                "teams": _get_teams_data_or_none(ws),
+                "google_chat": _get_gchat_data_or_none(ws),
+            },
             status=status.HTTP_200_OK,
         )
 
 
-# ── Teams ──────────────────────────────────────────────────────────────────────
+# ==============================================================================
+# ── MICROSOFT TEAMS INTEGRATION ───────────────────────────────────────────────
+# ==============================================================================
 
 
 class TeamsIntegrationView(APIView):
-    """
-    GET    /api/workspaces/:slug/integrations/teams/   → fetch saved config
-    PUT    /api/workspaces/:slug/integrations/teams/   → save / update config
-    DELETE /api/workspaces/:slug/integrations/teams/   → disconnect
-    """
-
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, workspace_slug):
-        ws = _get_workspace(workspace_slug, request.user)
-        try:
-            return Response(
-                TeamsIntegrationSerializer(ws.teams_integration).data,
-                status=status.HTTP_200_OK,
-            )
-        except TeamsIntegration.DoesNotExist:
-            return Response(None, status=status.HTTP_200_OK)
+    def get(self, request, workspace_id):
+        ws = _get_workspace(workspace_id, request.user)
+        return Response(_get_teams_data_or_none(ws), status=status.HTTP_200_OK)
 
-    def put(self, request, workspace_slug):
-        ws = _get_workspace(workspace_slug, request.user)
+    def put(self, request, workspace_id):
+        ws = _get_workspace(workspace_id, request.user)
         s = TeamsIntegrationSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         integration = s.save(workspace=ws)
 
-        # Make sure a default workspace-wide mapping exists for routing events.
         _ensure_default_mapping(ws, IntegrationChannelMapping.Platform.TEAMS)
-
         return Response(
-            TeamsIntegrationSerializer(integration).data,
-            status=status.HTTP_200_OK,
+            TeamsIntegrationSerializer(integration).data, status=status.HTTP_200_OK
         )
 
-    # Remove the integration and all its channel mappings together.
-    def delete(self, request, workspace_slug):
-        ws = _get_workspace(workspace_slug, request.user)
+    def delete(self, request, workspace_id):
+        ws = _get_workspace(workspace_id, request.user)
         TeamsIntegration.objects.filter(workspace=ws).delete()
         IntegrationChannelMapping.objects.filter(
             workspace=ws, platform=IntegrationChannelMapping.Platform.TEAMS
@@ -166,17 +154,10 @@ class TeamsIntegrationView(APIView):
 
 
 class TeamsTestView(APIView):
-    """
-    POST /api/workspaces/:slug/integrations/teams/test/
-
-    Sends a dummy message to the saved Teams webhook so the user can verify
-    the URL is correct before relying on it for real notifications.
-    """
-
     permission_classes = [permissions.IsAuthenticated]
 
-    def post(self, request, workspace_slug):
-        ws = _get_workspace(workspace_slug, request.user)
+    def post(self, request, workspace_id):
+        ws = _get_workspace(workspace_id, request.user)
         try:
             integration = ws.teams_integration
         except TeamsIntegration.DoesNotExist:
@@ -185,7 +166,6 @@ class TeamsTestView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Teams uses the legacy MessageCard format for incoming webhooks.
         payload = {
             "@type": "MessageCard",
             "@context": "https://schema.org/extensions",
@@ -203,41 +183,31 @@ class TeamsTestView(APIView):
         return Response({"ok": True}, status=status.HTTP_200_OK) if ok else err
 
 
-# ── Google Chat ────────────────────────────────────────────────────────────────
-class GoogleChatIntegrationView(APIView):
-    """
-    GET    /api/workspaces/:slug/integrations/google-chat/   → fetch saved config
-    PUT    /api/workspaces/:slug/integrations/google-chat/   → save / update config
-    DELETE /api/workspaces/:slug/integrations/google-chat/   → disconnect
-    """
+# ==============================================================================
+# ── GOOGLE CHAT INTEGRATION ───────────────────────────────────────────────────
+# ==============================================================================
 
+
+class GoogleChatIntegrationView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, workspace_slug):
-        ws = _get_workspace(workspace_slug, request.user)
-        try:
-            return Response(
-                GoogleChatIntegrationSerializer(ws.google_chat_integration).data,
-                status=status.HTTP_200_OK,
-            )
-        except GoogleChatIntegration.DoesNotExist:
-            return Response(None, status=status.HTTP_200_OK)
+    def get(self, request, workspace_id):
+        ws = _get_workspace(workspace_id, request.user)
+        return Response(_get_gchat_data_or_none(ws), status=status.HTTP_200_OK)
 
-    def put(self, request, workspace_slug):
-        ws = _get_workspace(workspace_slug, request.user)
+    def put(self, request, workspace_id):
+        ws = _get_workspace(workspace_id, request.user)
         s = GoogleChatIntegrationSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         integration = s.save(workspace=ws)
 
         _ensure_default_mapping(ws, IntegrationChannelMapping.Platform.GOOGLE_CHAT)
-
         return Response(
-            GoogleChatIntegrationSerializer(integration).data,
-            status=status.HTTP_200_OK,
+            GoogleChatIntegrationSerializer(integration).data, status=status.HTTP_200_OK
         )
 
-    def delete(self, request, workspace_slug):
-        ws = _get_workspace(workspace_slug, request.user)
+    def delete(self, request, workspace_id):
+        ws = _get_workspace(workspace_id, request.user)
         GoogleChatIntegration.objects.filter(workspace=ws).delete()
         IntegrationChannelMapping.objects.filter(
             workspace=ws, platform=IntegrationChannelMapping.Platform.GOOGLE_CHAT
@@ -246,17 +216,10 @@ class GoogleChatIntegrationView(APIView):
 
 
 class GoogleChatTestView(APIView):
-    """
-    POST /api/workspaces/:slug/integrations/google-chat/test/
-
-    Sends a dummy message to the saved Google Chat webhook URL.
-    Google Chat webhooks accept a simple {"text": "..."} payload.
-    """
-
     permission_classes = [permissions.IsAuthenticated]
 
-    def post(self, request, workspace_slug):
-        ws = _get_workspace(workspace_slug, request.user)
+    def post(self, request, workspace_id):
+        ws = _get_workspace(workspace_id, request.user)
         try:
             integration = ws.google_chat_integration
         except GoogleChatIntegration.DoesNotExist:
@@ -269,28 +232,23 @@ class GoogleChatTestView(APIView):
             "text": (
                 f"*JCN → Google Chat connected ✅*\n"
                 f"Workspace: *{ws.name}*\n"
-                "Notifications will appear here for task events you configure."
+                f"Notifications will appear here for task events you configure."
             )
         }
         ok, err = _test_webhook(integration.webhook_url, payload)
         return Response({"ok": True}, status=status.HTTP_200_OK) if ok else err
 
 
-# ── Channel Mappings ───────────────────────────────────────────────────────────
+# ==============================================================================
+# ── GRANULAR ROUTING & CHANNEL MAPPINGS ───────────────────────────────────────
+# ==============================================================================
+
+
 class ChannelMappingListCreateView(APIView):
-    """
-    GET  /api/workspaces/:slug/integrations/mappings/
-        List all channel mappings for the workspace.
-        Pass ?platform=teams or ?platform=google_chat to filter by platform.
-
-    POST /api/workspaces/:slug/integrations/mappings/
-        Create a new mapping (e.g. route a specific project to a different channel).
-    """
-
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, workspace_slug):
-        ws = _get_workspace(workspace_slug, request.user)
+    def get(self, request, workspace_id):
+        ws = _get_workspace(workspace_id, request.user)
         qs = IntegrationChannelMapping.objects.filter(workspace=ws).select_related(
             "project"
         )
@@ -304,8 +262,8 @@ class ChannelMappingListCreateView(APIView):
             status=status.HTTP_200_OK,
         )
 
-    def post(self, request, workspace_slug):
-        ws = _get_workspace(workspace_slug, request.user)
+    def post(self, request, workspace_id):
+        ws = _get_workspace(workspace_id, request.user)
         s = IntegrationChannelMappingSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         return Response(
@@ -315,31 +273,25 @@ class ChannelMappingListCreateView(APIView):
 
 
 class ChannelMappingDetailView(APIView):
-    """
-    PATCH  /api/workspaces/:slug/integrations/mappings/:id/
-        Partially update a mapping (e.g. toggle is_active, change events).
-
-    DELETE /api/workspaces/:slug/integrations/mappings/:id/
-        Remove the mapping entirely.
-    """
-
     permission_classes = [permissions.IsAuthenticated]
 
-    def _get_mapping(self, workspace_slug, mapping_id, user):
-        """Fetch a mapping that belongs to the workspace. Raises 404 if not found."""
-        ws = _get_workspace(workspace_slug, user)
-        return get_object_or_404(IntegrationChannelMapping, id=mapping_id, workspace=ws)
+    def _get_mapping(self, workspace_id, mapping_id, user):
+        ws = _get_workspace(workspace_id, user)
+        return get_object_or_404(
+            IntegrationChannelMapping, id=_parse_pk(mapping_id), workspace=ws
+        )
 
-    def patch(self, request, workspace_slug, mapping_id):
-        mapping = self._get_mapping(workspace_slug, mapping_id, request.user)
+    def patch(self, request, workspace_id, mapping_id):
+        mapping = self._get_mapping(workspace_id, mapping_id, request.user)
         s = IntegrationChannelMappingSerializer(
             mapping, data=request.data, partial=True
         )
         s.is_valid(raise_exception=True)
         updated = s.save()
-        serialize_data = IntegrationChannelMappingSerializer(updated).data
-        return Response(serialize_data, status=status.HTTP_200_OK)
+        return Response(
+            IntegrationChannelMappingSerializer(updated).data, status=status.HTTP_200_OK
+        )
 
-    def delete(self, request, workspace_slug, mapping_id):
-        self._get_mapping(workspace_slug, mapping_id, request.user).delete()
+    def delete(self, request, workspace_id, mapping_id):
+        self._get_mapping(workspace_id, mapping_id, request.user).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

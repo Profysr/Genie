@@ -3,13 +3,16 @@ from django.db import models
 from django.conf import settings
 from workspaces.models import Workspace
 from core.constants import DEFAULT_TASK_STATUSES  # noqa: F401 — re-exported for existing imports
+from core.fields import UUIDv7Field
 
 class Project(models.Model):
+    PREFIX = "prj"
+
     class Status(models.TextChoices):
         ACTIVE = "active", "Active"
         ARCHIVED = "archived", "Archived"
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = UUIDv7Field()
     workspace = models.ForeignKey(
         Workspace, on_delete=models.CASCADE, related_name="projects"
     )
@@ -29,7 +32,7 @@ class Project(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-id"]
 
     def __str__(self):
         return f"{self.workspace.name} / {self.name}"
@@ -38,7 +41,8 @@ class Project(models.Model):
 class TaskStatus(models.Model):
     """Configurable Kanban columns — each project defines its own."""
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    PREFIX = "tst"
+    id = UUIDv7Field()
     project = models.ForeignKey(
         Project, on_delete=models.CASCADE, related_name="statuses"
     )
@@ -55,6 +59,8 @@ class TaskStatus(models.Model):
         return f"{self.project.name} / {self.name}"
 
 class Task(models.Model):
+    PREFIX = "tsk"
+
     class Priority(models.TextChoices):
         NO_PRIORITY = "no_priority", "No Priority"
         LOW = "low", "Low"
@@ -71,7 +77,7 @@ class Task(models.Model):
         IMPROVEMENT = "improvement", "Improvement"
         QUESTION = "question", "Question"
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = UUIDv7Field()
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="tasks")
     # v2.4.0 — self-referential hierarchy: Epic → Story → Task → child Task
     parent = models.ForeignKey(
@@ -123,7 +129,15 @@ class Task(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["order", "-created_at"]
+        ordering = ["order", "-id"]
+        indexes = [
+            models.Index(fields=["project", "status"], name="task_project_status_idx"),
+            models.Index(fields=["project", "assignee"], name="task_project_assignee_idx"),
+            models.Index(fields=["project", "priority"], name="task_project_priority_idx"),
+            models.Index(fields=["project", "sprint"], name="task_project_sprint_idx"),
+            models.Index(fields=["assignee", "status"], name="task_assignee_status_idx"),
+            models.Index(fields=["project", "due_date"], name="task_project_due_date_idx"),
+        ]
 
     def __str__(self):
         return self.title
@@ -162,7 +176,8 @@ class Task(models.Model):
 
 
 class SubTask(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    PREFIX = "sub"
+    id = UUIDv7Field()
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="subtasks")
     title = models.CharField(max_length=500)
     is_done = models.BooleanField(default=False)
@@ -177,7 +192,8 @@ class SubTask(models.Model):
 
 
 class TaskComment(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    PREFIX = "cmt"
+    id = UUIDv7Field()
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="comments")
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="task_comments"
@@ -187,14 +203,18 @@ class TaskComment(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["created_at"]
+        ordering = ["id"]
+        indexes = [
+            models.Index(fields=["task", "created_at"], name="comment_task_created_idx"),
+        ]
 
     def __str__(self):
         return f"Comment by {self.author.email} on {self.task.title}"
 
 
 class Label(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    PREFIX = "lbl"
+    id = UUIDv7Field()
     project = models.ForeignKey(
         Project, on_delete=models.CASCADE, related_name="labels"
     )
@@ -212,6 +232,8 @@ class Label(models.Model):
 class ProjectField(models.Model):
     """Custom field definition scoped to a project (v0.8.0)."""
 
+    PREFIX = "pfl"
+
     class FieldType(models.TextChoices):
         TEXT = "text", "Text"
         NUMBER = "number", "Number"
@@ -219,7 +241,7 @@ class ProjectField(models.Model):
         URL = "url", "URL"
         DATE = "date", "Date"
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = UUIDv7Field()
     project = models.ForeignKey(
         Project, on_delete=models.CASCADE, related_name="fields"
     )
@@ -241,7 +263,8 @@ class ProjectField(models.Model):
 class TaskFieldValue(models.Model):
     """Per-task value for a custom field (v0.8.0)."""
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    PREFIX = "pfv"
+    id = UUIDv7Field()
     task = models.ForeignKey(
         Task, on_delete=models.CASCADE, related_name="field_values"
     )
@@ -260,6 +283,8 @@ class TaskFieldValue(models.Model):
 class Board(models.Model):
     """A named view over a project's tasks (v2.2.0). Tasks belong to Project; boards are lenses."""
 
+    PREFIX = "brd"
+
     class BoardType(models.TextChoices):
         KANBAN = "kanban", "Kanban"
         SCRUM = "scrum", "Scrum"
@@ -272,7 +297,7 @@ class Board(models.Model):
         PRIVATE = "private", "Private (only you)"
         SECRET = "secret", "Secret (invite only)"
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = UUIDv7Field()
     project = models.ForeignKey(
         Project, on_delete=models.CASCADE, related_name="boards"
     )
@@ -298,7 +323,7 @@ class Board(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["order", "created_at"]
+        ordering = ["order", "id"]
 
     def __str__(self):
         return f"{self.project.name} / {self.name}"
@@ -307,7 +332,8 @@ class Board(models.Model):
 class SavedView(models.Model):
     """Named filter preset per project per user (v0.8.0). Extended in v3.2.0."""
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    PREFIX = "svw"
+    id = UUIDv7Field()
     project = models.ForeignKey(
         Project, on_delete=models.CASCADE, related_name="saved_views"
     )
@@ -339,12 +365,14 @@ class SavedView(models.Model):
 class Sprint(models.Model):
     """Time-boxed work cycle per project (v0.9.0)."""
 
+    PREFIX = "spr"
+
     class Status(models.TextChoices):
         PLANNING = "planning", "Planning"
         ACTIVE = "active", "Active"
         COMPLETED = "completed", "Completed"
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = UUIDv7Field()
     project = models.ForeignKey(
         Project, on_delete=models.CASCADE, related_name="sprints"
     )
@@ -358,7 +386,7 @@ class Sprint(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-id"]
 
     def __str__(self):
         return f"{self.project.name} / {self.name}"
@@ -367,7 +395,8 @@ class Sprint(models.Model):
 class TaskAttachment(models.Model):
     """File attached to a task (v1.2.0)."""
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    PREFIX = "att"
+    id = UUIDv7Field()
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="attachments")
     file = models.FileField(upload_to="task_attachments/%Y/%m/")
     original_name = models.CharField(max_length=255)
@@ -379,7 +408,7 @@ class TaskAttachment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-id"]
 
     def __str__(self):
         return f"{self.original_name} on {self.task.title}"
@@ -388,6 +417,8 @@ class TaskAttachment(models.Model):
 class TaskDependency(models.Model):
     """Task relationships — blocks/blocked_by + extended relation types (v2.4.0)."""
 
+    PREFIX = "dep"
+
     class RelationType(models.TextChoices):
         BLOCKS = "blocks", "Blocks"
         BLOCKED_BY = "blocked_by", "Blocked by"
@@ -395,7 +426,7 @@ class TaskDependency(models.Model):
         DUPLICATE_OF = "duplicate_of", "Duplicate of"
         CLONED_FROM = "cloned_from", "Cloned from"
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = UUIDv7Field()
     blocker = models.ForeignKey(
         Task, on_delete=models.CASCADE, related_name="blocking_deps"
     )
@@ -417,6 +448,8 @@ class TaskDependency(models.Model):
 class TaskActivity(models.Model):
     """Immutable audit log — one row per event on a task."""
 
+    PREFIX = "act"
+
     class Verb(models.TextChoices):
         CREATED = "created", "created the task"
         UPDATED = "updated", "updated the task"
@@ -426,7 +459,7 @@ class TaskActivity(models.Model):
         COMMENTED = "commented", "added a comment"
         SUBTASK = "subtask_added", "added a subtask"
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = UUIDv7Field()
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="activities")
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -439,17 +472,20 @@ class TaskActivity(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["created_at"]
+        ordering = ["id"]
+        indexes = [
+            models.Index(fields=["task", "created_at"], name="taskact_task_created_idx"),
+        ]
 
     def __str__(self):
         return f"{self.actor} {self.verb} on {self.task}"
 
 
 # ── v2.1.0 — Access Control ───────────────────────────────────────────────────
-
-
 class ProjectMember(models.Model):
     """Project-level role override — takes precedence over (or further restricts) workspace role."""
+
+    PREFIX = "prm"
 
     class Role(models.TextChoices):
         ADMIN = "admin", "Admin"
@@ -457,7 +493,7 @@ class ProjectMember(models.Model):
         VIEWER = "viewer", "Viewer"
         GUEST = "guest", "Guest"
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = UUIDv7Field()
     project = models.ForeignKey(
         Project, on_delete=models.CASCADE, related_name="project_members"
     )
@@ -477,7 +513,7 @@ class ProjectMember(models.Model):
 
     class Meta:
         unique_together = ["project", "user"]
-        ordering = ["created_at"]
+        ordering = ["id"]
 
     def __str__(self):
         return f"{self.user.email} → {self.project.name} ({self.role})"
@@ -486,9 +522,10 @@ class ProjectMember(models.Model):
 class GuestToken(models.Model):
     """Time-limited read-only shareable link to a project."""
 
+    PREFIX = "gtk"
     EXPIRY_CHOICES = [(7, "7 days"), (14, "14 days"), (30, "30 days")]
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = UUIDv7Field()
     project = models.ForeignKey(
         Project, on_delete=models.CASCADE, related_name="guest_tokens"
     )
@@ -505,7 +542,7 @@ class GuestToken(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-id"]
 
     def is_expired(self):
         from django.utils import timezone
@@ -522,7 +559,8 @@ class GuestToken(models.Model):
 class TaskTemplate(models.Model):
     """Reusable task structure — pre-filled fields + default subtasks."""
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    PREFIX = "ttm"
+    id = UUIDv7Field()
     project = models.ForeignKey(
         Project, on_delete=models.CASCADE, related_name="task_templates"
     )
@@ -558,7 +596,8 @@ class TaskTemplate(models.Model):
 class WikiPage(models.Model):
     """Project-scoped wiki page with parent hierarchy and version history."""
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    PREFIX = "wkp"
+    id = UUIDv7Field()
     project = models.ForeignKey(
         Project, on_delete=models.CASCADE, related_name="wiki_pages"
     )
@@ -594,7 +633,8 @@ class WikiPage(models.Model):
 class WikiRevision(models.Model):
     """Immutable snapshot of a WikiPage at a point in time."""
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    PREFIX = "wkr"
+    id = UUIDv7Field()
     page = models.ForeignKey(
         WikiPage, on_delete=models.CASCADE, related_name="revisions"
     )
@@ -609,7 +649,7 @@ class WikiRevision(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-id"]
 
     def __str__(self):
         return f"Revision of {self.page.title} at {self.created_at}"
@@ -618,7 +658,8 @@ class WikiRevision(models.Model):
 class Document(models.Model):
     """Workspace-scoped standalone document (meeting notes, specs, runbooks)."""
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    PREFIX = "doc"
+    id = UUIDv7Field()
     workspace = models.ForeignKey(
         Workspace, on_delete=models.CASCADE, related_name="documents"
     )
@@ -644,7 +685,8 @@ class Document(models.Model):
 class Form(models.Model):
     """Project-scoped intake form that creates tasks from submissions."""
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    PREFIX = "frm"
+    id = UUIDv7Field()
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="forms")
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
@@ -663,7 +705,7 @@ class Form(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-id"]
 
     def __str__(self):
         return f"{self.project.name} / {self.name}"
@@ -671,6 +713,8 @@ class Form(models.Model):
 
 class FormField(models.Model):
     """A field inside an intake form."""
+
+    PREFIX = "fff"
 
     class FieldType(models.TextChoices):
         SHORT_TEXT = "short_text", "Short Text"
@@ -682,7 +726,7 @@ class FormField(models.Model):
         DATE = "date", "Date"
         FILE = "file", "File Upload"
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = UUIDv7Field()
     form = models.ForeignKey(Form, on_delete=models.CASCADE, related_name="fields")
     label = models.CharField(max_length=255)
     field_type = models.CharField(
@@ -703,12 +747,14 @@ class FormField(models.Model):
 class FormSubmission(models.Model):
     """A submitted form response, optionally linked to a created task."""
 
+    PREFIX = "fsb"
+
     class Status(models.TextChoices):
         NEW = "new", "New"
         IN_REVIEW = "in_review", "In Review"
         CLOSED = "closed", "Closed"
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = UUIDv7Field()
     form = models.ForeignKey(Form, on_delete=models.CASCADE, related_name="submissions")
     answers = models.JSONField(default=dict)  # {field_id: value}
     submitter_email = models.EmailField(blank=True)
@@ -735,7 +781,8 @@ class FormSubmission(models.Model):
 class AutomationRule(models.Model):
     """No-code automation rule: when trigger + conditions → run actions."""
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    PREFIX = "rul"
+    id = UUIDv7Field()
     project = models.ForeignKey(
         Project, on_delete=models.CASCADE, related_name="automation_rules"
     )
@@ -758,7 +805,7 @@ class AutomationRule(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-id"]
 
     def __str__(self):
         return f"{self.project.name} / {self.name}"
@@ -767,12 +814,14 @@ class AutomationRule(models.Model):
 class AutomationLog(models.Model):
     """Immutable execution record for each automation rule fire."""
 
+    PREFIX = "alg"
+
     class ExecStatus(models.TextChoices):
         SUCCESS = "success", "Success"
         PARTIAL = "partial", "Partial"
         FAILED = "failed", "Failed"
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = UUIDv7Field()
     rule = models.ForeignKey(
         AutomationRule, on_delete=models.CASCADE, related_name="logs"
     )
@@ -793,7 +842,11 @@ class AutomationLog(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-id"]
+        indexes = [
+            models.Index(fields=["rule", "exec_status"], name="automlog_rule_status_idx"),
+            models.Index(fields=["rule", "created_at"], name="automlog_rule_created_idx"),
+        ]
 
     def __str__(self):
         return f"{self.rule.name} → {self.exec_status} at {self.created_at}"
@@ -805,7 +858,8 @@ class AutomationLog(models.Model):
 class TimeEntry(models.Model):
     """One unit of logged time against a task — either timer-based or manual."""
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    PREFIX = "ten"
+    id = UUIDv7Field()
     task = models.ForeignKey(
         Task, on_delete=models.CASCADE, related_name="time_entries"
     )
@@ -822,7 +876,11 @@ class TimeEntry(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-id"]
+        indexes = [
+            models.Index(fields=["task", "user"], name="timeentry_task_user_idx"),
+            models.Index(fields=["user", "start_at"], name="timeentry_user_start_idx"),
+        ]
 
     @property
     def is_running(self):
@@ -845,6 +903,8 @@ class TimeEntry(models.Model):
 class Objective(models.Model):
     """A goal — workspace or project-scoped, optionally nested for org rollup."""
 
+    PREFIX = "obj"
+
     class TimePeriod(models.TextChoices):
         Q1 = "q1", "Q1"
         Q2 = "q2", "Q2"
@@ -853,7 +913,7 @@ class Objective(models.Model):
         ANNUAL = "annual", "Annual"
         CUSTOM = "custom", "Custom"
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = UUIDv7Field()
     workspace = models.ForeignKey(
         Workspace, on_delete=models.CASCADE, related_name="objectives"
     )
@@ -888,7 +948,7 @@ class Objective(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-id"]
 
     @property
     def progress(self):
@@ -923,7 +983,8 @@ class Objective(models.Model):
 class KeyResult(models.Model):
     """A measurable outcome under an Objective. Progress is task-driven."""
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    PREFIX = "krs"
+    id = UUIDv7Field()
     objective = models.ForeignKey(
         Objective, on_delete=models.CASCADE, related_name="key_results"
     )
@@ -933,7 +994,7 @@ class KeyResult(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["created_at"]
+        ordering = ["id"]
 
     @property
     def progress(self):
@@ -954,13 +1015,15 @@ class KeyResult(models.Model):
 class Approval(models.Model):
     """An approval request on a task — has one or more reviewers."""
 
+    PREFIX = "apr"
+
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
         APPROVED = "approved", "Approved"
         REJECTED = "rejected", "Rejected"
         CHANGES_REQUESTED = "changes_requested", "Changes Requested"
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = UUIDv7Field()
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="approvals")
     requested_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -976,7 +1039,7 @@ class Approval(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-id"]
 
     def recompute_status(self):
         """Aggregate reviewer verdicts → update overall status."""
@@ -1000,13 +1063,15 @@ class Approval(models.Model):
 class ApprovalReviewer(models.Model):
     """One reviewer's verdict on an Approval."""
 
+    PREFIX = "arv"
+
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
         APPROVED = "approved", "Approved"
         REJECTED = "rejected", "Rejected"
         CHANGES_REQUESTED = "changes_requested", "Changes Requested"
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = UUIDv7Field()
     approval = models.ForeignKey(
         Approval, on_delete=models.CASCADE, related_name="reviewers"
     )
@@ -1033,12 +1098,14 @@ class ApprovalReviewer(models.Model):
 class UserPresence(models.Model):
     """Tracks which resource a user is currently viewing (updated every 30s)."""
 
+    PREFIX = "upr"
+
     class ResourceType(models.TextChoices):
         TASK = "task", "Task"
         PROJECT = "project", "Project"
         BOARD = "board", "Board"
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = UUIDv7Field()
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="presences"
     )
@@ -1059,7 +1126,8 @@ class UserPresence(models.Model):
 class CommentReaction(models.Model):
     """Emoji reaction on a task comment — max 1 of each emoji per user."""
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    PREFIX = "rxn"
+    id = UUIDv7Field()
     comment = models.ForeignKey(
         TaskComment, on_delete=models.CASCADE, related_name="reactions"
     )
@@ -1080,7 +1148,8 @@ class CommentReaction(models.Model):
 class AuditEvent(models.Model):
     """Immutable log of permission-related changes."""
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    PREFIX = "aud"
+    id = UUIDv7Field()
     workspace = models.ForeignKey(
         Workspace, on_delete=models.CASCADE, related_name="audit_events"
     )
@@ -1098,7 +1167,11 @@ class AuditEvent(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-id"]
+        indexes = [
+            models.Index(fields=["workspace", "created_at"], name="auditevent_workspace_created_idx"),
+            models.Index(fields=["workspace", "resource_type"], name="auditevent_workspace_restype_idx"),
+        ]
 
     def __str__(self):
         return f"{self.actor} — {self.action} at {self.created_at}"

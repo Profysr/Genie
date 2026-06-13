@@ -2,9 +2,12 @@ import uuid
 from django.db import models
 from django.conf import settings
 
+from core.fields import UUIDv7Field
+
 
 class Workspace(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    PREFIX = "wsp"
+    id = UUIDv7Field()
     name = models.CharField(max_length=255)
     slug = models.SlugField(unique=True, max_length=255)
     logo = models.ImageField(upload_to="workspace_logos/", null=True, blank=True)
@@ -21,12 +24,14 @@ class Workspace(models.Model):
 
 
 class WorkspaceMember(models.Model):
+    PREFIX = "wsm"
+
     class Role(models.TextChoices):
         ADMIN = "admin", "Admin"
         MEMBER = "member", "Member"
         VIEWER = "viewer", "Viewer"
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = UUIDv7Field()
     workspace = models.ForeignKey(
         Workspace, on_delete=models.CASCADE, related_name="members"
     )
@@ -47,18 +52,23 @@ class WorkspaceMember(models.Model):
 
     class Meta:
         unique_together = ["workspace", "user"]
+        indexes = [
+            models.Index(fields=["workspace", "role"], name="wsmember_workspace_role_idx"),
+        ]
 
     def __str__(self):
         return f"{self.user.email} @ {self.workspace.name} ({self.role})"
 
 
 class WorkspaceInvite(models.Model):
+    PREFIX = "wsi"
+
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
         ACCEPTED = "accepted", "Accepted"
         DECLINED = "declined", "Declined"
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = UUIDv7Field()
     workspace = models.ForeignKey(
         Workspace, on_delete=models.CASCADE, related_name="invites"
     )
@@ -81,19 +91,24 @@ class WorkspaceInvite(models.Model):
 
     class Meta:
         unique_together = ["workspace", "email"]
+        indexes = [
+            models.Index(fields=["workspace", "status"], name="wsinvite_workspace_status_idx"),
+        ]
 
     def __str__(self):
         return f"Invite: {self.email} to {self.workspace.name}"
 
 
 class Notification(models.Model):
+    PREFIX = "ntf"
+
     class Verb(models.TextChoices):
         TASK_ASSIGNED = "task_assigned", "assigned you a task"
         TASK_COMMENTED = "task_commented", "commented on your task"
         TASK_MENTIONED = "task_mentioned", "mentioned you in a comment"
         APPROVAL_REQUESTED = "approval_requested", "requested your approval"
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = UUIDv7Field()
     recipient = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications"
     )
@@ -114,7 +129,11 @@ class Notification(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-id"]
+        indexes = [
+            models.Index(fields=["recipient", "read"], name="notif_recipient_read_idx"),
+            models.Index(fields=["recipient", "created_at"], name="notif_recipient_created_idx"),
+        ]
 
     def __str__(self):
         return f"{self.actor} → {self.recipient}: {self.verb}"
@@ -123,6 +142,8 @@ class Notification(models.Model):
 # ── v3.7.0 — Notifications Hub v2 ────────────────────────────────────────────
 class InboxItem(models.Model):
     """Persistent notification inbox — one row per user event, survives bell dismissals."""
+
+    PREFIX = "ibx"
 
     class Status(models.TextChoices):
         UNREAD = "unread", "Unread"
@@ -137,7 +158,7 @@ class InboxItem(models.Model):
         APPROVED = "approved", "Approval"
         AUTOMATED = "automated", "Automated"
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = UUIDv7Field()
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="inbox_items"
     )
@@ -169,7 +190,11 @@ class InboxItem(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-id"]
+        indexes = [
+            models.Index(fields=["user", "status"], name="inbox_user_status_idx"),
+            models.Index(fields=["user", "workspace", "status"], name="inbox_user_ws_status_idx"),
+        ]
 
     def __str__(self):
         return f"InboxItem for {self.user.email}: {self.verb}"
@@ -185,12 +210,14 @@ class WorkspaceAPIKey(models.Model):
     The raw key is shown exactly once at creation time; we only store the SHA-256 hash.
     """
 
+    PREFIX = "key"
+
     class Scope(models.TextChoices):
         READ = "read", "Read"
         WRITE = "write", "Write"
         ADMIN = "admin", "Admin"
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = UUIDv7Field()
     workspace = models.ForeignKey(
         Workspace, on_delete=models.CASCADE, related_name="api_keys"
     )
@@ -210,7 +237,7 @@ class WorkspaceAPIKey(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-id"]
 
     @classmethod
     def generate(cls, **kwargs):
@@ -256,7 +283,8 @@ class WorkspaceAPIKey(models.Model):
 class Webhook(models.Model):
     """Outbound webhook — fires signed POST requests on task/sprint events."""
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    PREFIX = "whk"
+    id = UUIDv7Field()
     workspace = models.ForeignKey(
         Workspace, on_delete=models.CASCADE, related_name="webhooks"
     )
@@ -270,7 +298,7 @@ class Webhook(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-id"]
 
     @classmethod
     def create_with_secret(cls, **kwargs):
@@ -284,7 +312,8 @@ class Webhook(models.Model):
 class WebhookDelivery(models.Model):
     """Immutable log of every webhook delivery attempt."""
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    PREFIX = "wdl"
+    id = UUIDv7Field()
     webhook = models.ForeignKey(
         Webhook, on_delete=models.CASCADE, related_name="deliveries"
     )
@@ -298,7 +327,11 @@ class WebhookDelivery(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-id"]
+        indexes = [
+            models.Index(fields=["webhook", "created_at"], name="webhookdel_webhook_created_idx"),
+            models.Index(fields=["webhook", "success"], name="webhookdel_webhook_success_idx"),
+        ]
 
     def __str__(self):
         return f"{self.event} → {self.webhook.url[:40]} ({self.response_code})"
@@ -307,6 +340,8 @@ class WebhookDelivery(models.Model):
 # ── v4.6.0 — Import & Migration Tools ────────────────────────────────────────
 class ImportJob(models.Model):
     """Tracks a single import operation from an external tool into JCN."""
+
+    PREFIX = "imp"
 
     class Source(models.TextChoices):
         JIRA    = "jira",    "Jira"
@@ -325,7 +360,7 @@ class ImportJob(models.Model):
         COMPLETE = "complete", "Complete"
         FAILED = "failed", "Failed"
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = UUIDv7Field()
     workspace = models.ForeignKey(
         Workspace, on_delete=models.CASCADE, related_name="import_jobs"
     )
@@ -359,7 +394,10 @@ class ImportJob(models.Model):
     completed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-id"]
+        indexes = [
+            models.Index(fields=["workspace", "status"], name="importjob_workspace_status_idx"),
+        ]
 
     def __str__(self):
         return f"Import({self.source}) → {self.workspace} [{self.status}]"

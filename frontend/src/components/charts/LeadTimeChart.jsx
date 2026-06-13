@@ -1,24 +1,16 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import ChartCard from "./ChartCard";
+import { Bar } from 'react-chartjs-2';
+import './chartSetup';
+import { chartColors } from './chartTheme';
+import ChartCard from './ChartCard';
 
 const BUCKET_COLORS = [
-  "#22c55e",  // < 1 day
-  "#84cc16",  // 1-3 days
-  "#f59e0b",  // 3-7 days
-  "#f97316",  // 1-2 weeks
-  "#ef4444",  // 2-4 weeks
-  "#dc2626",  // > 30 days
+  '#22c55e',  // < 1 day
+  '#84cc16',  // 1-3 days
+  '#f59e0b',  // 3-7 days
+  '#f97316',  // 1-2 weeks
+  '#ef4444',  // 2-4 weeks
+  '#dc2626',  // > 30 days
 ];
-
-function CustomTooltip({ active, payload, label }) {
-  if (!active || !payload?.[0]) return null;
-  return (
-    <div className="bg-popover border border-border rounded-lg shadow-lg px-3 py-2 text-xs">
-      <p className="font-semibold">{label}</p>
-      <p className="text-muted-foreground">Tasks: <span className="font-bold text-foreground">{payload[0].value}</span></p>
-    </div>
-  );
-}
 
 function StatRow({ label, value }) {
   return (
@@ -31,8 +23,52 @@ function StatRow({ label, value }) {
 
 export default function LeadTimeChart({ data, loading }) {
   const histogram = data?.histogram || [];
-  const stats     = data?.stats    || {};
+  const stats     = data?.stats     || {};
   const isEmpty   = !histogram.some((b) => b.count > 0);
+  const c = chartColors();
+
+  const chartData = {
+    labels: histogram.map((b) => b.label),
+    datasets: [{
+      label: 'Tasks',
+      data: histogram.map((b) => b.count),
+      backgroundColor: histogram.map((_, i) => BUCKET_COLORS[i % BUCKET_COLORS.length]),
+      borderRadius: 4,
+      maxBarThickness: 56,
+    }],
+  };
+
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: c.popover,
+        borderColor: c.border,
+        borderWidth: 1,
+        titleColor: c.foreground,
+        bodyColor: c.mutedForeground,
+        padding: 10,
+        cornerRadius: 8,
+        callbacks: {
+          label: (ctx) => ` Tasks: ${ctx.raw}`,
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: { color: c.mutedForeground, font: { size: 10 } },
+        border: { display: false },
+      },
+      y: {
+        grid: { color: c.border },
+        ticks: { color: c.mutedForeground, font: { size: 11 }, precision: 0 },
+        border: { display: false },
+      },
+    },
+  };
 
   return (
     <ChartCard
@@ -44,36 +80,15 @@ export default function LeadTimeChart({ data, loading }) {
     >
       {stats.count > 0 && (
         <div className="grid grid-cols-2 gap-x-6 gap-y-0.5 mb-3 px-1">
-          <StatRow label="Median" value={stats.median} />
+          <StatRow label="Median"  value={stats.median} />
           <StatRow label="Average" value={stats.avg} />
-          <StatRow label="Min" value={stats.min} />
-          <StatRow label="Max" value={stats.max} />
+          <StatRow label="Min"     value={stats.min} />
+          <StatRow label="Max"     value={stats.max} />
         </div>
       )}
-
-      <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={histogram} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-          <XAxis
-            dataKey="label"
-            tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
-            tickLine={false}
-            axisLine={false}
-          />
-          <YAxis
-            tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-            tickLine={false}
-            axisLine={false}
-            allowDecimals={false}
-          />
-          <Tooltip content={<CustomTooltip />} cursor={{ fill: "hsl(var(--accent))" }} />
-          <Bar dataKey="count" name="Tasks" radius={[4, 4, 0, 0]} maxBarSize={56}>
-            {histogram.map((_, i) => (
-              <Cell key={i} fill={BUCKET_COLORS[i % BUCKET_COLORS.length]} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+      <div style={{ height: 220, position: 'relative' }}>
+        <Bar data={chartData} options={options} />
+      </div>
     </ChartCard>
   );
 }

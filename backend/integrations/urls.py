@@ -9,7 +9,7 @@ from .views import (
     ChannelMappingDetailView,
 )
 
-_ws = "workspaces/<slug:workspace_slug>"
+_ws = "workspaces/<str:workspace_id>"
 
 urlpatterns = [
     # ── Status (all platforms) ────────────────────────────────────────────────
@@ -22,8 +22,5 @@ urlpatterns = [
     path(f"{_ws}/integrations/google-chat/test/", GoogleChatTestView.as_view()),
     # ── Channel mappings ──────────────────────────────────────────────────────
     path(f"{_ws}/integrations/mappings/", ChannelMappingListCreateView.as_view()),
-    path(
-        f"{_ws}/integrations/mappings/<uuid:mapping_id>/",
-        ChannelMappingDetailView.as_view(),
-    ),
+    path(f"{_ws}/integrations/mappings/<str:mapping_id>/", ChannelMappingDetailView.as_view()),
 ]

@@ -6,8 +6,6 @@ import { Calendar, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   PRIORITIES,
-  getPriority,
-  APP_COLORS,
   pickColor,
 } from "@/lib/constants";
 
@@ -17,9 +15,6 @@ const PRI = Object.fromEntries(
     { icon: p.icon, cls: p.textCls, dot: p.dotCls },
   ]),
 );
-
-// Deterministic color from project name so the same project always gets the same badge colour
-// pickColor from constants replaces the local projectColor function
 
 // ── Urgency bucketing ─────────────────────────────────────────────────────────
 export function sectionFor(task) {

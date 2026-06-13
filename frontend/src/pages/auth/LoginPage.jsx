@@ -1,20 +1,29 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const next  = searchParams.get("next") || "/";
+  const next = searchParams.get("next") || "/";
   const login = useAuthStore((s) => s.login);
 
-  const [form, setForm]    = useState({ email: "", password: "" });
-  const [error, setError]   = useState("");
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -24,21 +33,59 @@ export default function LoginPage() {
       await login(form.email, form.password);
       navigate(next);
     } catch (err) {
-      setError(err.response?.data?.non_field_errors?.[0] || "Invalid email or password.");
+      setError(
+        err.response?.data?.non_field_errors?.[0] ||
+          "Invalid email or password.",
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle className="text-2xl">Welcome back</CardTitle>
+    <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4 relative overflow-hidden">
+      {/* Decorative background blobs */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div
+          className="animate-float absolute -top-32 -left-32 w-96 h-96 rounded-full opacity-20"
+          style={{
+            background:
+              "radial-gradient(circle, hsl(var(--primary)) 0%, transparent 70%)",
+          }}
+        />
+        <div
+          className="animate-float-reverse absolute -bottom-24 -right-24 w-80 h-80 rounded-full opacity-15"
+          style={{
+            background:
+              "radial-gradient(circle, hsl(var(--primary)) 0%, transparent 70%)",
+          }}
+        />
+        <div
+          className="animate-float-slow absolute top-1/2 left-1/4 w-64 h-64 rounded-full opacity-10"
+          style={{
+            background:
+              "radial-gradient(circle, hsl(var(--accent)) 0%, transparent 70%)",
+          }}
+        />
+      </div>
+
+      <Card className="w-full max-w-lg relative animate-scale-in shadow-xl">
+        {/* Logo / brand mark */}
+        <div className="flex justify-center pt-8 pb-2">
+          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-md">
+            <span className="text-primary-foreground font-bold text-lg select-none">
+              J
+            </span>
+          </div>
+        </div>
+
+        <CardHeader className="text-center pb-2">
+          <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
           <CardDescription>Sign in to your JCN account</CardDescription>
         </CardHeader>
+
         <form onSubmit={handleLogin}>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-5 px-8">
             <div className="space-y-1.5">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -48,24 +95,61 @@ export default function LoginPage() {
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 required
+                className="h-11"
               />
             </div>
+
             <div className="space-y-1.5">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                required
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={form.password}
+                  onChange={(e) =>
+                    setForm({ ...form, password: e.target.value })
+                  }
+                  required
+                  className="h-11 pr-10"
+                />
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
             </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
+
+            {error && (
+              <p className="text-sm text-destructive animate-slide-up">
+                {error}
+              </p>
+            )}
           </CardContent>
-          <CardFooter className="flex-col gap-3">
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in…" : "Sign in"}
+
+          <CardFooter className="flex-col gap-4 px-8 pb-8">
+            <Button
+              type="submit"
+              className="w-full h-11 text-base font-medium"
+              disabled={loading}
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-4 h-4 border-2 border-primary-foreground/40 border-t-primary-foreground rounded-full animate-spin" />
+                  Signing in…
+                </span>
+              ) : (
+                "Sign in"
+              )}
             </Button>
             <p className="text-sm text-muted-foreground">
               Don't have an account?{" "}

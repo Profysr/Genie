@@ -1,8 +1,9 @@
-import uuid
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+
+from core.fields import UUIDv7Field
 
 
 class UserManager(BaseUserManager):
@@ -22,7 +23,8 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    PREFIX = "usr"
+    id = UUIDv7Field()
     email = models.EmailField(unique=True)
     full_name = models.CharField(max_length=255, blank=True)
     avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)

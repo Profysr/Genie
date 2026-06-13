@@ -99,3 +99,32 @@ Import file upload → ImportJob created → run_import.delay()
 - `WorkspaceMember.Role` is simple (admin/member/viewer) — RBAC is v2+.
 - `InboxItem` actor fields are denormalized strings — acceptable for v1 inbox performance.
 - Workspace templates are static in `constants.py` — a `WorkspaceTemplate` model is a future improvement.
+
+---
+
+## Scaling & Performance — Non-Negotiable Rules
+
+This app is built to scale to millions of users. Every backend change must follow these rules without exception.
+
+### UUIDv7 IDs
+- **All model PKs use `UUIDv7Field` from `core.fields`** — never `models.UUIDField(default=uuid.uuid4)`.
+- UUIDv7 is time-sortable: new rows insert at the end of the B-tree (no fragmentation). UUID4 is random and causes B-tree page splits at scale.
+- Non-PK token fields (e.g. `WorkspaceInvite.token`, `Form.token`, `GuestToken.token`) stay as UUID4 — they are opaque secrets, not sortable IDs.
+- Sort records by `id` (UUIDv7) instead of `created_at` where both are equivalent — one fewer column in the index.
+
+### No N+1 Queries
+- **Always use `select_related` for ForeignKey/OneToOne** and **`prefetch_related` for ManyToMany/reverse FKs** before iterating.
+- Never access a related object inside a loop without prefetching first.
+- Use `values()` or `values_list()` when you only need a subset of columns.
+- In DRF serializers, override `get_queryset()` in the view (not the serializer) to attach prefetches.
+
+### Database Indexes
+- **Every composite query pattern gets a composite index** in the model's `Meta.indexes`.
+- Single-column FK indexes are auto-created by Django — do not duplicate them.
+- Add `db_index=True` to any non-FK CharField/IntegerField that appears in `.filter()` or `.order_by()` at query-hot paths.
+- Index names follow the pattern: `<model_abbr>_<fields>_idx` (e.g. `task_project_status_idx`).
+
+### General
+- Prefer `QuerySet.update()` over fetching + saving objects in loops.
+- Use `bulk_create()` / `bulk_update()` for multi-row writes.
+- Never call `.count()` inside a loop — aggregate in one query.
