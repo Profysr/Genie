@@ -15,13 +15,13 @@ export default function OnboardingPage() {
   const { mutate, isPending } = useMutation({
     mutationFn: (data) => api.post("/api/workspaces/", data).then((r) => r.data),
     // Redirect to setup wizard instead of the workspace directly
-    onSuccess: (workspace) => navigate(`/w/${workspace.slug}/setup`),
+    onSuccess: (workspace) => navigate(`/w/${workspace.id}/setup`),
     onError:   (err) => setError(err.response?.data?.name?.[0] || "Something went wrong."),
   });
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">
-      <Card className="w-full max-w-sm">
+      <Card className="w-full max-w-lg">
         <CardHeader>
           <CardTitle className="text-2xl">Create your workspace</CardTitle>
           <CardDescription>

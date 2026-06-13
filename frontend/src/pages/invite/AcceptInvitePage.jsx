@@ -41,7 +41,7 @@ export default function AcceptInvitePage() {
       api.post(`/api/invites/${token}/accept/`).then((r) => r.data),
     onSuccess: (workspace) => {
       setAccepted(true);
-      setTimeout(() => navigate(`/w/${workspace.slug}`), 2000);
+      setTimeout(() => navigate(`/w/${workspace.id}`), 2000);
     },
     onError: (err) => {
       setError(err.response?.data?.detail || "Failed to accept invite.");

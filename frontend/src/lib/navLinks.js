@@ -2,7 +2,6 @@ import {
   LayoutDashboard,
   FolderKanban,
   Map,
-  Clock,
   Users,
   Settings,
   Target,
@@ -60,13 +59,6 @@ export const NAV_ITEMS = [
     label: "Roadmap",
     desc: "Sprint timeline",
     path: "roadmap",
-  },
-  {
-    key: "timesheets",
-    icon: Clock,
-    label: "Timesheets",
-    desc: "Time tracking",
-    path: "timesheets",
   },
   {
     key: "members",
@@ -129,7 +121,7 @@ export const NAV_GROUPS = [
   },
   {
     label: "Views",
-    items: ["roadmap", "timesheets"],
+    items: ["roadmap"],
   },
   {
     label: "Workspace",

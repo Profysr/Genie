@@ -61,7 +61,7 @@ def _run_action(task, action, actor):
         if not status_id:
             return False, "change_status: status_id is required in payload"
         try:
-            new_status = TaskStatus.objects.get(id=status_id, project=task.project)
+            new_status = TaskStatus.objects.get(id=status_id, board=task.board)
             task.status = new_status
             task.save(update_fields=["status", "updated_at"])
             return True, "change_status: ok"
@@ -98,7 +98,7 @@ def _run_action(task, action, actor):
         label_id = payload.get("label_id")
         if label_id:
             try:
-                label = Label.objects.get(id=label_id, project=task.project)
+                label = Label.objects.get(id=label_id, board=task.board)
                 task.labels.add(label)
                 return True, "add_label: ok"
             except Label.DoesNotExist:
@@ -120,7 +120,7 @@ def _run_action(task, action, actor):
         if recipient_id:
             try:
                 recipient = User.objects.get(id=recipient_id)
-                workspace = task.project.workspace
+                workspace = task.board.workspace
                 meta = {
                     "task_id": str(task.id),
                     "task_title": task.title,
@@ -147,8 +147,8 @@ def _run_action(task, action, actor):
                     verb=Notification.Verb.TASK_ASSIGNED,
                     event_type="automated",
                     resource_name=task.title,
-                    project_id=str(task.project_id),
-                    project_name=task.project.name,
+                    project_id=str(task.board_id),
+                    project_name=task.board.name,
                     meta=meta,
                 )
                 return True, "send_notification: ok"
@@ -166,7 +166,7 @@ def fire_automation(trigger_type, task, actor=None, context=None):
     from .models import AutomationRule, AutomationLog
 
     rules = AutomationRule.objects.filter(
-        project=task.project,
+        board=task.board,
         is_active=True,
         trigger__type=trigger_type,
     ).prefetch_related()

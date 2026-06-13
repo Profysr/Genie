@@ -59,13 +59,13 @@ class GoogleChatIntegrationSerializer(serializers.ModelSerializer):
 
 class IntegrationChannelMappingSerializer(serializers.ModelSerializer):
     id = PrefixedUUIDField(read_only=True)
-    project_name = serializers.CharField(source="project.name", read_only=True, default=None)
+    # board_name = serializers.CharField(source="board.name", read_only=True, default=None)
 
     class Meta:
         model  = IntegrationChannelMapping
         fields = [
-            "id", "project", "project_name", "platform",
+            "id", "board", "platform",
             "webhook_url", "notification_format", "enabled_events", "is_active",
             "created_at",
         ]
-        read_only_fields = ["project_name", "created_at"]
+        read_only_fields = ["created_at"]

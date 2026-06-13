@@ -2,7 +2,6 @@ import { useState, useMemo, useCallback } from "react";
 import {
   ChevronLeft,
   ChevronRight,
-  Download,
   Plus,
   X,
   Search,
@@ -333,16 +332,6 @@ export default function CalendarView({
         (t.assignee?.full_name || "").toLowerCase().includes(q),
     );
   }, [noDueDateTasks, panelSearch]);
-
-  const handleICalExport = useCallback(() => {
-    const url = `/api/workspaces/${workspaceSlug}/projects/${projectId}/calendar.ics/`;
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "calendar.ics";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }, [workspaceSlug, projectId]);
 
   const handleDragStart = useCallback((e, id) => {
     e.dataTransfer.effectAllowed = "move";
@@ -699,14 +688,6 @@ export default function CalendarView({
           </button>
         )}
 
-        {/* iCal export */}
-        <button
-          onClick={handleICalExport}
-          title="Export as iCal (.ics)"
-          className="p-1.5 rounded hover:bg-accent transition-colors"
-        >
-          <Download className="w-4 h-4 text-muted-foreground" />
-        </button>
       </div>
 
       {/* Body: calendar + optional side panel */}

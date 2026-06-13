@@ -155,7 +155,7 @@ export default function SettingsPage() {
               return (
                 <Link
                   key={item.to}
-                  to={`/w/${workspace?.slug}/settings/${item.to}`}
+                  to={`/w/${workspace?.id}/settings/${item.to}`}
                   className="flex items-center gap-3 px-4 py-3 bg-muted hover:bg-accent rounded-md text-sm transition-colors group"
                 >
                   <Icon className="w-4 h-4 text-primary flex-shrink-0" />

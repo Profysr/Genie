@@ -77,7 +77,6 @@ export const SHORTCUT_GROUPS = [
       { keys: ["p"], display: ["p"], description: "Change priority" },
       { keys: ["l"], display: ["l"], description: "Add / remove label" },
       { keys: ["d"], display: ["d"], description: "Set due date" },
-      { keys: ["t"], display: ["t"], description: "Start / stop timer" },
     ],
   },
   {

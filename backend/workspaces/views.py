@@ -8,7 +8,7 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from core.fields import parse_id
+from core.fields import parse_id, format_id
 from .importers.registry import SUPPORTED_SOURCES, get_parser
 from .models import (
     ImportJob,
@@ -230,7 +230,7 @@ class InviteDetailView(APIView):
                 "role": invite.role,
                 "workspace": {
                     "name": invite.workspace.name,
-                    "slug": invite.workspace.slug,
+                    "id": format_id(invite.workspace.PREFIX, invite.workspace.id),
                 },
                 "invited_by": invite.invited_by.full_name or invite.invited_by.email,
             }
@@ -406,11 +406,11 @@ class OnboardingStateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def _checklist(self, workspace):
-        from projects.models import Project, Task
+        from projects.models import Board, Task
 
         return {
-            "create_project": Project.objects.filter(workspace=workspace).exists(),
-            "add_task": Task.objects.filter(project__workspace=workspace).exists(),
+            "create_board": Board.objects.filter(workspace=workspace).exists(),
+            "add_task": Task.objects.filter(board__workspace=workspace).exists(),
             "invite_teammate": WorkspaceMember.objects.filter(
                 workspace=workspace
             ).count()
@@ -557,7 +557,7 @@ class WebhookTestView(APIView):
             {
                 "event": "ping",
                 "hook_id": str(hook.id),
-                "workspace": ws.slug,
+                "workspace": format_id(ws.PREFIX, ws.id),
             },
         )
         return Response({"ok": True, "message": "Test event queued"})

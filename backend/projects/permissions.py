@@ -26,44 +26,38 @@ _WEIGHT_ROLE  = {4: "admin", 3: "editor", 2: "viewer", 1: "guest"}
 _ACTION_MIN   = {"view": 2, "edit": 3, "delete": 3, "admin": 4}
 
 
-def get_effective_role(user, project):
+def get_effective_role(user, board):
     """
-    Return the effective project role string for *user* on *project*,
+    Return the effective board role string for *user* on *board*,
     or None if the user is not a workspace member.
     """
-    from .models import ProjectMember
+    from .models import BoardMember
 
     try:
-        ws_member = WorkspaceMember.objects.get(workspace=project.workspace, user=user)
+        ws_member = WorkspaceMember.objects.get(workspace=board.workspace, user=user)
     except WorkspaceMember.DoesNotExist:
         return None
 
-    # ── Workspace Admins are super-users ──────────────────────────────────────
-    # No project-level override can restrict a workspace admin below "admin".
     if ws_member.role == WorkspaceMember.Role.ADMIN:
         return "admin"
 
-    # ── Workspace Viewers are always read-only ─────────────────────────────────
     if ws_member.role == WorkspaceMember.Role.VIEWER:
         return "viewer"
 
-    # ── Workspace Members — default editor, can be restricted per-project ─────
-    # Member weight cap = 3 (editor). A project override can push it down to
-    # viewer(2) or guest(1), but never above editor(3).
     member_cap = 3
     try:
-        proj_member = ProjectMember.objects.get(project=project, user=user)
-        proj_weight = _PROJ_WEIGHT.get(proj_member.role, member_cap)
-    except ProjectMember.DoesNotExist:
+        board_member = BoardMember.objects.get(board=board, user=user)
+        proj_weight = _PROJ_WEIGHT.get(board_member.role, member_cap)
+    except BoardMember.DoesNotExist:
         proj_weight = member_cap  # default: editor
 
     effective = min(member_cap, proj_weight)
     return _WEIGHT_ROLE.get(effective, "viewer")
 
 
-def has_project_permission(user, project, action):
-    """Return True if *user* has the required permission level on *project*."""
-    role = get_effective_role(user, project)
+def has_project_permission(user, board, action):
+    """Return True if *user* has the required permission level on *board*."""
+    role = get_effective_role(user, board)
     if role is None:
         return False
     weight = _PROJ_WEIGHT.get(role, 0)

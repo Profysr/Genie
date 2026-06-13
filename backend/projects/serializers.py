@@ -2,16 +2,15 @@ from rest_framework import serializers
 from django.utils import timezone
 import datetime
 from core.constants import DEFAULT_TASK_STATUSES
+from core.fields import format_id
 from .models import (
-    Project, TaskStatus, Task, SubTask, TaskComment, TaskActivity, Label,
-    ProjectField, TaskFieldValue, SavedView, Sprint,
+    Board, TaskStatus, Task, SubTask, TaskComment, TaskActivity, Label,
+    BoardField, TaskFieldValue, SavedView, Sprint,
     TaskAttachment, TaskDependency, TaskTemplate,
     WikiPage, WikiRevision, Document,
     Form, FormField, FormSubmission,
     AutomationRule, AutomationLog,
-    TimeEntry,
-    ProjectMember, GuestToken,
-    Board,
+    BoardMember,
     UserPresence, CommentReaction,
     Approval, ApprovalReviewer,
     Objective, KeyResult,
@@ -32,14 +31,14 @@ class LabelSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "color"]
 
 
-class ProjectFieldSerializer(serializers.ModelSerializer):
+class BoardFieldSerializer(serializers.ModelSerializer):
     class Meta:
-        model = ProjectField
+        model = BoardField
         fields = ["id", "name", "type", "options", "order"]
 
 
 class TaskFieldValueSerializer(serializers.ModelSerializer):
-    field = ProjectFieldSerializer(read_only=True)
+    field = BoardFieldSerializer(read_only=True)
     field_id = serializers.UUIDField(write_only=True)
 
     class Meta:
@@ -56,13 +55,47 @@ class TaskFieldValueSerializer(serializers.ModelSerializer):
 
 
 class BoardSerializer(serializers.ModelSerializer):
+    created_by      = UserSerializer(read_only=True)
+    statuses        = TaskStatusSerializer(many=True, read_only=True)
+    task_count      = serializers.SerializerMethodField()
+    done_task_count = serializers.SerializerMethodField()
+    my_role         = serializers.SerializerMethodField()
+
     class Meta:
-        model  = Board
-        fields = [
-            "id", "name", "description", "board_type", "is_default",
-            "visibility", "config", "order", "is_archived", "created_at", "updated_at",
-        ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        model = Board
+        fields = ["id", "name", "description", "board_type", "status", "is_private",
+                  "created_by", "statuses", "task_count", "done_task_count", "my_role",
+                  "created_at", "updated_at"]
+        read_only_fields = ["id", "created_by", "statuses", "created_at", "updated_at"]
+
+    def get_task_count(self, obj):
+        return obj.tasks.count()
+
+    def get_done_task_count(self, obj):
+        done_statuses = obj.statuses.filter(is_done=True)
+        if done_statuses.exists():
+            return obj.tasks.filter(status__in=done_statuses).count()
+        last = obj.statuses.order_by("-order").first()
+        return obj.tasks.filter(status=last).count() if last else 0
+
+    def get_my_role(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return None
+        from .permissions import get_effective_role
+        return get_effective_role(request.user, obj)
+
+    def create(self, validated_data):
+        workspace = self.context["workspace"]
+        board = Board.objects.create(
+            workspace=workspace,
+            created_by=self.context["request"].user,
+            **validated_data,
+        )
+        TaskStatus.objects.bulk_create([
+            TaskStatus(board=board, **s) for s in DEFAULT_TASK_STATUSES
+        ])
+        return board
 
 
 
@@ -88,7 +121,7 @@ class SprintSerializer(serializers.ModelSerializer):
         return obj.tasks.count()
 
     def get_completed_count(self, obj):
-        done = obj.project.statuses.order_by("-order").first()
+        done = obj.board.statuses.order_by("-order").first()
         return obj.tasks.filter(status=done).count() if done else 0
 
 
@@ -219,17 +252,17 @@ class TaskSerializer(serializers.ModelSerializer):
 
 
 class MyWorkTaskSerializer(TaskSerializer):
-    """Extends TaskSerializer with project + workspace info needed for navigation."""
-    project_id     = serializers.SerializerMethodField()
-    project_name   = serializers.SerializerMethodField()
-    workspace_slug = serializers.SerializerMethodField()
+    """Extends TaskSerializer with board + workspace info needed for navigation."""
+    board_id     = serializers.SerializerMethodField()
+    board_name   = serializers.SerializerMethodField()
+    workspace_id = serializers.SerializerMethodField()
 
     class Meta(TaskSerializer.Meta):
-        fields = TaskSerializer.Meta.fields + ["project_id", "project_name", "workspace_slug"]
+        fields = TaskSerializer.Meta.fields + ["board_id", "board_name", "workspace_id"]
 
-    def get_project_id(self, obj):     return str(obj.project.id)
-    def get_project_name(self, obj):   return obj.project.name
-    def get_workspace_slug(self, obj): return obj.project.workspace.slug
+    def get_board_id(self, obj):     return str(obj.board.id)
+    def get_board_name(self, obj):   return obj.board.name
+    def get_workspace_id(self, obj): return format_id(obj.board.workspace.PREFIX, obj.board.workspace.id)
 
 
 class TaskAttachmentSerializer(serializers.ModelSerializer):
@@ -328,42 +361,44 @@ class TaskDetailSerializer(TaskSerializer):
 
 
 class TaskSearchSerializer(serializers.ModelSerializer):
-    workspace_slug = serializers.SerializerMethodField()
-    project_id     = serializers.SerializerMethodField()
-    project_name   = serializers.CharField(source="project.name", read_only=True)
-    status_name    = serializers.SerializerMethodField()
-    assignee_name  = serializers.SerializerMethodField()
-    due_date       = serializers.DateField(read_only=True)
+    workspace_id  = serializers.SerializerMethodField()
+    board_id      = serializers.SerializerMethodField()
+    board_name    = serializers.CharField(source="board.name", read_only=True)
+    status_name   = serializers.SerializerMethodField()
+    assignee_name = serializers.SerializerMethodField()
+    due_date      = serializers.DateField(read_only=True)
 
     class Meta:
         model = Task
         fields = [
             "id", "title", "priority", "task_type",
-            "workspace_slug", "project_id", "project_name",
+            "workspace_id", "board_id", "board_name",
             "status_name", "assignee_name", "due_date",
         ]
 
-    def get_workspace_slug(self, obj): return obj.project.workspace.slug
-    def get_project_id(self, obj):     return str(obj.project.id)
+    def get_workspace_id(self, obj): return format_id(obj.board.workspace.PREFIX, obj.board.workspace.id)
+    def get_board_id(self, obj):     return str(obj.board.id)
     def get_status_name(self, obj):    return obj.status.name if obj.status else None
     def get_assignee_name(self, obj):  return obj.assignee.full_name or obj.assignee.email if obj.assignee else None
 
 
-class ProjectSearchSerializer(serializers.ModelSerializer):
-    workspace_slug = serializers.CharField(source="workspace.slug", read_only=True)
+class BoardSearchSerializer(serializers.ModelSerializer):
+    workspace_id   = serializers.SerializerMethodField()
     workspace_name = serializers.CharField(source="workspace.name", read_only=True)
 
+    def get_workspace_id(self, obj): return format_id(obj.workspace.PREFIX, obj.workspace.id)
+
     class Meta:
-        model = Project
-        fields = ["id", "name", "workspace_slug", "workspace_name"]
+        model = Board
+        fields = ["id", "name", "board_type", "workspace_id", "workspace_name"]
 
 
-class ProjectMemberSerializer(serializers.ModelSerializer):
+class BoardMemberSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     user_id = serializers.UUIDField(write_only=True)
 
     class Meta:
-        model  = ProjectMember
+        model  = BoardMember
         fields = ["id", "user", "user_id", "role", "created_at"]
         read_only_fields = ["id", "created_at"]
 
@@ -377,75 +412,7 @@ class ProjectMemberSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         user = validated_data.pop("user_id")
-        return ProjectMember.objects.create(user=user, **validated_data)
-
-
-class GuestTokenSerializer(serializers.ModelSerializer):
-    is_expired = serializers.SerializerMethodField()
-    days = serializers.IntegerField(write_only=True, default=30)
-
-    class Meta:
-        model  = GuestToken
-        fields = ["id", "token", "label", "expires_at", "is_active", "is_expired", "created_at", "days"]
-        read_only_fields = ["id", "token", "expires_at", "is_expired", "created_at"]
-
-    def get_is_expired(self, obj):
-        return obj.is_expired()
-
-    def create(self, validated_data):
-        days = validated_data.pop("days", 30)
-        validated_data["expires_at"] = timezone.now() + datetime.timedelta(days=days)
-        return GuestToken.objects.create(**validated_data)
-
-
-class ProjectSerializer(serializers.ModelSerializer):
-    created_by      = UserSerializer(read_only=True)
-    statuses        = TaskStatusSerializer(many=True, read_only=True)
-    task_count      = serializers.SerializerMethodField()
-    done_task_count = serializers.SerializerMethodField()
-    my_role         = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Project
-        fields = ["id", "name", "description", "status", "is_private", "created_by", "statuses",
-                  "task_count", "done_task_count", "my_role", "created_at", "updated_at"]
-        read_only_fields = ["id", "created_by", "statuses", "created_at", "updated_at"]
-
-    def get_task_count(self, obj):
-        return obj.tasks.count()
-
-    def get_done_task_count(self, obj):
-        done_statuses = obj.statuses.filter(is_done=True)
-        if done_statuses.exists():
-            return obj.tasks.filter(status__in=done_statuses).count()
-        last = obj.statuses.order_by("-order").first()
-        return obj.tasks.filter(status=last).count() if last else 0
-
-    def get_my_role(self, obj):
-        request = self.context.get("request")
-        if not request or not request.user.is_authenticated:
-            return None
-        from .permissions import get_effective_role
-        return get_effective_role(request.user, obj)
-
-    def create(self, validated_data):
-        request   = self.context["request"]
-        workspace = self.context["workspace"]
-        project   = Project.objects.create(workspace=workspace, created_by=request.user, **validated_data)
-        TaskStatus.objects.bulk_create([
-            TaskStatus(project=project, **s) for s in DEFAULT_TASK_STATUSES
-        ])
-        # Auto-create default board (v2.2.0)
-        Board.objects.create(
-            project=project,
-            name="Main Board",
-            board_type=Board.BoardType.KANBAN,
-            is_default=True,
-            visibility=Board.Visibility.PUBLIC,
-            created_by=request.user,
-            order=0,
-        )
-        return project
+        return BoardMember.objects.create(user=user, **validated_data)
 
 
 # ── v2.5.0 — Wiki & Documents ─────────────────────────────────────────────────
@@ -478,10 +445,10 @@ class WikiPageSerializer(serializers.ModelSerializer):
         import uuid as _uuid
         title = validated_data.get("title", "")
         base_slug = slugify(title) or str(_uuid.uuid4())[:8]
-        project = validated_data["project"]
+        board = validated_data["board"]
         slug = base_slug
         counter = 1
-        while WikiPage.objects.filter(project=project, slug=slug).exists():
+        while WikiPage.objects.filter(board=board, slug=slug).exists():
             slug = f"{base_slug}-{counter}"
             counter += 1
         validated_data["slug"] = slug
@@ -564,25 +531,6 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
         recent = obj.logs.order_by("-created_at")[:5]
         return AutomationLogSerializer(recent, many=True).data
 
-
-# ── v2.8.0 — Time Tracking ────────────────────────────────────────────────────
-
-class TimeEntrySerializer(serializers.ModelSerializer):
-    user       = UserSerializer(read_only=True)
-    task_title = serializers.CharField(source="task.title", read_only=True)
-    is_running = serializers.SerializerMethodField()
-
-    class Meta:
-        model  = TimeEntry
-        fields = [
-            "id", "task", "task_title", "user", "description",
-            "start_at", "end_at", "duration_seconds",
-            "is_billable", "is_running", "created_at",
-        ]
-        read_only_fields = ["id", "user", "start_at", "end_at", "duration_seconds", "created_at"]
-
-    def get_is_running(self, obj):
-        return obj.is_running
 
 
 # ── v3.6.0 — Approval Workflows ──────────────────────────────────────────────

@@ -1,5 +1,4 @@
 from rest_framework import serializers
-from django.utils.text import slugify
 from django.utils import timezone
 from .models import (
     Workspace,
@@ -25,10 +24,10 @@ class WorkspaceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Workspace
         fields = [
-            "id", "name", "slug", "logo", "owner",
+            "id", "name", "logo", "owner",
             "member_count", "my_role", "created_at",
         ]
-        read_only_fields = ["slug", "owner", "created_at"]
+        read_only_fields = ["owner", "created_at"]
 
     def get_member_count(self, obj):
         return obj.members.count()
@@ -49,14 +48,6 @@ class WorkspaceSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        name = validated_data["name"]
-        base_slug = slugify(name)
-        slug = base_slug
-        counter = 1
-        while Workspace.objects.filter(slug=slug).exists():
-            slug = f"{base_slug}-{counter}"
-            counter += 1
-        validated_data["slug"] = slug
         validated_data["owner"] = self.context["request"].user
         workspace = super().create(validated_data)
         WorkspaceMember.objects.create(

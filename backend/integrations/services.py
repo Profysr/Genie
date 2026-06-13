@@ -9,6 +9,7 @@ import logging
 import requests
 from django.conf import settings
 from django.db import models
+from core.fields import format_id
 
 logger = logging.getLogger(__name__)
 
@@ -33,16 +34,16 @@ VERB_LABEL = {
 
 
 # ── Message formatters ────────────────────────────────────────────────────────
-def _task_url(workspace_slug, project_id, task_id):
+def _task_url(workspace_id, project_id, task_id):
     frontend = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
-    return f"{frontend}/w/{workspace_slug}/projects/{project_id}?task={task_id}"
+    return f"{frontend}/w/{workspace_id}/boards/{project_id}?task={task_id}"
 
 
-def format_teams_card(verb, task, actor, workspace_slug):
+def format_teams_card(verb, task, actor, workspace_id):
     """Returns a Teams MessageCard dict (legacy connector card — no Power Apps needed)."""
     label     = VERB_LABEL.get(verb, verb.replace("_", " ").title())
     pri_emoji = PRIORITY_EMOJI.get(getattr(task, "priority", "none"), "⚪")
-    url       = _task_url(workspace_slug, str(task.project_id), str(task.id))
+    url       = _task_url(workspace_id, str(task.board_id), str(task.id))
 
     return {
         "@type":      "MessageCard",
@@ -54,12 +55,12 @@ def format_teams_card(verb, task, actor, workspace_slug):
                 "activityTitle":    f"**{label}**",
                 "activitySubtitle": task.title,
                 "activityText":     (
-                    f"**Project:** {task.project.name}  \n"
+                    f"**Project:** {task.board.name}  \n"
                     f"**Priority:** {pri_emoji} {(task.priority or 'none').title()}  \n"
                     f"**By:** {actor.full_name or actor.email.split('@')[0]}"
                 ),
                 "facts": [
-                    {"name": "Project",  "value": task.project.name},
+                    {"name": "Project",  "value": task.board.name},
                     {"name": "Priority", "value": f"{pri_emoji} {(task.priority or 'none').title()}"},
                     {"name": "Actor",    "value": actor.full_name or actor.email.split("@")[0]},
                 ],
@@ -75,11 +76,11 @@ def format_teams_card(verb, task, actor, workspace_slug):
     }
 
 
-def format_google_chat_card(verb, task, actor, workspace_slug):
+def format_google_chat_card(verb, task, actor, workspace_id):
     """Returns a Google Chat card payload."""
     label     = VERB_LABEL.get(verb, verb.replace("_", " ").title())
     pri_emoji = PRIORITY_EMOJI.get(getattr(task, "priority", "none"), "⚪")
-    url       = _task_url(workspace_slug, str(task.project_id), str(task.id))
+    url       = _task_url(workspace_id, str(task.board_id), str(task.id))
 
     return {
         "cardsV2": [
@@ -88,7 +89,7 @@ def format_google_chat_card(verb, task, actor, workspace_slug):
                 "card": {
                     "header": {
                         "title":    label,
-                        "subtitle": task.project.name,
+                        "subtitle": task.board.name,
                         "imageUrl": "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsoutlined/task/default/48px.svg",
                         "imageType": "CIRCLE",
                     },
@@ -173,14 +174,14 @@ def fanout_notification(workspace, verb, task, actor):
 def _fanout(workspace, verb, task, actor):
     from integrations.models import IntegrationChannelMapping, TeamsIntegration, GoogleChatIntegration
 
-    workspace_slug = workspace.slug
+    workspace_id = format_id(workspace.PREFIX, workspace.id)
 
     mappings = IntegrationChannelMapping.objects.filter(
         workspace=workspace,
         is_active=True,
     ).filter(
-        models.Q(project=task.project) | models.Q(project__isnull=True)
-    ).select_related("project")
+        models.Q(board=task.board) | models.Q(board__isnull=True)
+    ).select_related("board")
 
     if not mappings.exists():
         return
@@ -198,7 +199,7 @@ def _fanout(workspace, verb, task, actor):
                     continue
             if not webhook:
                 continue
-            send_teams(webhook, format_teams_card(verb, task, actor, workspace_slug))
+            send_teams(webhook, format_teams_card(verb, task, actor, workspace_id))
 
         elif mapping.platform == IntegrationChannelMapping.Platform.GOOGLE_CHAT:
             webhook = mapping.webhook_url
@@ -209,4 +210,4 @@ def _fanout(workspace, verb, task, actor):
                     continue
             if not webhook:
                 continue
-            send_google_chat(webhook, format_google_chat_card(verb, task, actor, workspace_slug))
+            send_google_chat(webhook, format_google_chat_card(verb, task, actor, workspace_id))

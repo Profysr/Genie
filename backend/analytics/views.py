@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core.fields import parse_id
-from projects.models import Project, Sprint, Task, TaskActivity, TaskStatus
+from projects.models import Board, Sprint, Task, TaskActivity, TaskStatus
 from workspaces.models import Workspace
 
 
@@ -53,7 +53,7 @@ def _parse_limit(params, default=8):
 def _done_status_names(workspace):
     """Retrieves an un-hydrated flat array of status name strings marked as completed."""
     return list(
-        TaskStatus.objects.filter(project__workspace=workspace, is_done=True)
+        TaskStatus.objects.filter(board__workspace=workspace, is_done=True)
         .values_list("name", flat=True)
         .distinct()
     )
@@ -62,7 +62,7 @@ def _done_status_names(workspace):
 def _done_status_ids(workspace):
     """Retrieves an un-hydrated flat array of database identifiers marked as completed."""
     return list(
-        TaskStatus.objects.filter(project__workspace=workspace, is_done=True)
+        TaskStatus.objects.filter(board__workspace=workspace, is_done=True)
         .values_list("id", flat=True)
     )
 
@@ -73,12 +73,12 @@ def _done_status_ids(workspace):
 
 def _metric_overview(workspace, params):
     """Compiles basic descriptive volume tallies, assignment workload, and task distribution arrays."""
-    all_tasks = Task.objects.filter(project__workspace=workspace)
+    all_tasks = Task.objects.filter(board__workspace=workspace)
     thirty_days_ago = timezone.now() - datetime.timedelta(days=30)
 
     trend_qs = (
         TaskActivity.objects.filter(
-            task__project__workspace=workspace,
+            task__board__workspace=workspace,
             verb=TaskActivity.Verb.STATUS,
             created_at__gte=thirty_days_ago,
         )
@@ -89,7 +89,7 @@ def _metric_overview(workspace, params):
     )
 
     workload_qs = (
-        Task.objects.filter(project__workspace=workspace, assignee__isnull=False)
+        Task.objects.filter(board__workspace=workspace, assignee__isnull=False)
         .values("assignee__id", "assignee__full_name", "assignee__email")
         .annotate(assigned=Count("id"))
         .order_by("-assigned")
@@ -106,7 +106,7 @@ def _metric_overview(workspace, params):
 
     return {
         "overview": {
-            "projects": workspace.projects.count(),
+            "boards": workspace.boards.count(),
             "tasks": all_tasks.count(),
             "members": workspace.members.count(),
             "open_tasks": all_tasks.filter(status__is_done=False).count(),
@@ -128,15 +128,15 @@ def _metric_overview(workspace, params):
 
 def _metric_velocity(workspace, params):
     """Tracks completed story points and historical delivery volumes across sprints."""
-    project_id = params.get("project_id")
+    board_id = params.get("board_id")
     limit = _parse_limit(params, 8)
 
     sprints_qs = Sprint.objects.filter(
-        project__workspace=workspace, status=Sprint.Status.COMPLETED
+        board__workspace=workspace, status=Sprint.Status.COMPLETED
     ).order_by("-end_date")
     
-    if project_id:
-        sprints_qs = sprints_qs.filter(project_id=project_id)
+    if board_id:
+        sprints_qs = sprints_qs.filter(board_id=board_id)
 
     sprints = list(reversed(sprints_qs[:limit]))
     sprint_ids = [s.id for s in sprints]
@@ -182,14 +182,14 @@ def _metric_velocity(workspace, params):
 
 def _metric_cycle_time(workspace, params):
     """Measures working duration calculated from the moment an issue leaves its backlog state."""
-    project_id = params.get("project_id")
+    board_id = params.get("board_id")
     days = _parse_days(params, 90)
     cutoff = timezone.now() - datetime.timedelta(days=days)
     done_names = _done_status_names(workspace)
 
     acts_qs = (
         TaskActivity.objects.filter(
-            task__project__workspace=workspace,
+            task__board__workspace=workspace,
             verb=TaskActivity.Verb.STATUS,
             meta__to__in=done_names,
             created_at__gte=cutoff,
@@ -198,8 +198,8 @@ def _metric_cycle_time(workspace, params):
                 "task__priority", "task__task_type", "created_at")
         .order_by("task_id", "created_at")
     )
-    if project_id:
-        acts_qs = acts_qs.filter(task__project_id=project_id)
+    if board_id:
+        acts_qs = acts_qs.filter(task__board_id=board_id)
 
     first_done = {}
     for act in acts_qs:
@@ -259,14 +259,14 @@ def _metric_cycle_time(workspace, params):
 
 def _metric_lead_time(workspace, params):
     """Measures lifetime duration from initial creation timestamp to execution resolution."""
-    project_id = params.get("project_id")
+    board_id = params.get("board_id")
     days = _parse_days(params, 90)
     cutoff = timezone.now() - datetime.timedelta(days=days)
     done_names = _done_status_names(workspace)
 
     acts = (
         TaskActivity.objects.filter(
-            task__project__workspace=workspace,
+            task__board__workspace=workspace,
             verb=TaskActivity.Verb.STATUS,
             meta__to__in=done_names,
             created_at__gte=cutoff,
@@ -274,8 +274,8 @@ def _metric_lead_time(workspace, params):
         .values("task_id", "task__title", "task__created_at", "created_at")
         .order_by("task_id", "created_at")[:5000]
     )
-    if project_id:
-        acts = acts.filter(task__project_id=project_id)
+    if board_id:
+        acts = acts.filter(task__board_id=board_id)
 
     seen, lead_times, points = set(), [], []
     for act in acts:
@@ -334,20 +334,20 @@ def _metric_lead_time(workspace, params):
 
 def _metric_throughput(workspace, params):
     """Calculates granular delivery distribution frequencies split across specific date segments."""
-    project_id = params.get("project_id")
+    board_id = params.get("board_id")
     period = params.get("period", "week")
     days = _parse_days(params, 90)
     cutoff = timezone.now() - datetime.timedelta(days=days)
     done_names = _done_status_names(workspace)
 
     acts = TaskActivity.objects.filter(
-        task__project__workspace=workspace,
+        task__board__workspace=workspace,
         verb=TaskActivity.Verb.STATUS,
         meta__to__in=done_names,
         created_at__gte=cutoff,
     )
-    if project_id:
-        acts = acts.filter(task__project_id=project_id)
+    if board_id:
+        acts = acts.filter(task__board_id=board_id)
 
     trunc_fn = {"day": TruncDate, "week": TruncWeek, "month": TruncMonth}.get(period, TruncWeek)
     rows = (
@@ -367,17 +367,17 @@ def _metric_throughput(workspace, params):
 
 def _metric_cfd(workspace, params):
     """Executes a performant event sweep algorithm tracking system bottlenecks over historical horizons."""
-    project_id = params.get("project_id")
+    board_id = params.get("board_id")
     days = _parse_days(params, 30)
 
-    if not project_id:
-        project = workspace.projects.filter(is_archived=False).order_by("pk").first()
-        if not project:
+    if not board_id:
+        board = workspace.boards.filter(status="active").order_by("pk").first()
+        if not board:
             return {"statuses": [], "data": []}
-        project_id = str(project.id)
+        board_id = str(board.id)
 
-    project = get_object_or_404(Project, id=project_id, workspace=workspace)
-    statuses = list(project.statuses.order_by("order").values("id", "name", "color"))
+    board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
+    statuses = list(board.statuses.order_by("order").values("id", "name", "color"))
     if not statuses:
         return {"statuses": [], "data": []}
 
@@ -387,7 +387,7 @@ def _metric_cfd(workspace, params):
     valid_sids = {s["id"] for s in statuses}
 
     acts = list(
-        TaskActivity.objects.filter(task__project=project, verb=TaskActivity.Verb.STATUS)
+        TaskActivity.objects.filter(task__board=board, verb=TaskActivity.Verb.STATUS)
         .order_by("task_id", "created_at")
         .values("task_id", "created_at", "meta")
     )
@@ -407,7 +407,7 @@ def _metric_cfd(workspace, params):
         if to_sid:
             task_timeline.setdefault(tid, []).append((act["created_at"].date(), to_sid))
 
-    tasks_info = Task.objects.filter(project=project).values("id", "created_at", "status_id")
+    tasks_info = Task.objects.filter(board=board).values("id", "created_at", "status_id")
 
     running_counts = {s["id"]: 0 for s in statuses}
     delta_events = {}
@@ -470,22 +470,22 @@ def _metric_cfd(workspace, params):
 def _metric_burnup(workspace, params):
     """Plots incremental total scope thresholds against realized delivery lines over time."""
     sprint_id = params.get("sprint_id")
-    project_id = params.get("project_id")
+    board_id = params.get("board_id")
     done_names = _done_status_names(workspace)
 
     if sprint_id:
-        sprint = get_object_or_404(Sprint, id=sprint_id, project__workspace=workspace)
+        sprint = get_object_or_404(Sprint, id=sprint_id, board__workspace=workspace)
         tasks_qs = Task.objects.filter(sprint=sprint)
         start_date = sprint.start_date or (datetime.date.today() - datetime.timedelta(days=14))
         end_date = sprint.end_date or datetime.date.today()
-    elif project_id:
-        project = get_object_or_404(Project, id=project_id, workspace=workspace)
-        tasks_qs = Task.objects.filter(project=project)
+    elif board_id:
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
+        tasks_qs = Task.objects.filter(board=board)
         days = _parse_days(params, 30)
         end_date = datetime.date.today()
         start_date = end_date - datetime.timedelta(days=days - 1)
     else:
-        return {"error": "Provide sprint_id or project_id."}
+        return {"error": "Provide sprint_id or board_id."}
 
     task_dates = sorted(
         r["created_at"].date() for r in tasks_qs.values("created_at") if r["created_at"]
@@ -530,7 +530,7 @@ def _metric_burnup(workspace, params):
 def _metric_workload_heatmap(workspace, params):
     """Maps operational due date allocation volumes to uncover team schedule bottlenecks."""
     days = _parse_days(params, 14)
-    project_id = params.get("project_id")
+    board_id = params.get("board_id")
 
     end_date = datetime.date.today()
     start_date = end_date - datetime.timedelta(days=days - 1)
@@ -542,14 +542,14 @@ def _metric_workload_heatmap(workspace, params):
     date_strs = [d.isoformat() for d in dates]
 
     tasks_qs = Task.objects.filter(
-        project__workspace=workspace,
+        board__workspace=workspace,
         assignee__isnull=False,
         due_date__gte=start_date,
         due_date__lte=end_date,
     ).values("assignee__id", "assignee__full_name", "assignee__email", "due_date")
     
-    if project_id:
-        tasks_qs = tasks_qs.filter(project_id=project_id)
+    if board_id:
+        tasks_qs = tasks_qs.filter(board_id=board_id)
 
     member_data = {}
     for t in tasks_qs:
@@ -580,21 +580,21 @@ def _metric_workload_heatmap(workspace, params):
 
 def _metric_time_in_status(workspace, params):
     """Finds state degradation issues by highlighting average stay rates per phase."""
-    project_id = params.get("project_id")
+    board_id = params.get("board_id")
     days = _parse_days(params, 30)
     cutoff = timezone.now() - datetime.timedelta(days=days)
 
     acts_qs = (
         TaskActivity.objects.filter(
-            task__project__workspace=workspace,
+            task__board__workspace=workspace,
             verb=TaskActivity.Verb.STATUS,
             created_at__gte=cutoff,
         )
         .order_by("task_id", "created_at")
         .values("task_id", "created_at", "meta")
     )
-    if project_id:
-        acts_qs = acts_qs.filter(task__project_id=project_id)
+    if board_id:
+        acts_qs = acts_qs.filter(task__board_id=board_id)
 
     task_acts = {}
     for act in acts_qs:
@@ -634,21 +634,21 @@ def _metric_time_in_status(workspace, params):
 
 def _metric_overdue_aging(workspace, params):
     """Categorizes active delayed items into progressive calendar aging brackets."""
-    project_id = params.get("project_id")
+    board_id = params.get("board_id")
     today = datetime.date.today()
 
     qs = Task.objects.filter(
-        project__workspace=workspace,
+        board__workspace=workspace,
         due_date__lt=today,
         due_date__isnull=False,
         status__is_done=False,
     ).values(
         "id", "title", "due_date", "priority",
         "assignee__full_name", "assignee__email",
-        "status__name", "project__name",
+        "status__name", "board__name",
     )
-    if project_id:
-        qs = qs.filter(project_id=project_id)
+    if board_id:
+        qs = qs.filter(board_id=board_id)
 
     buckets = [
         {"label": "1–3 days", "min": 1, "max": 3, "count": 0},
@@ -677,7 +677,7 @@ def _metric_overdue_aging(workspace, params):
             "priority": t["priority"],
             "assignee": assignee,
             "status": t["status__name"],
-            "project": t["project__name"],
+            "board": t["board__name"],
         })
 
     items.sort(key=lambda x: -x["days_overdue"])
@@ -691,15 +691,15 @@ def _metric_overdue_aging(workspace, params):
 
 def _metric_completion_rate(workspace, params):
     """Provides sprint target accuracy metrics by evaluating done versus total planned scope items."""
-    project_id = params.get("project_id")
+    board_id = params.get("board_id")
     limit = _parse_limit(params, 8)
     done_ids = _done_status_ids(workspace)
 
     sprints_qs = Sprint.objects.filter(
-        project__workspace=workspace, status=Sprint.Status.COMPLETED
+        board__workspace=workspace, status=Sprint.Status.COMPLETED
     ).order_by("-end_date")
-    if project_id:
-        sprints_qs = sprints_qs.filter(project_id=project_id)
+    if board_id:
+        sprints_qs = sprints_qs.filter(board_id=board_id)
 
     sprints = list(reversed(sprints_qs[:limit]))
     sprint_ids = [s.id for s in sprints]
@@ -734,16 +734,16 @@ def _metric_completion_rate(workspace, params):
 
 def _metric_estimation_accuracy(workspace, params):
     """Correlates original numeric estimates with actual lifecycle durations."""
-    project_id = params.get("project_id")
+    board_id = params.get("board_id")
     limit = _parse_limit(params, 8)
     done_ids = _done_status_ids(workspace)
     done_names = _done_status_names(workspace)
 
     sprints_qs = Sprint.objects.filter(
-        project__workspace=workspace, status=Sprint.Status.COMPLETED
+        board__workspace=workspace, status=Sprint.Status.COMPLETED
     ).order_by("-end_date")
-    if project_id:
-        sprints_qs = sprints_qs.filter(project_id=project_id)
+    if board_id:
+        sprints_qs = sprints_qs.filter(board_id=board_id)
 
     sprints = list(reversed(sprints_qs[:limit]))
     sprint_ids = [s.id for s in sprints]

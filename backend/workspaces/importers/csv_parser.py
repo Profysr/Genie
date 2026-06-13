@@ -85,8 +85,7 @@ def detect_mapping(headers: List[str]) -> Dict[str, dict]:
 
 def apply_mapping(row: dict, mapping: dict) -> dict:
     """
-    Apply user-confirmed mapping (source_col → jcn_field) to a row dict.
-    Returns a dict keyed by jcn_field.
+    Apply user-confirmed mapping (source_col → jcn_field) to a row dict. Returns a dict keyed by jcn_field.
     """
     out = {}
     for src_col, jcn_field in mapping.items():

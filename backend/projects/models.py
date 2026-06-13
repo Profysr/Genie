@@ -5,19 +5,34 @@ from workspaces.models import Workspace
 from core.constants import DEFAULT_TASK_STATUSES  # noqa: F401 — re-exported for existing imports
 from core.fields import UUIDv7Field
 
-class Project(models.Model):
-    PREFIX = "prj"
+
+class Board(models.Model):
+    """Top-level work container — one per team, client, department, or initiative."""
+
+    PREFIX = "brd"
 
     class Status(models.TextChoices):
         ACTIVE = "active", "Active"
         ARCHIVED = "archived", "Archived"
 
+    class BoardType(models.TextChoices):
+        SOFTWARE = "software", "Software"
+        MARKETING = "marketing", "Marketing"
+        OPERATIONS = "operations", "Operations"
+        CLIENT = "client", "Client Project"
+        HR = "hr", "HR & People"
+        DESIGN = "design", "Design"
+        GENERAL = "general", "General"
+
     id = UUIDv7Field()
     workspace = models.ForeignKey(
-        Workspace, on_delete=models.CASCADE, related_name="projects"
+        Workspace, on_delete=models.CASCADE, related_name="boards"
     )
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
+    board_type = models.CharField(
+        max_length=20, choices=BoardType.choices, default=BoardType.GENERAL
+    )
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.ACTIVE
     )
@@ -26,7 +41,7 @@ class Project(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
-        related_name="created_projects",
+        related_name="created_boards",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -39,24 +54,25 @@ class Project(models.Model):
 
 
 class TaskStatus(models.Model):
-    """Configurable Kanban columns — each project defines its own."""
+    """Configurable workflow columns — each board defines its own."""
 
     PREFIX = "tst"
     id = UUIDv7Field()
-    project = models.ForeignKey(
-        Project, on_delete=models.CASCADE, related_name="statuses"
+    board = models.ForeignKey(
+        Board, on_delete=models.CASCADE, related_name="statuses"
     )
     name = models.CharField(max_length=100)
     color = models.CharField(max_length=7, default="#6366f1")
     order = models.PositiveIntegerField(default=0)
-    is_done = models.BooleanField(default=False)  # counts toward completion %
+    is_done = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["order"]
-        unique_together = ["project", "name"]
+        unique_together = ["board", "name"]
 
     def __str__(self):
-        return f"{self.project.name} / {self.name}"
+        return f"{self.board.name} / {self.name}"
+
 
 class Task(models.Model):
     PREFIX = "tsk"
@@ -78,8 +94,7 @@ class Task(models.Model):
         QUESTION = "question", "Question"
 
     id = UUIDv7Field()
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="tasks")
-    # v2.4.0 — self-referential hierarchy: Epic → Story → Task → child Task
+    board = models.ForeignKey(Board, on_delete=models.CASCADE, related_name="tasks")
     parent = models.ForeignKey(
         "self", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
     )
@@ -116,33 +131,28 @@ class Task(models.Model):
         "Sprint", on_delete=models.SET_NULL, null=True, blank=True, related_name="tasks"
     )
     due_date = models.DateField(null=True, blank=True)
-    start_date = models.DateField(null=True, blank=True)  # v2.4.0
-    estimate_points = models.PositiveIntegerField(
-        null=True, blank=True
-    )  # v2.4.0 story points
-    estimate_hours = models.DecimalField(
-        max_digits=6, decimal_places=2, null=True, blank=True
-    )  # v2.4.0
+    start_date = models.DateField(null=True, blank=True)
+    estimate_points = models.PositiveIntegerField(null=True, blank=True)
+    estimate_hours = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     order = models.PositiveIntegerField(default=0)
-    version = models.PositiveIntegerField(default=1)  # v3.5.0 optimistic locking
+    version = models.PositiveIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["order", "-id"]
         indexes = [
-            models.Index(fields=["project", "status"], name="task_project_status_idx"),
-            models.Index(fields=["project", "assignee"], name="task_project_assignee_idx"),
-            models.Index(fields=["project", "priority"], name="task_project_priority_idx"),
-            models.Index(fields=["project", "sprint"], name="task_project_sprint_idx"),
+            models.Index(fields=["board", "status"], name="task_board_status_idx"),
+            models.Index(fields=["board", "assignee"], name="task_board_assignee_idx"),
+            models.Index(fields=["board", "priority"], name="task_board_priority_idx"),
+            models.Index(fields=["board", "sprint"], name="task_board_sprint_idx"),
             models.Index(fields=["assignee", "status"], name="task_assignee_status_idx"),
-            models.Index(fields=["project", "due_date"], name="task_project_due_date_idx"),
+            models.Index(fields=["board", "due_date"], name="task_board_due_date_idx"),
         ]
 
     def __str__(self):
         return self.title
 
-    # v2.4.0 — rollup stats aggregated from all direct children
     @property
     def child_count(self):
         return self.children.count()
@@ -154,7 +164,7 @@ class Task(models.Model):
     def clone(self, created_by):
         """Deep-clone this task (children + labels); strips assignee, dates, sprint."""
         new_task = Task.objects.create(
-            project=self.project,
+            board=self.board,
             parent=self.parent,
             title=f"{self.title} (Copy)",
             description=self.description,
@@ -215,24 +225,24 @@ class TaskComment(models.Model):
 class Label(models.Model):
     PREFIX = "lbl"
     id = UUIDv7Field()
-    project = models.ForeignKey(
-        Project, on_delete=models.CASCADE, related_name="labels"
+    board = models.ForeignKey(
+        Board, on_delete=models.CASCADE, related_name="labels"
     )
     name = models.CharField(max_length=50)
     color = models.CharField(max_length=7, default="#6366f1")
 
     class Meta:
         ordering = ["name"]
-        unique_together = ["project", "name"]
+        unique_together = ["board", "name"]
 
     def __str__(self):
-        return f"{self.project.name} / {self.name}"
+        return f"{self.board.name} / {self.name}"
 
 
-class ProjectField(models.Model):
-    """Custom field definition scoped to a project (v0.8.0)."""
+class BoardField(models.Model):
+    """Custom field definition scoped to a board."""
 
-    PREFIX = "pfl"
+    PREFIX = "bfl"
 
     class FieldType(models.TextChoices):
         TEXT = "text", "Text"
@@ -242,26 +252,26 @@ class ProjectField(models.Model):
         DATE = "date", "Date"
 
     id = UUIDv7Field()
-    project = models.ForeignKey(
-        Project, on_delete=models.CASCADE, related_name="fields"
+    board = models.ForeignKey(
+        Board, on_delete=models.CASCADE, related_name="fields"
     )
     name = models.CharField(max_length=100)
     type = models.CharField(
         max_length=20, choices=FieldType.choices, default=FieldType.TEXT
     )
-    options = models.JSONField(default=list)  # for select: ["Option A", "Option B"]
+    options = models.JSONField(default=list)
     order = models.PositiveIntegerField(default=0)
 
     class Meta:
         ordering = ["order"]
-        unique_together = ["project", "name"]
+        unique_together = ["board", "name"]
 
     def __str__(self):
-        return f"{self.project.name} / {self.name} ({self.type})"
+        return f"{self.board.name} / {self.name} ({self.type})"
 
 
 class TaskFieldValue(models.Model):
-    """Per-task value for a custom field (v0.8.0)."""
+    """Per-task value for a custom board field."""
 
     PREFIX = "pfv"
     id = UUIDv7Field()
@@ -269,7 +279,7 @@ class TaskFieldValue(models.Model):
         Task, on_delete=models.CASCADE, related_name="field_values"
     )
     field = models.ForeignKey(
-        ProjectField, on_delete=models.CASCADE, related_name="values"
+        BoardField, on_delete=models.CASCADE, related_name="values"
     )
     value = models.TextField(blank=True)
 
@@ -280,90 +290,33 @@ class TaskFieldValue(models.Model):
         return f"{self.task.title} / {self.field.name}: {self.value}"
 
 
-class Board(models.Model):
-    """A named view over a project's tasks (v2.2.0). Tasks belong to Project; boards are lenses."""
-
-    PREFIX = "brd"
-
-    class BoardType(models.TextChoices):
-        KANBAN = "kanban", "Kanban"
-        SCRUM = "scrum", "Scrum"
-        LIST = "list", "List"
-        TIMELINE = "timeline", "Timeline"
-        CALENDAR = "calendar", "Calendar"
-
-    class Visibility(models.TextChoices):
-        PUBLIC = "public", "Workspace Public"
-        PRIVATE = "private", "Private (only you)"
-        SECRET = "secret", "Secret (invite only)"
-
-    id = UUIDv7Field()
-    project = models.ForeignKey(
-        Project, on_delete=models.CASCADE, related_name="boards"
-    )
-    name = models.CharField(max_length=100)
-    description = models.TextField(blank=True)
-    board_type = models.CharField(
-        max_length=20, choices=BoardType.choices, default=BoardType.KANBAN
-    )
-    is_default = models.BooleanField(default=False)
-    visibility = models.CharField(
-        max_length=20, choices=Visibility.choices, default=Visibility.PUBLIC
-    )
-    config = models.JSONField(default=dict)  # {wip_limits, swimlane_by, column_order}
-    order = models.PositiveIntegerField(default=0)
-    is_archived = models.BooleanField(default=False)
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name="created_boards",
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ["order", "id"]
-
-    def __str__(self):
-        return f"{self.project.name} / {self.name}"
-
-
 class SavedView(models.Model):
-    """Named filter preset per project per user (v0.8.0). Extended in v3.2.0."""
+    """Named filter preset per board per user."""
 
     PREFIX = "svw"
     id = UUIDv7Field()
-    project = models.ForeignKey(
-        Project, on_delete=models.CASCADE, related_name="saved_views"
-    )
     board = models.ForeignKey(
-        "Board",
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="saved_views",
+        Board, on_delete=models.CASCADE, related_name="saved_views"
     )
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="saved_views"
     )
     name = models.CharField(max_length=100)
     filters = models.JSONField(default=dict)
-    # v3.2.0 — search alerts
     is_workspace_scoped = models.BooleanField(default=False)
     alert_enabled = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["name"]
-        unique_together = ["project", "user", "name"]
+        unique_together = ["board", "user", "name"]
 
     def __str__(self):
-        return f"{self.project.name} / {self.user.email} / {self.name}"
+        return f"{self.board.name} / {self.user.email} / {self.name}"
 
 
 class Sprint(models.Model):
-    """Time-boxed work cycle per project (v0.9.0)."""
+    """Time-boxed work cycle per board."""
 
     PREFIX = "spr"
 
@@ -373,8 +326,8 @@ class Sprint(models.Model):
         COMPLETED = "completed", "Completed"
 
     id = UUIDv7Field()
-    project = models.ForeignKey(
-        Project, on_delete=models.CASCADE, related_name="sprints"
+    board = models.ForeignKey(
+        Board, on_delete=models.CASCADE, related_name="sprints"
     )
     name = models.CharField(max_length=255)
     goal = models.TextField(blank=True)
@@ -389,18 +342,18 @@ class Sprint(models.Model):
         ordering = ["-id"]
 
     def __str__(self):
-        return f"{self.project.name} / {self.name}"
+        return f"{self.board.name} / {self.name}"
 
 
 class TaskAttachment(models.Model):
-    """File attached to a task (v1.2.0)."""
+    """File attached to a task."""
 
     PREFIX = "att"
     id = UUIDv7Field()
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="attachments")
     file = models.FileField(upload_to="task_attachments/%Y/%m/")
     original_name = models.CharField(max_length=255)
-    file_size = models.PositiveIntegerField()  # bytes
+    file_size = models.PositiveIntegerField()
     mime_type = models.CharField(max_length=100, blank=True)
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True
@@ -415,7 +368,7 @@ class TaskAttachment(models.Model):
 
 
 class TaskDependency(models.Model):
-    """Task relationships — blocks/blocked_by + extended relation types (v2.4.0)."""
+    """Task relationships — blocks/blocked_by + extended relation types."""
 
     PREFIX = "dep"
 
@@ -468,7 +421,7 @@ class TaskActivity(models.Model):
         related_name="task_activities",
     )
     verb = models.CharField(max_length=30, choices=Verb.choices)
-    meta = models.JSONField(default=dict)  # {"from": "Backlog", "to": "In Progress"}
+    meta = models.JSONField(default=dict)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -481,79 +434,40 @@ class TaskActivity(models.Model):
         return f"{self.actor} {self.verb} on {self.task}"
 
 
-# ── v2.1.0 — Access Control ───────────────────────────────────────────────────
-class ProjectMember(models.Model):
-    """Project-level role override — takes precedence over (or further restricts) workspace role."""
+class BoardMember(models.Model):
+    """Board-level role override — takes precedence over workspace role."""
 
-    PREFIX = "prm"
+    PREFIX = "bom"
 
     class Role(models.TextChoices):
         ADMIN = "admin", "Admin"
         EDITOR = "editor", "Editor"
         VIEWER = "viewer", "Viewer"
-        GUEST = "guest", "Guest"
 
     id = UUIDv7Field()
-    project = models.ForeignKey(
-        Project, on_delete=models.CASCADE, related_name="project_members"
+    board = models.ForeignKey(
+        Board, on_delete=models.CASCADE, related_name="board_members"
     )
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name="project_memberships",
+        related_name="board_memberships",
     )
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.VIEWER)
     added_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
-        related_name="added_project_members",
+        related_name="added_board_members",
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ["project", "user"]
+        unique_together = ["board", "user"]
         ordering = ["id"]
 
     def __str__(self):
-        return f"{self.user.email} → {self.project.name} ({self.role})"
-
-
-class GuestToken(models.Model):
-    """Time-limited read-only shareable link to a project."""
-
-    PREFIX = "gtk"
-    EXPIRY_CHOICES = [(7, "7 days"), (14, "14 days"), (30, "30 days")]
-
-    id = UUIDv7Field()
-    project = models.ForeignKey(
-        Project, on_delete=models.CASCADE, related_name="guest_tokens"
-    )
-    token = models.UUIDField(default=uuid.uuid4, unique=True)
-    label = models.CharField(max_length=100, blank=True)
-    expires_at = models.DateTimeField()
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name="created_guest_tokens",
-    )
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ["-id"]
-
-    def is_expired(self):
-        from django.utils import timezone
-
-        return timezone.now() > self.expires_at
-
-    def __str__(self):
-        return f"GuestToken for {self.project.name} (expires {self.expires_at.date()})"
-
-
-# ── v2.4.0 — Task Templates ───────────────────────────────────────────────────
+        return f"{self.user.email} → {self.board.name} ({self.role})"
 
 
 class TaskTemplate(models.Model):
@@ -561,8 +475,8 @@ class TaskTemplate(models.Model):
 
     PREFIX = "ttm"
     id = UUIDv7Field()
-    project = models.ForeignKey(
-        Project, on_delete=models.CASCADE, related_name="task_templates"
+    board = models.ForeignKey(
+        Board, on_delete=models.CASCADE, related_name="task_templates"
     )
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
@@ -572,7 +486,6 @@ class TaskTemplate(models.Model):
     priority = models.CharField(
         max_length=20, choices=Task.Priority.choices, default=Task.Priority.NO_PRIORITY
     )
-    # subtasks stored as JSON list of {title, order}
     default_subtasks = models.JSONField(default=list)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -584,22 +497,19 @@ class TaskTemplate(models.Model):
 
     class Meta:
         ordering = ["name"]
-        unique_together = ["project", "name"]
+        unique_together = ["board", "name"]
 
     def __str__(self):
-        return f"{self.project.name} / {self.name}"
-
-
-# ── v2.5.0 — Wiki & Documents ─────────────────────────────────────────────────
+        return f"{self.board.name} / {self.name}"
 
 
 class WikiPage(models.Model):
-    """Project-scoped wiki page with parent hierarchy and version history."""
+    """Board-scoped wiki page with parent hierarchy and version history."""
 
     PREFIX = "wkp"
     id = UUIDv7Field()
-    project = models.ForeignKey(
-        Project, on_delete=models.CASCADE, related_name="wiki_pages"
+    board = models.ForeignKey(
+        Board, on_delete=models.CASCADE, related_name="wiki_pages"
     )
     parent = models.ForeignKey(
         "self",
@@ -610,7 +520,7 @@ class WikiPage(models.Model):
     )
     title = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255)
-    content = models.TextField(blank=True)  # stored as markdown
+    content = models.TextField(blank=True)
     is_public = models.BooleanField(default=False)
     order = models.PositiveIntegerField(default=0)
     created_by = models.ForeignKey(
@@ -624,10 +534,10 @@ class WikiPage(models.Model):
 
     class Meta:
         ordering = ["order", "title"]
-        unique_together = ["project", "slug"]
+        unique_together = ["board", "slug"]
 
     def __str__(self):
-        return f"{self.project.name} / {self.title}"
+        return f"{self.board.name} / {self.title}"
 
 
 class WikiRevision(models.Model):
@@ -664,7 +574,7 @@ class Document(models.Model):
         Workspace, on_delete=models.CASCADE, related_name="documents"
     )
     title = models.CharField(max_length=255)
-    content = models.TextField(blank=True)  # stored as markdown
+    content = models.TextField(blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -681,19 +591,16 @@ class Document(models.Model):
         return f"{self.workspace.name} / {self.title}"
 
 
-# ── v2.6.0 — Forms & Intake ───────────────────────────────────────────────────
 class Form(models.Model):
-    """Project-scoped intake form that creates tasks from submissions."""
+    """Board-scoped intake form that creates tasks from submissions."""
 
     PREFIX = "frm"
     id = UUIDv7Field()
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="forms")
+    board = models.ForeignKey(Board, on_delete=models.CASCADE, related_name="forms")
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
-    # Public token — embedded in the share URL, no auth required
     token = models.UUIDField(default=uuid.uuid4, unique=True)
-    # JSONField config: {success_message, redirect_url, create_task, default_status_id, default_assignee_id}
     config = models.JSONField(default=dict)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -708,7 +615,7 @@ class Form(models.Model):
         ordering = ["-id"]
 
     def __str__(self):
-        return f"{self.project.name} / {self.name}"
+        return f"{self.board.name} / {self.name}"
 
 
 class FormField(models.Model):
@@ -734,7 +641,7 @@ class FormField(models.Model):
     )
     placeholder = models.CharField(max_length=255, blank=True)
     is_required = models.BooleanField(default=False)
-    options = models.JSONField(default=list)  # for dropdown/multiselect
+    options = models.JSONField(default=list)
     order = models.PositiveIntegerField(default=0)
 
     class Meta:
@@ -756,7 +663,7 @@ class FormSubmission(models.Model):
 
     id = UUIDv7Field()
     form = models.ForeignKey(Form, on_delete=models.CASCADE, related_name="submissions")
-    answers = models.JSONField(default=dict)  # {field_id: value}
+    answers = models.JSONField(default=dict)
     submitter_email = models.EmailField(blank=True)
     task = models.OneToOneField(
         Task,
@@ -775,25 +682,19 @@ class FormSubmission(models.Model):
         return f"Submission to {self.form.name} at {self.submitted_at}"
 
 
-# ── v2.7.0 — Automation Engine ────────────────────────────────────────────────
-
-
 class AutomationRule(models.Model):
     """No-code automation rule: when trigger + conditions → run actions."""
 
     PREFIX = "rul"
     id = UUIDv7Field()
-    project = models.ForeignKey(
-        Project, on_delete=models.CASCADE, related_name="automation_rules"
+    board = models.ForeignKey(
+        Board, on_delete=models.CASCADE, related_name="automation_rules"
     )
     name = models.CharField(max_length=255)
     is_active = models.BooleanField(default=True)
     fire_count = models.PositiveIntegerField(default=0)
-    # Trigger: {type: "task.created" | "task.status_changed" | "task.assigned" | "task.overdue"}
     trigger = models.JSONField(default=dict)
-    # Conditions: [{field, operator, value}]
     conditions = models.JSONField(default=list)
-    # Actions: [{type, payload}]
     actions = models.JSONField(default=list)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -808,7 +709,7 @@ class AutomationRule(models.Model):
         ordering = ["-id"]
 
     def __str__(self):
-        return f"{self.project.name} / {self.name}"
+        return f"{self.board.name} / {self.name}"
 
 
 class AutomationLog(models.Model):
@@ -852,56 +753,9 @@ class AutomationLog(models.Model):
         return f"{self.rule.name} → {self.exec_status} at {self.created_at}"
 
 
-# ── v2.8.0 — Time Tracking ────────────────────────────────────────────────────
-
-
-class TimeEntry(models.Model):
-    """One unit of logged time against a task — either timer-based or manual."""
-
-    PREFIX = "ten"
-    id = UUIDv7Field()
-    task = models.ForeignKey(
-        Task, on_delete=models.CASCADE, related_name="time_entries"
-    )
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="time_entries"
-    )
-    description = models.CharField(max_length=500, blank=True)
-    start_at = models.DateTimeField(null=True, blank=True)  # null = manual entry
-    end_at = models.DateTimeField(null=True, blank=True)  # null = timer still running
-    duration_seconds = models.PositiveIntegerField(
-        default=0
-    )  # 0 while running; set on stop
-    is_billable = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ["-id"]
-        indexes = [
-            models.Index(fields=["task", "user"], name="timeentry_task_user_idx"),
-            models.Index(fields=["user", "start_at"], name="timeentry_user_start_idx"),
-        ]
-
-    @property
-    def is_running(self):
-        return self.start_at is not None and self.end_at is None
-
-    def stop(self):
-        from django.utils import timezone
-
-        self.end_at = timezone.now()
-        self.duration_seconds = int((self.end_at - self.start_at).total_seconds())
-        self.save(update_fields=["end_at", "duration_seconds"])
-
-    def __str__(self):
-        return f"{self.user.email} — {self.task.title} ({self.duration_seconds}s)"
-
-
-# ── v3.8.0 — OKR & Goal Tracking ─────────────────────────────────────────────
-
 
 class Objective(models.Model):
-    """A goal — workspace or project-scoped, optionally nested for org rollup."""
+    """A goal — workspace or board-scoped, optionally nested for org rollup."""
 
     PREFIX = "obj"
 
@@ -917,8 +771,8 @@ class Objective(models.Model):
     workspace = models.ForeignKey(
         Workspace, on_delete=models.CASCADE, related_name="objectives"
     )
-    project = models.ForeignKey(
-        Project,
+    board = models.ForeignKey(
+        Board,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -952,7 +806,6 @@ class Objective(models.Model):
 
     @property
     def progress(self):
-        """Weighted average of all key result completions (0–100)."""
         krs = list(self.key_results.all())
         if not krs:
             return 0
@@ -960,9 +813,7 @@ class Objective(models.Model):
 
     @property
     def confidence(self):
-        """on_track / at_risk / off_track based on progress vs time elapsed."""
         from django.utils import timezone
-
         p = self.progress
         if not (self.start_date and self.end_date):
             return "on_track" if p >= 70 else "at_risk" if p >= 40 else "off_track"
@@ -998,7 +849,6 @@ class KeyResult(models.Model):
 
     @property
     def progress(self):
-        """0–100 — done tasks / total linked tasks."""
         total = self.tasks.count()
         if total == 0:
             return 0
@@ -1007,9 +857,6 @@ class KeyResult(models.Model):
 
     def __str__(self):
         return f"{self.objective.title} / {self.title}"
-
-
-# ── v3.6.0 — Approval Workflows ──────────────────────────────────────────────
 
 
 class Approval(models.Model):
@@ -1042,7 +889,6 @@ class Approval(models.Model):
         ordering = ["-id"]
 
     def recompute_status(self):
-        """Aggregate reviewer verdicts → update overall status."""
         statuses = list(self.reviewers.values_list("status", flat=True))
         if not statuses:
             return
@@ -1094,7 +940,6 @@ class ApprovalReviewer(models.Model):
         return f"{self.user.email} → {self.approval_id} ({self.status})"
 
 
-# ── v3.5.0 — Real-Time Collaboration v2 ──────────────────────────────────────
 class UserPresence(models.Model):
     """Tracks which resource a user is currently viewing (updated every 30s)."""
 
@@ -1102,7 +947,6 @@ class UserPresence(models.Model):
 
     class ResourceType(models.TextChoices):
         TASK = "task", "Task"
-        PROJECT = "project", "Project"
         BOARD = "board", "Board"
 
     id = UUIDv7Field()
@@ -1159,8 +1003,8 @@ class AuditEvent(models.Model):
         null=True,
         related_name="audit_events",
     )
-    action = models.CharField(max_length=64)  # e.g. "project_member.added"
-    resource_type = models.CharField(max_length=64)  # e.g. "project_member"
+    action = models.CharField(max_length=64)
+    resource_type = models.CharField(max_length=64)
     resource_id = models.CharField(max_length=100)
     before = models.JSONField(default=dict)
     after = models.JSONField(default=dict)
@@ -1169,10 +1013,9 @@ class AuditEvent(models.Model):
     class Meta:
         ordering = ["-id"]
         indexes = [
-            models.Index(fields=["workspace", "created_at"], name="auditevent_workspace_created_idx"),
-            models.Index(fields=["workspace", "resource_type"], name="auditevent_workspace_restype_idx"),
+            models.Index(fields=["workspace", "created_at"], name="ae_workspace_created_idx"),
+            models.Index(fields=["workspace", "resource_type"], name="ae_workspace_restype_idx"),
         ]
 
     def __str__(self):
         return f"{self.actor} — {self.action} at {self.created_at}"
-

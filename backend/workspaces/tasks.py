@@ -34,7 +34,8 @@ from django.db import transaction
 from django.utils import timezone
 from .models import Webhook, WebhookDelivery
 from core.constants import DEFAULT_TASK_STATUSES
-from projects.models import Project, Task, TaskStatus, Label
+from core.fields import format_id
+from projects.models import Board, Task, TaskStatus, Label
 
 from django.contrib.auth import get_user_model
 
@@ -166,11 +167,11 @@ def _chunked(iterable, size: int):
         yield chunk
 
 
-def _ensure_import_statuses(project, TaskStatus) -> None:
-    existing = set(project.statuses.values_list("name", flat=True))
+def _ensure_import_statuses(board, TaskStatus) -> None:
+    existing = set(board.statuses.values_list("name", flat=True))
     TaskStatus.objects.bulk_create(
         [
-            TaskStatus(project=project, **s)
+            TaskStatus(board=board, **s)
             for s in DEFAULT_TASK_STATUSES
             if s["name"] not in existing
         ],
@@ -179,7 +180,7 @@ def _ensure_import_statuses(project, TaskStatus) -> None:
 
 
 def _broadcast_import(
-    workspace_slug,
+    workspace_id,
     job_id,
     status,
     progress_pct,
@@ -192,7 +193,7 @@ def _broadcast_import(
     try:
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
-            f"workspace_{workspace_slug}",
+            f"workspace_{workspace_id}",
             {
                 "type": "workspace.event",
                 "data": {
@@ -228,12 +229,12 @@ def run_import(self, job_id):
     # 2. Set status to importing and notify frontend via WebSockets
     _initialize_job_status(job)
 
-    # 3. Set up Project, Status maps, and User maps
-    project, status_map, user_map = _prepare_import_environment(job)
+    # 3. Set up Board, Status maps, and User maps
+    board, status_map, user_map = _prepare_import_environment(job)
 
     # 4. Process all rows in atomic chunks
     imported_ids, skipped, errors = _process_import_rows(
-        job, project, status_map, user_map
+        job, board, status_map, user_map
     )
 
     # 5. Finalize database records and send completion broadcast
@@ -245,23 +246,23 @@ def _initialize_job_status(job):
     """Updates database and triggers the initial 'started' WebSocket notification."""
     job.status = ImportJob.Status.IMPORTING
     job.save(update_fields=["status"])
-    _broadcast_import(job.workspace.slug, job.id, "importing", 0)
+    _broadcast_import(format_id(job.workspace.PREFIX, job.workspace.id), job.id, "importing", 0)
 
 
 def _prepare_import_environment(job):
-    """Pre-fetches lookups and sets up project to eliminate N+1 DB operations."""
+    """Pre-fetches lookups and sets up board to eliminate N+1 DB operations."""
     User = get_user_model()
 
-    project, _ = Project.objects.get_or_create(
+    board, _ = Board.objects.get_or_create(
         workspace=job.workspace,
         name=f"Imported from {job.get_source_display()}",
         defaults={"created_by": job.created_by},
     )
 
-    _ensure_import_statuses(project, TaskStatus)
+    _ensure_import_statuses(board, TaskStatus)
 
     # Generate high-speed dictionaries/lookups in server RAM
-    status_map = {s.name.lower(): s for s in project.statuses.all()}
+    status_map = {s.name.lower(): s for s in board.statuses.all()}
     user_map = {
         u.email.lower(): u
         for u in User.objects.filter(workspace_memberships__workspace=job.workspace)
@@ -271,13 +272,13 @@ def _prepare_import_environment(job):
     job.total_count = len(job.parsed_rows)
     job.save(update_fields=["total_count"])
 
-    return project, status_map, user_map
+    return board, status_map, user_map
 
 
-def _process_import_rows(job, project, status_map, user_map):
+def _process_import_rows(job, board, status_map, user_map):
     """Loops through rows using chunking strategies and returns operational metrics."""
     existing_titles = set(
-        Task.objects.filter(project=project).values_list("title", flat=True)
+        Task.objects.filter(board=board).values_list("title", flat=True)
     )
 
     imported_ids = []
@@ -301,7 +302,7 @@ def _process_import_rows(job, project, status_map, user_map):
                     skipped += 1
                     continue
 
-                task = _build_task_instance(pt, project, status_map, user_map, job)
+                task = _build_task_instance(pt, board, status_map, user_map, job)
                 if pt.labels:
                     label_map.append((len(pending_tasks), pt.labels))
 
@@ -315,7 +316,7 @@ def _process_import_rows(job, project, status_map, user_map):
         # Step B: Write this chunk to the database inside a transaction block
         if pending_tasks:
             chunk_success = _execute_bulk_insert(
-                pending_tasks, label_map, project, existing_titles, imported_ids
+                pending_tasks, label_map, board, existing_titles, imported_ids
             )
             if not chunk_success:
                 skipped += len(pending_tasks)
@@ -337,15 +338,15 @@ def _process_import_rows(job, project, status_map, user_map):
     return imported_ids, skipped, errors
 
 
-def _build_task_instance(pt, project, status_map, user_map, job):
+def _build_task_instance(pt, board, status_map, user_map, job):
     """Maps custom parsed dictionary keys onto a clean Django Task model instance."""
     status_obj = (
         status_map.get(pt.status_name.lower())
         or status_map.get("backlog")
-        or project.statuses.order_by("order").first()
+        or board.statuses.order_by("order").first()
     )
     return Task(
-        project=project,
+        board=board,
         title=pt.title,
         description=pt.description,
         status=status_obj,
@@ -360,7 +361,7 @@ def _build_task_instance(pt, project, status_map, user_map, job):
 
 
 def _execute_bulk_insert(
-    pending_tasks, label_map, project, existing_titles, imported_ids
+    pending_tasks, label_map, board, existing_titles, imported_ids
 ):
     """Executes atomic SQL multi-table bulk writes. Returns False if aborted."""
     LabelThrough = Task.labels.through
@@ -374,7 +375,7 @@ def _execute_bulk_insert(
                 label_objs = {}
                 for name in all_label_names:
                     lbl, _ = Label.objects.get_or_create(
-                        project=project,
+                        board=board,
                         name=name[:50],
                         defaults={"color": "#94a3b8"},
                     )
@@ -409,7 +410,7 @@ def _save_and_broadcast_progress(job, pct, imported_count, skipped, total):
     job.save(update_fields=["progress_pct", "imported_count", "skipped_count"])
 
     _broadcast_import(
-        job.workspace.slug,
+        format_id(job.workspace.PREFIX, job.workspace.id),
         job.id,
         "importing",
         pct,
@@ -431,7 +432,7 @@ def _finalize_job_status(job, imported_ids, skipped, errors):
     job.save()
 
     _broadcast_import(
-        job.workspace.slug,
+        format_id(job.workspace.PREFIX, job.workspace.id),
         job.id,
         "complete",
         100,

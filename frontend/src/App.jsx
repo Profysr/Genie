@@ -28,7 +28,6 @@ const AutomationsPage = lazy(() => import("@/pages/projects/AutomationsPage"));
 // ── Workspace pages ───────────────────────────────────────────────────────────
 const DashboardsPage = lazy(() => import("@/pages/workspace/DashboardsPage"));
 const AnalyticsPage = lazy(() => import("@/pages/workspace/AnalyticsPage"));
-const TimesheetsPage = lazy(() => import("@/pages/workspace/TimesheetsPage"));
 const GoalsPage = lazy(() => import("@/pages/workspace/GoalsPage"));
 const MyWorkPage = lazy(() => import("@/pages/workspace/MyWorkPage"));
 const MembersPage = lazy(() => import("@/pages/workspace/MembersPage"));
@@ -118,7 +117,6 @@ export default function App() {
             <Route path="roadmap" element={<RoadmapPage />} />
             <Route path="dashboards" element={<DashboardsPage />} />
             <Route path="analytics" element={<AnalyticsPage />} />
-            <Route path="timesheets" element={<TimesheetsPage />} />
             <Route path="goals" element={<GoalsPage />} />
             <Route path="my-work" element={<MyWorkPage />} />
             <Route path="members" element={<MembersPage />} />

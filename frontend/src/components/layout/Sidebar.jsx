@@ -6,12 +6,10 @@ import {
   Search,
   Plus,
   Check,
-  Square,
 } from "lucide-react";
 import { resolvedNavGroups, workspaceUrl } from "@/lib/navLinks";
 import { useInboxUnreadCount } from "@/hooks/useInbox";
 import { useWorkspaces } from "@/hooks/useWorkspace";
-import { useActiveTimer, useStopTimer } from "@/hooks/useTimeTracking";
 import UserPanel from "@/components/layout/UserPanel";
 
 export default function Sidebar({
@@ -26,8 +24,6 @@ export default function Sidebar({
   onDisableFocus,
   onLogout,
 }) {
-  const { data: activeTimer } = useActiveTimer(workspaceSlug);
-  const stopTimer = useStopTimer(workspaceSlug);
   const inboxUnread = useInboxUnreadCount(workspaceSlug);
 
   const navGroups = resolvedNavGroups().map((group) => ({
@@ -104,28 +100,6 @@ export default function Sidebar({
           </div>
         ))}
       </nav>
-
-      {/* Active timer strip — v2.8.0 */}
-      {activeTimer && (
-        <div className="mx-3 mb-1 flex items-center gap-2 px-2.5 py-2 rounded-lg bg-red-500/10 border border-red-500/20">
-          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-red-600 leading-none">
-              Timer running
-            </p>
-            <p className="text-[10px] text-muted-foreground truncate mt-0.5">
-              {activeTimer.task_title || "Task"}
-            </p>
-          </div>
-          <button
-            onClick={() => stopTimer.mutate()}
-            className="p-1 rounded text-red-500 hover:bg-red-500/20 transition-colors flex-shrink-0"
-            title="Stop timer"
-          >
-            <Square className="w-3 h-3 fill-current" />
-          </button>
-        </div>
-      )}
 
       {/* User panel */}
       <UserPanel

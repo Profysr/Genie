@@ -19,9 +19,6 @@ import {
   Layers,
   Copy,
   GitBranch,
-  Timer,
-  Square,
-  Clock,
   ShieldCheck,
   XCircle,
   RotateCcw,
@@ -64,15 +61,6 @@ import {
   useCloneTask,
 } from "@/hooks/useTaskHierarchy";
 import { useTasks } from "@/hooks/useTasks";
-import {
-  useTimeEntries,
-  useAddTimeEntry,
-  useDeleteTimeEntry,
-  useStartTimer,
-  useStopTimer,
-  useActiveTimer,
-  formatDuration,
-} from "@/hooks/useTimeTracking";
 import { useAnnouncePresence, usePresence } from "@/hooks/usePresence";
 import { useToggleReaction } from "@/hooks/useCommentReactions";
 import {
@@ -128,24 +116,6 @@ export default function TaskDetailPanel({
   const { data: allTasks = [] } = useTasks(workspaceSlug, projectId);
   const { toast } = useToast();
 
-  // v2.8.0 — time tracking
-  const { data: timeEntries = [] } = useTimeEntries(
-    workspaceSlug,
-    projectId,
-    taskId,
-  );
-  const { data: activeTimer } = useActiveTimer(workspaceSlug);
-  const startTimer = useStartTimer(workspaceSlug, projectId, taskId);
-  const stopTimer = useStopTimer(workspaceSlug);
-  const addEntry = useAddTimeEntry(workspaceSlug, projectId, taskId);
-  const deleteEntry = useDeleteTimeEntry(workspaceSlug, projectId, taskId);
-
-  const isTimerRunningOnThisTask = activeTimer?.task === taskId;
-  const totalLogged = timeEntries.reduce(
-    (s, e) => s + (e.duration_seconds || 0),
-    0,
-  );
-
   // v3.6.0 — approvals
   const { data: approvals = [] } = useApprovals(
     workspaceSlug,
@@ -178,9 +148,6 @@ export default function TaskDetailPanel({
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const [childrenOpen, setChildrenOpen] = useState(true);
-  const [manualLogOpen, setManualLogOpen] = useState(false);
-  const [manualMinutes, setManualMinutes] = useState("");
-  const [manualDesc, setManualDesc] = useState("");
   const [activityTab, setActivityTab] = useState("comments"); // "comments" | "activity"
   const [commentFocused, setCommentFocused] = useState(false);
   const [confirmState, setConfirmState] = useState(null);
@@ -377,31 +344,6 @@ export default function TaskDetailPanel({
                 )}
               </div>
             )}
-
-            {/* Timer button */}
-            <Tooltip
-              content={isTimerRunningOnThisTask ? "Stop timer" : "Start timer"}
-            >
-              <button
-                onClick={() =>
-                  isTimerRunningOnThisTask
-                    ? stopTimer.mutate()
-                    : startTimer.mutate()
-                }
-                className={cn(
-                  "p-1.5 rounded-md transition-colors active:scale-[0.97]",
-                  isTimerRunningOnThisTask
-                    ? "bg-red-500/15 text-red-500 hover:bg-red-500/25"
-                    : "bg-accent/60 text-foreground/70 hover:text-foreground hover:bg-accent",
-                )}
-              >
-                {isTimerRunningOnThisTask ? (
-                  <Square className="w-3.5 h-3.5 fill-current" />
-                ) : (
-                  <Timer className="w-3.5 h-3.5" />
-                )}
-              </button>
-            </Tooltip>
 
             {canEdit && (
               <Tooltip content="Delete task">
@@ -817,12 +759,6 @@ export default function TaskDetailPanel({
                     count: task.activities?.length,
                   },
                   {
-                    id: "timelog",
-                    icon: Clock,
-                    label: "Time Log",
-                    count: totalLogged > 0 ? formatDuration(totalLogged) : null,
-                  },
-                  {
                     id: "approvals",
                     icon: ShieldCheck,
                     label: "Approvals",
@@ -1104,138 +1040,6 @@ export default function TaskDetailPanel({
                           </div>
                         ))}
                       </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* ── Time Log tab ── */}
-              {activityTab === "timelog" && (
-                <div className="space-y-4">
-                  {/* Active Timer Banner */}
-                  {isTimerRunningOnThisTask && (
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 mb-2">
-                      <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
-                      <span className="text-xs text-red-600 font-medium">
-                        Timer running
-                      </span>
-                      <span className="text-xs text-muted-foreground ml-auto">
-                        started{" "}
-                        {formatDistanceToNow(new Date(activeTimer.start_at), {
-                          addSuffix: true,
-                        })}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Manual Input Dropdown */}
-                  {manualLogOpen && canEdit && (
-                    <div className="rounded-lg border px-3 py-2.5 mb-2 space-y-2">
-                      <div className="grid grid-cols-4 gap-2">
-                        {[15, 30, 60, 120].map((min) => (
-                          <button
-                            key={min}
-                            type="button"
-                            onClick={() => setManualMinutes(String(min))}
-                            className={cn(
-                              "text-xs px-2 py-1.5 rounded border transition-colors",
-                              manualMinutes === String(min)
-                                ? "bg-primary/15 border-primary/30 text-primary font-medium"
-                                : "border-border text-muted-foreground hover:bg-accent",
-                            )}
-                          >
-                            {min < 60 ? `${min}m` : `${min / 60}h`}
-                          </button>
-                        ))}
-                      </div>
-                      <input
-                        type="number"
-                        min="1"
-                        placeholder="Or enter minutes…"
-                        className="w-full text-xs border rounded px-2 py-1.5 bg-background outline-none focus:ring-1 focus:ring-ring"
-                        value={manualMinutes}
-                        onChange={(e) => setManualMinutes(e.target.value)}
-                      />
-                      <input
-                        type="text"
-                        placeholder="Description (optional)"
-                        className="w-full text-xs border rounded px-2 py-1.5 bg-background outline-none focus:ring-1 focus:ring-ring"
-                        value={manualDesc}
-                        onChange={(e) => setManualDesc(e.target.value)}
-                      />
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          className="flex-1 text-xs h-7"
-                          disabled={!manualMinutes || addEntry.isPending}
-                          onClick={() =>
-                            addEntry.mutate(
-                              {
-                                duration_seconds: parseInt(manualMinutes) * 60,
-                                description: manualDesc,
-                              },
-                              {
-                                onSuccess: () => {
-                                  setManualLogOpen(false);
-                                  setManualMinutes("");
-                                  setManualDesc("");
-                                },
-                              },
-                            )
-                          }
-                        >
-                          {addEntry.isPending ? "Saving…" : "Log"}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-xs h-7"
-                          onClick={() => setManualLogOpen(false)}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Time entries historical feed */}
-                  {timeEntries.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-6">
-                      No time logged on this task yet.
-                    </p>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {timeEntries.map((entry) => (
-                        <div
-                          key={entry.id}
-                          className="flex items-center gap-2 group text-xs"
-                        >
-                          <Avatar
-                            name={entry.user?.full_name || entry.user?.email}
-                            size="xs"
-                            className="flex-shrink-0"
-                          />
-                          <span className="font-medium text-foreground">
-                            {formatDuration(entry.duration_seconds)}
-                          </span>
-                          {entry.description && (
-                            <span className="text-muted-foreground truncate flex-1">
-                              {entry.description}
-                            </span>
-                          )}
-                          <span className="text-muted-foreground ml-auto flex-shrink-0">
-                            {format(new Date(entry.created_at), "MMM d")}
-                          </span>
-                          {canEdit && (
-                            <button
-                              onClick={() => deleteEntry.mutate(entry.id)}
-                              className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity ml-2"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
                     </div>
                   )}
                 </div>

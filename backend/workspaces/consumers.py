@@ -1,11 +1,11 @@
 # WorkspaceConsumer — handles the WebSocket connection for a single workspace.
 #
 # How it works:
-#   1. Browser opens a WebSocket to ws://.../ws/workspaces/<slug>/
+#   1. Browser opens a WebSocket to ws://.../ws/workspaces/<workspace_id>/
 #   2. connect() is called — we authenticate the user and verify they're a member,
 #      then subscribe them to two Redis pub/sub groups:
-#        - "workspace_<slug>" → receives events broadcast to everyone in this workspace (e.g. task created, sprint started)
-#        - "user_<id>"        → receives events sent to this specific user only (e.g. personal notifications, inbox items)
+#        - "workspace_<id>" → receives events broadcast to everyone in this workspace (e.g. task created, sprint started)
+#        - "user_<id>"      → receives events sent to this specific user only (e.g. personal notifications, inbox items)
 #   3. When something happens in the app (a task is updated, etc.), Django signals or Celery tasks call channel_layer.group_send() with an event dict. Every connected client in that group receives it immediately via workspace_event() or user_notification().
 #   4. disconnect() removes the client from both groups so they stop receiving messages.
 
@@ -14,12 +14,12 @@
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
-from .models import WorkspaceMember
+from .models import WorkspaceMember, Workspace
+from core.fields import parse_id, format_id
 
 class WorkspaceConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        self.workspace_slug = self.scope["url_route"]["kwargs"]["workspace_slug"]
-        self.redis_group_name = f"workspace_{self.workspace_slug}"
+        workspace_param = self.scope["url_route"]["kwargs"]["workspace_id"]
 
         # Because you wrapped your routing configuration with AuthMiddlewareStack in your asgi.py file, Channels automatically populates self.scope["user"] using Django's standard session cookies
         user = self.scope["user"]
@@ -27,12 +27,15 @@ class WorkspaceConsumer(AsyncWebsocketConsumer):
             await self.close()
             return
 
-        # Reject users who are not members of this workspace
-        is_member = await self.check_membership(user, self.workspace_slug)
-        if not is_member:
+        # Resolve workspace by prefixed ID (wsp_...) or legacy slug
+        workspace = await self.get_workspace(workspace_param, user)
+        if workspace is None:
             await self.close()
             return
 
+        # Use the prefixed workspace ID as the group key so it stays in sync with broadcasts
+        prefixed_id = format_id(workspace.PREFIX, workspace.id)
+        self.redis_group_name = f"workspace_{prefixed_id}"
         self.user_group_name = f"user_{user.id}"
 
         # Subscribe to workspace-wide events (visible to all members)
@@ -43,7 +46,8 @@ class WorkspaceConsumer(AsyncWebsocketConsumer):
 
     async def disconnect(self, close_code):
         # Unsubscribe from both groups so the client stops receiving messages
-        await self.channel_layer.group_discard(self.redis_group_name, self.channel_name)
+        if hasattr(self, "redis_group_name"):
+            await self.channel_layer.group_discard(self.redis_group_name, self.channel_name)
         if hasattr(self, "user_group_name"):
             await self.channel_layer.group_discard(self.user_group_name, self.channel_name)
 
@@ -52,7 +56,7 @@ class WorkspaceConsumer(AsyncWebsocketConsumer):
         pass
 
     async def workspace_event(self, event):
-        # Called when something is sent to the "workspace_<slug>" group.
+        # Called when something is sent to the "workspace_<id>" group.
         # Forwards the payload to the browser as a JSON string.
         await self.send(text_data=json.dumps(event["data"]))
 
@@ -62,8 +66,11 @@ class WorkspaceConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps(event["data"]))
 
     @database_sync_to_async
-    def check_membership(self, user, workspace_slug):
-        # database_sync_to_async wraps this ORM call so it can be awaited without blocking the async event loop
-        return WorkspaceMember.objects.filter(
-            workspace__slug=workspace_slug, user=user
-        ).exists()
+    def get_workspace(self, workspace_param, user):
+        """Look up a workspace by prefixed ID (wsp_...), verifying membership."""
+        try:
+            return Workspace.objects.filter(
+                id=parse_id(workspace_param), members__user=user
+            ).first()
+        except (ValueError, AttributeError):
+            return None

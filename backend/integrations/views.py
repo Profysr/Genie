@@ -57,7 +57,7 @@ def _ensure_default_mapping(ws, platform):
     """Creates a fallback workspace-wide mapping if it does not already exist."""
     IntegrationChannelMapping.objects.get_or_create(
         workspace=ws,
-        project=None,
+        board=None,
         platform=platform,
         defaults={
             "notification_format": "detailed",
@@ -250,7 +250,7 @@ class ChannelMappingListCreateView(APIView):
     def get(self, request, workspace_id):
         ws = _get_workspace(workspace_id, request.user)
         qs = IntegrationChannelMapping.objects.filter(workspace=ws).select_related(
-            "project"
+            "board"
         )
 
         platform = request.query_params.get("platform")

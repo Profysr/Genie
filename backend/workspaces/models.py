@@ -9,7 +9,6 @@ class Workspace(models.Model):
     PREFIX = "wsp"
     id = UUIDv7Field()
     name = models.CharField(max_length=255)
-    slug = models.SlugField(unique=True, max_length=255)
     logo = models.ImageField(upload_to="workspace_logos/", null=True, blank=True)
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -124,7 +123,7 @@ class Notification(models.Model):
     )
     meta = models.JSONField(
         default=dict
-    )  # task_id, task_title, project_id, workspace_slug
+    )  # task_id, task_title, project_id, workspace_id
     read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 

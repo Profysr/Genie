@@ -1,6 +1,6 @@
 from django.db import models
 from workspaces.models import Workspace
-from projects.models import Project
+from projects.models import Board
 
 from core.fields import UUIDv7Field
 
@@ -84,9 +84,9 @@ class IntegrationChannelMapping(models.Model):
         on_delete=models.CASCADE,
         related_name="integration_mappings",
     )
-    # null project = workspace-wide fallback mapping
-    project = models.ForeignKey(
-        Project,
+    # null board = workspace-wide fallback mapping
+    board = models.ForeignKey(
+        Board,
         on_delete=models.CASCADE,
         null=True,
         blank=True,
@@ -104,8 +104,8 @@ class IntegrationChannelMapping(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = [["workspace", "project", "platform"]]
+        unique_together = [["workspace", "board", "platform"]]
 
     def __str__(self):
-        proj = self.project.name if self.project else "workspace-wide"
-        return f"{self.platform} mapping: {proj}"
+        target = self.board.name if self.board else "workspace-wide"
+        return f"{self.platform} mapping: {target}"
