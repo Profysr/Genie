@@ -1,54 +1,53 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 
-const tasksKey = (workspaceSlug, projectId) => ["tasks", workspaceSlug, projectId];
+const tasksKey = (workspaceId, boardId) => ["tasks", workspaceId, boardId];
 
-export const useTasks = (workspaceSlug, projectId) =>
+export const useTasks = (workspaceId, boardId) =>
   useQuery({
-    queryKey: tasksKey(workspaceSlug, projectId),
-    queryFn: () => api.get(`/api/workspaces/${workspaceSlug}/projects/${projectId}/tasks/`).then((r) => r.data),
-    enabled: !!workspaceSlug && !!projectId,
+    queryKey: tasksKey(workspaceId, boardId),
+    queryFn: () => api.get(`/api/workspaces/${workspaceId}/boards/${boardId}/tasks/`).then((r) => r.data),
+    enabled: !!workspaceId && !!boardId,
   });
 
-export const useTask = (workspaceSlug, projectId, taskId) =>
+export const useTask = (workspaceId, boardId, taskId) =>
   useQuery({
-    queryKey: ["task", workspaceSlug, projectId, taskId],
-    queryFn: () => api.get(`/api/workspaces/${workspaceSlug}/projects/${projectId}/tasks/${taskId}/`).then((r) => r.data),
+    queryKey: ["task", workspaceId, boardId, taskId],
+    queryFn: () => api.get(`/api/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/`).then((r) => r.data),
     enabled: !!taskId,
   });
 
-export const useCreateTask = (workspaceSlug, projectId) => {
+export const useCreateTask = (workspaceId, boardId) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data) => api.post(`/api/workspaces/${workspaceSlug}/projects/${projectId}/tasks/`, data).then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: tasksKey(workspaceSlug, projectId) }),
+    mutationFn: (data) => api.post(`/api/workspaces/${workspaceId}/boards/${boardId}/tasks/`, data).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: tasksKey(workspaceId, boardId) }),
   });
 };
 
-export const useUpdateTask = (workspaceSlug, projectId) => {
+export const useUpdateTask = (workspaceId, boardId) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ taskId, ...data }) =>
-      api.patch(`/api/workspaces/${workspaceSlug}/projects/${projectId}/tasks/${taskId}/`, data).then((r) => r.data),
+      api.patch(`/api/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/`, data).then((r) => r.data),
     onSuccess: (updated) => {
-      qc.invalidateQueries({ queryKey: tasksKey(workspaceSlug, projectId) });
-      // Refresh any open parent-task panels that list this task as a child
-      qc.invalidateQueries({ queryKey: ["children", workspaceSlug, projectId] });
+      qc.invalidateQueries({ queryKey: tasksKey(workspaceId, boardId) });
+      qc.invalidateQueries({ queryKey: ["children", workspaceId, boardId] });
     },
   });
 };
 
-export const useMoveTask = (workspaceSlug, projectId) => {
+export const useMoveTask = (workspaceId, boardId) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ taskId, status_id, order }) =>
-      api.patch(`/api/workspaces/${workspaceSlug}/projects/${projectId}/tasks/${taskId}/move/`, { status_id, order }).then((r) => r.data),
+      api.patch(`/api/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/move/`, { status_id, order }).then((r) => r.data),
     // Synchronous optimistic update — no await so @hello-pangea/dnd never sees the
     // original position again and the one-frame "snap back" flicker is eliminated.
     onMutate: ({ taskId, status_id, order }) => {
-      qc.cancelQueries({ queryKey: tasksKey(workspaceSlug, projectId) });
-      const prev = qc.getQueryData(tasksKey(workspaceSlug, projectId));
-      qc.setQueryData(tasksKey(workspaceSlug, projectId), (old) =>
+      qc.cancelQueries({ queryKey: tasksKey(workspaceId, boardId) });
+      const prev = qc.getQueryData(tasksKey(workspaceId, boardId));
+      qc.setQueryData(tasksKey(workspaceId, boardId), (old) =>
         old?.map((t) =>
           t.id === taskId
             ? { ...t, status_id, order, status_detail: { ...t.status_detail, id: status_id } }
@@ -59,7 +58,7 @@ export const useMoveTask = (workspaceSlug, projectId) => {
       // Mirror the same optimistic patch into every open children cache so the
       // TaskDetailPanel status dot + label updates at the same instant as the card.
       qc.setQueriesData(
-        { queryKey: ["children", workspaceSlug, projectId], exact: false },
+        { queryKey: ["children", workspaceId, boardId], exact: false },
         (old) =>
           Array.isArray(old)
             ? old.map((c) =>
@@ -73,22 +72,19 @@ export const useMoveTask = (workspaceSlug, projectId) => {
       return { prev };
     },
     onError: (_err, _, ctx) => {
-      qc.setQueryData(tasksKey(workspaceSlug, projectId), ctx.prev);
-      qc.invalidateQueries({ queryKey: ["children", workspaceSlug, projectId] });
-      // Toast for approval gate is shown via onError in KanbanPage.handleDragEnd
+      qc.setQueryData(tasksKey(workspaceId, boardId), ctx.prev);
+      qc.invalidateQueries({ queryKey: ["children", workspaceId, boardId] });
     },
     onSuccess: () => {
-      // Server response has the full status_detail (name + color) — invalidate so
-      // children panels get the accurate label, not just the optimistic id-only patch.
-      qc.invalidateQueries({ queryKey: ["children", workspaceSlug, projectId] });
+      qc.invalidateQueries({ queryKey: ["children", workspaceId, boardId] });
     },
   });
 };
 
-export const useDeleteTask = (workspaceSlug, projectId) => {
+export const useDeleteTask = (workspaceId, boardId) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (taskId) => api.delete(`/api/workspaces/${workspaceSlug}/projects/${projectId}/tasks/${taskId}/`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: tasksKey(workspaceSlug, projectId) }),
+    mutationFn: (taskId) => api.delete(`/api/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: tasksKey(workspaceId, boardId) }),
   });
 };

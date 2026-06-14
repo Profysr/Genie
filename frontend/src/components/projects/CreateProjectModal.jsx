@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
-import { useCreateProject } from "@/hooks/useProjects";
+import { useCreateBoard } from "@/hooks/useProjects";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,11 +8,11 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { X, Loader2 } from "lucide-react";
 
 export default function CreateProjectModal({ open, onClose }) {
-  const { workspaceSlug } = useParams();
+  const { workspaceId } = useParams();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
 
-  const { mutate, isPending, error } = useCreateProject(workspaceSlug);
+  const { mutate, isPending, error } = useCreateBoard(workspaceId);
 
   const handleClose = () => {
     onClose();

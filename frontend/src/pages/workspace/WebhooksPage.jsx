@@ -46,12 +46,12 @@ const ALL_EVENTS = [
 
 // ── Delivery log ──────────────────────────────────────────────────────────────
 
-function DeliveryLog({ workspaceSlug, hookId }) {
+function DeliveryLog({ workspaceId, hookId }) {
   const {
     data: deliveries = [],
     isLoading,
     refetch,
-  } = useWebhookDeliveries(workspaceSlug, hookId);
+  } = useWebhookDeliveries(workspaceId, hookId);
   const [expanded, setExpanded] = useState(null);
 
   return (
@@ -140,14 +140,14 @@ function DeliveryLog({ workspaceSlug, hookId }) {
 }
 
 // ── Webhook row ───────────────────────────────────────────────────────────────
-function WebhookRow({ hook, workspaceSlug }) {
+function WebhookRow({ hook, workspaceId }) {
   const [open, setOpen] = useState(false);
   const [showSecret, setShowSecret] = useState(false);
   const [showLog, setShowLog] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const update = useUpdateWebhook(workspaceSlug);
-  const remove = useDeleteWebhook(workspaceSlug);
-  const test = useTestWebhook(workspaceSlug);
+  const update = useUpdateWebhook(workspaceId);
+  const remove = useDeleteWebhook(workspaceId);
+  const test = useTestWebhook(workspaceId);
   const toast = useToast();
 
   const [form, setForm] = useState({
@@ -246,7 +246,7 @@ function WebhookRow({ hook, workspaceSlug }) {
       {/* Delivery log */}
       {showLog && (
         <div className="border-t border-border px-5 py-4 bg-muted/10">
-          <DeliveryLog workspaceSlug={workspaceSlug} hookId={hook.id} />
+          <DeliveryLog workspaceId={workspaceId} hookId={hook.id} />
         </div>
       )}
 
@@ -405,9 +405,9 @@ function WebhookRow({ hook, workspaceSlug }) {
 const INPUT_CLS =
   "w-full text-sm bg-background border border-border rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-ring";
 
-function CreateWebhookModal({ workspaceSlug, onClose, onCreated }) {
+function CreateWebhookModal({ workspaceId, onClose, onCreated }) {
   const [form, setForm] = useState({ name: "", url: "", events: [] });
-  const create = useCreateWebhook(workspaceSlug);
+  const create = useCreateWebhook(workspaceId);
 
   const submit = () => {
     if (!form.name || !form.url) return;
@@ -531,8 +531,8 @@ function SecretReveal({ secret, onClose }) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 export default function WebhooksPage() {
-  const { workspaceSlug } = useParams();
-  const { data: hooks = [], isLoading } = useWebhooks(workspaceSlug);
+  const { workspaceId } = useParams();
+  const { data: hooks = [], isLoading } = useWebhooks(workspaceId);
   const [showCreate, setShowCreate] = useState(false);
   const [newSecret, setNewSecret] = useState(null);
 
@@ -592,7 +592,7 @@ export default function WebhooksPage() {
         ) : (
           <div className="space-y-4">
             {hooks.map((h) => (
-              <WebhookRow key={h.id} hook={h} workspaceSlug={workspaceSlug} />
+              <WebhookRow key={h.id} hook={h} workspaceId={workspaceId} />
             ))}
           </div>
         )}
@@ -600,7 +600,7 @@ export default function WebhooksPage() {
 
       {showCreate && (
         <CreateWebhookModal
-          workspaceSlug={workspaceSlug}
+          workspaceId={workspaceId}
           onClose={() => setShowCreate(false)}
           onCreated={handleCreated}
         />

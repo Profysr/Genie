@@ -28,13 +28,13 @@ const PRESET_COLORS = [
 export default function BoardSettingsModal({
   open,
   onClose,
-  workspaceSlug,
-  projectId,
+  workspaceId,
+  boardId,
   statuses = [],
 }) {
-  const createStatus = useCreateStatus(workspaceSlug, projectId);
-  const updateStatus = useUpdateStatus(workspaceSlug, projectId);
-  const deleteStatus = useDeleteStatus(workspaceSlug, projectId);
+  const createStatus = useCreateStatus(workspaceId, boardId);
+  const updateStatus = useUpdateStatus(workspaceId, boardId);
+  const deleteStatus = useDeleteStatus(workspaceId, boardId);
 
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState("#6366f1");

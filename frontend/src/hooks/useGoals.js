@@ -1,85 +1,85 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 
-const objectivesKey = (workspaceSlug, timePeriod) =>
-  ["objectives", workspaceSlug, timePeriod].filter(Boolean);
+const objectivesKey = (workspaceId, timePeriod) =>
+  ["objectives", workspaceId, timePeriod].filter(Boolean);
 
 // ── Objectives ────────────────────────────────────────────────────────────────
 
-export function useObjectives(workspaceSlug, timePeriod) {
+export function useObjectives(workspaceId, timePeriod) {
   return useQuery({
-    queryKey: objectivesKey(workspaceSlug, timePeriod),
+    queryKey: objectivesKey(workspaceId, timePeriod),
     queryFn: () =>
       api
-        .get(`/api/workspaces/${workspaceSlug}/objectives/`, {
+        .get(`/api/workspaces/${workspaceId}/objectives/`, {
           params: timePeriod && timePeriod !== "all" ? { time_period: timePeriod } : {},
         })
         .then((r) => r.data),
-    enabled: !!workspaceSlug,
+    enabled: !!workspaceId,
     staleTime: 30_000,
   });
 }
 
-export function useCreateObjective(workspaceSlug) {
+export function useCreateObjective(workspaceId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data) =>
-      api.post(`/api/workspaces/${workspaceSlug}/objectives/`, data).then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["objectives", workspaceSlug] }),
+      api.post(`/api/workspaces/${workspaceId}/objectives/`, data).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["objectives", workspaceId] }),
   });
 }
 
-export function useUpdateObjective(workspaceSlug) {
+export function useUpdateObjective(workspaceId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, ...data }) =>
-      api.patch(`/api/workspaces/${workspaceSlug}/objectives/${id}/`, data).then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["objectives", workspaceSlug] }),
+      api.patch(`/api/workspaces/${workspaceId}/objectives/${id}/`, data).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["objectives", workspaceId] }),
   });
 }
 
-export function useDeleteObjective(workspaceSlug) {
+export function useDeleteObjective(workspaceId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id) =>
-      api.delete(`/api/workspaces/${workspaceSlug}/objectives/${id}/`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["objectives", workspaceSlug] }),
+      api.delete(`/api/workspaces/${workspaceId}/objectives/${id}/`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["objectives", workspaceId] }),
   });
 }
 
 // ── Key Results ───────────────────────────────────────────────────────────────
 
-export function useCreateKeyResult(workspaceSlug, objectiveId) {
+export function useCreateKeyResult(workspaceId, objectiveId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data) =>
       api
-        .post(`/api/workspaces/${workspaceSlug}/objectives/${objectiveId}/key-results/`, data)
+        .post(`/api/workspaces/${workspaceId}/objectives/${objectiveId}/key-results/`, data)
         .then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["objectives", workspaceSlug] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["objectives", workspaceId] }),
   });
 }
 
 
-export function useDeleteKeyResult(workspaceSlug, objectiveId) {
+export function useDeleteKeyResult(workspaceId, objectiveId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (krId) =>
-      api.delete(`/api/workspaces/${workspaceSlug}/objectives/${objectiveId}/key-results/${krId}/`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["objectives", workspaceSlug] }),
+      api.delete(`/api/workspaces/${workspaceId}/objectives/${objectiveId}/key-results/${krId}/`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["objectives", workspaceId] }),
   });
 }
 
-export function useLinkTasks(workspaceSlug, objectiveId, krId) {
+export function useLinkTasks(workspaceId, objectiveId, krId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (taskIds) =>
       api
-        .put(`/api/workspaces/${workspaceSlug}/objectives/${objectiveId}/key-results/${krId}/tasks/`, {
+        .put(`/api/workspaces/${workspaceId}/objectives/${objectiveId}/key-results/${krId}/tasks/`, {
           task_ids: taskIds,
         })
         .then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["objectives", workspaceSlug] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["objectives", workspaceId] }),
   });
 }
 

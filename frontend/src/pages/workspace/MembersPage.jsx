@@ -195,33 +195,33 @@ export function ActiveMemberItem({
    ========================================== */
 
 export default function MembersPage() {
-  const { workspaceSlug } = useParams();
+  const { workspaceId } = useParams();
   const { user } = useAuthStore();
   const qc = useQueryClient();
 
   // Data fetching hooks
-  const { data: members = [], isLoading } = useMembers(workspaceSlug);
-  const { data: workspace } = useWorkspace(workspaceSlug);
+  const { data: members = [], isLoading } = useMembers(workspaceId);
+  const { data: workspace } = useWorkspace(workspaceId);
 
   const { data: pendingInvites = [] } = useQuery({
-    queryKey: ["workspace-invites", workspaceSlug],
+    queryKey: ["workspace-invites", workspaceId],
     queryFn: () =>
       api
-        .get(`/api/workspaces/${workspaceSlug}/invites/pending/`)
+        .get(`/api/workspaces/${workspaceId}/invites/pending/`)
         .then((r) => r.data),
-    enabled: !!workspaceSlug,
+    enabled: !!workspaceId,
   });
 
   // Action Mutation hooks
-  const inviteMember = useInviteMember(workspaceSlug);
-  const updateRole = useUpdateMemberRole(workspaceSlug);
-  const removeMember = useRemoveMember(workspaceSlug);
+  const inviteMember = useInviteMember(workspaceId);
+  const updateRole = useUpdateMemberRole(workspaceId);
+  const removeMember = useRemoveMember(workspaceId);
 
   const cancelInvite = useMutation({
     mutationFn: (token) =>
-      api.delete(`/api/workspaces/${workspaceSlug}/invites/${token}/`),
+      api.delete(`/api/workspaces/${workspaceId}/invites/${token}/`),
     onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["workspace-invites", workspaceSlug] }),
+      qc.invalidateQueries({ queryKey: ["workspace-invites", workspaceId] }),
   });
 
   // Local state configurations
@@ -249,7 +249,7 @@ export default function MembersPage() {
           setInviteSuccess(`Invite sent to ${email}`);
           setEmail("");
           qc.invalidateQueries({
-            queryKey: ["workspace-invites", workspaceSlug],
+            queryKey: ["workspace-invites", workspaceId],
           });
           setTimeout(() => setInviteSuccess(""), 4000);
         },

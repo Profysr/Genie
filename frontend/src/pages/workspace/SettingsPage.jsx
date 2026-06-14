@@ -16,13 +16,13 @@ import {
 import { Link } from "react-router-dom";
 
 export default function SettingsPage() {
-  const { workspaceSlug } = useParams();
+  const { workspaceId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuthStore();
 
-  const { data: workspace, isLoading } = useWorkspace(workspaceSlug);
-  const updateWorkspace = useUpdateWorkspace(workspaceSlug);
-  const deleteWorkspace = useDeleteWorkspace(workspaceSlug);
+  const { data: workspace, isLoading } = useWorkspace(workspaceId);
+  const updateWorkspace = useUpdateWorkspace(workspaceId);
+  const deleteWorkspace = useDeleteWorkspace(workspaceId);
 
   const [form, setForm] = useState({ name: "", description: "" });
   const [saveSuccess, setSaveSuccess] = useState(false);

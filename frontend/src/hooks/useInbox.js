@@ -1,27 +1,27 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 
-export const inboxKey = (workspaceSlug, tab, eventType, limit) =>
-  ["inbox", workspaceSlug, tab, eventType, limit].filter(Boolean);
+export const inboxKey = (workspaceId, tab, eventType, limit) =>
+  ["inbox", workspaceId, tab, eventType, limit].filter(Boolean);
 
 export function useInbox(
-  workspaceSlug,
+  workspaceId,
   { tab = "for_you", eventType, limit = 20, enabled = true } = {},
 ) {
   return useQuery({
-    queryKey: inboxKey(workspaceSlug, tab, eventType, limit),
+    queryKey: inboxKey(workspaceId, tab, eventType, limit),
     queryFn: () =>
       api
         .get("/api/inbox/", {
           params: {
-            workspace: workspaceSlug,
+            workspace: workspaceId,
             tab,
             limit,
             ...(eventType ? { event_type: eventType } : {}),
           },
         })
         .then((r) => r.data),
-    enabled: enabled && !!workspaceSlug,
+    enabled: enabled && !!workspaceId,
     staleTime: 30_000,
   });
 }
@@ -31,41 +31,41 @@ export function useInbox(
  * Uses a dedicated lightweight endpoint so the full inbox list is NOT fetched
  * on load — that list loads lazily only when the notification panel opens.
  */
-export function useInboxUnreadCount(workspaceSlug) {
+export function useInboxUnreadCount(workspaceId) {
   const { data } = useQuery({
-    queryKey: ["inbox-unread-count", workspaceSlug],
+    queryKey: ["inbox-unread-count", workspaceId],
     queryFn: () =>
       api
         .get("/api/inbox/unread-count/", {
-          params: { workspace: workspaceSlug },
+          params: { workspace: workspaceId },
         })
         .then((r) => r.data.count),
-    enabled: !!workspaceSlug,
+    enabled: !!workspaceId,
     staleTime: 30_000,
   });
   return data ?? 0;
 }
 
-export function useUpdateInboxItem(workspaceSlug) {
+export function useUpdateInboxItem(workspaceId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, ...data }) =>
       api.patch(`/api/inbox/${id}/`, data).then((r) => r.data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["inbox", workspaceSlug] });
-      qc.invalidateQueries({ queryKey: ["inbox-unread-count", workspaceSlug] });
+      qc.invalidateQueries({ queryKey: ["inbox", workspaceId] });
+      qc.invalidateQueries({ queryKey: ["inbox-unread-count", workspaceId] });
     },
   });
 }
 
-export function useBulkUpdateInbox(workspaceSlug) {
+export function useBulkUpdateInbox(workspaceId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data) =>
       api.post("/api/inbox/bulk/", data).then((r) => r.data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["inbox", workspaceSlug] });
-      qc.invalidateQueries({ queryKey: ["inbox-unread-count", workspaceSlug] });
+      qc.invalidateQueries({ queryKey: ["inbox", workspaceId] });
+      qc.invalidateQueries({ queryKey: ["inbox-unread-count", workspaceId] });
     },
   });
 }

@@ -12,7 +12,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { APP_COLORS } from "@/lib/constants";
 import { useWorkspace } from "@/hooks/useWorkspace";
-import { useProjects } from "@/hooks/useProjects";
+import { useBoards } from "@/hooks/useProjects";
 import { useObjectives, CONFIDENCE_CONFIG } from "@/hooks/useGoals";
 import { useVelocity, useThroughput } from "@/hooks/useAnalyticsV2";
 import GettingStartedChecklist from "@/components/dashboard/GettingStartedChecklist";
@@ -39,9 +39,9 @@ function StatCard({ label, value, sub, icon: Icon, color }) {
 }
 
 // ── OKR progress (the one working widget, baked in) ──────────────────────────
-function OkrProgress({ workspaceSlug }) {
+function OkrProgress({ workspaceId }) {
   const navigate = useNavigate();
-  const { data: objectives = [] } = useObjectives(workspaceSlug);
+  const { data: objectives = [] } = useObjectives(workspaceId);
   const top = objectives.slice(0, 4);
 
   return (
@@ -49,7 +49,7 @@ function OkrProgress({ workspaceSlug }) {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-semibold">Goals & OKRs</h2>
         <button
-          onClick={() => navigate(`/w/${workspaceSlug}/goals`)}
+          onClick={() => navigate(`/w/${workspaceId}/goals`)}
           className="text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           View all →
@@ -58,7 +58,7 @@ function OkrProgress({ workspaceSlug }) {
 
       {top.length === 0 ? (
         <button
-          onClick={() => navigate(`/w/${workspaceSlug}/goals`)}
+          onClick={() => navigate(`/w/${workspaceId}/goals`)}
           className="w-full text-xs text-muted-foreground hover:text-foreground text-center py-6 transition-colors"
         >
           No goals yet — create your first objective →
@@ -113,8 +113,8 @@ function weekLabel(period) {
   return isNaN(d) ? period : format(d, "MMM d");
 }
 
-function ThroughputCard({ workspaceSlug }) {
-  const { data: throughput = [] } = useThroughput(workspaceSlug, {
+function ThroughputCard({ workspaceId }) {
+  const { data: throughput = [] } = useThroughput(workspaceId, {
     period: "week",
     days: 84,
   });
@@ -199,12 +199,12 @@ function ThroughputCard({ workspaceSlug }) {
 
 // ── Main dashboard ───────────────────────────────────────────────────────────
 export default function DashboardsPage() {
-  const { workspaceSlug } = useParams();
+  const { workspaceId } = useParams();
   const navigate = useNavigate();
 
-  const { data: projects = [] } = useProjects(workspaceSlug);
-  const { data: workspace } = useWorkspace(workspaceSlug);
-  const { data: velocity } = useVelocity(workspaceSlug);
+  const { data: projects = [] } = useBoards(workspaceId);
+  const { data: workspace } = useWorkspace(workspaceId);
+  const { data: velocity } = useVelocity(workspaceId);
 
   const totalTasks = projects.reduce((s, p) => s + (p.task_count || 0), 0);
   const doneTasks = projects.reduce((s, p) => s + (p.done_task_count || 0), 0);
@@ -259,7 +259,7 @@ export default function DashboardsPage() {
       </div>
 
       <div className="p-6 space-y-6">
-        <GettingStartedChecklist workspaceSlug={workspaceSlug} />
+        <GettingStartedChecklist workspaceId={workspaceId} />
 
         {/* Stat cards */}
         <div className="flex flex-wrap gap-4">
@@ -270,8 +270,8 @@ export default function DashboardsPage() {
 
         {/* Analytics row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ThroughputCard workspaceSlug={workspaceSlug} />
-          <OkrProgress workspaceSlug={workspaceSlug} />
+          <ThroughputCard workspaceId={workspaceId} />
+          <OkrProgress workspaceId={workspaceId} />
         </div>
 
         {/* Recent projects */}
@@ -292,7 +292,7 @@ export default function DashboardsPage() {
                   <button
                     key={p.id}
                     onClick={() =>
-                      navigate(`/w/${workspaceSlug}/projects/${p.id}`)
+                      navigate(`/w/${workspaceId}/boards/${p.id}`)
                     }
                     className="text-left bg-card border border-border rounded-md p-4 shadow-card hover:shadow-card-hover transition-shadow"
                   >

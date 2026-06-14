@@ -41,13 +41,13 @@ const FIELD_TYPES = [
 ];
 
 export default function FormsPage() {
-  const { workspaceSlug, projectId } = useParams();
+  const { workspaceId, boardId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const { data: forms = [], isLoading } = useForms(workspaceSlug, projectId);
-  const createForm = useCreateForm(workspaceSlug, projectId);
-  const deleteForm = useDeleteForm(workspaceSlug, projectId);
+  const { data: forms = [], isLoading } = useForms(workspaceId, boardId);
+  const createForm = useCreateForm(workspaceId, boardId);
+  const deleteForm = useDeleteForm(workspaceId, boardId);
 
   const [selectedFormId, setSelectedFormId] = useState(null);
   const [tab, setTab] = useState("builder"); // "builder" | "submissions"
@@ -69,7 +69,7 @@ export default function FormsPage() {
           <div className="flex items-center gap-1.5">
             <button
               onClick={() =>
-                navigate(`/w/${workspaceSlug}/projects/${projectId}`)
+                navigate(`/w/${workspaceId}/boards/${boardId}`)
               }
               className="p-1 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
               title="Back to board"
@@ -125,8 +125,8 @@ export default function FormsPage() {
       {selectedFormId ? (
         <FormEditor
           key={selectedFormId}
-          workspaceSlug={workspaceSlug}
-          projectId={projectId}
+          workspaceId={workspaceId}
+          boardId={boardId}
           formId={selectedFormId}
           onDelete={() => {
             deleteForm.mutate(selectedFormId);
@@ -153,16 +153,16 @@ export default function FormsPage() {
 }
 
 function FormEditor({
-  workspaceSlug,
-  projectId,
+  workspaceId,
+  boardId,
   formId,
   onDelete,
   tab,
   setTab,
 }) {
-  const { data: form, isLoading } = useForm(workspaceSlug, projectId, formId);
-  const updateForm = useUpdateForm(workspaceSlug, projectId, formId);
-  const updateFields = useUpdateFormFields(workspaceSlug, projectId, formId);
+  const { data: form, isLoading } = useForm(workspaceId, boardId, formId);
+  const updateForm = useUpdateForm(workspaceId, boardId, formId);
+  const updateFields = useUpdateFormFields(workspaceId, boardId, formId);
   const { toast } = useToast();
 
   // Local drafts for name + description — only save on blur, not on every keystroke (Fix 3)
@@ -327,8 +327,8 @@ function FormEditor({
           </div>
         ) : (
           <SubmissionsPanel
-            workspaceSlug={workspaceSlug}
-            projectId={projectId}
+            workspaceId={workspaceId}
+            boardId={boardId}
             formId={formId}
             form={form}
           />
@@ -472,15 +472,15 @@ function FieldCard({ field, index, onChange, onFlush, onRemove }) {
   );
 }
 
-function SubmissionsPanel({ workspaceSlug, projectId, formId, form }) {
+function SubmissionsPanel({ workspaceId, boardId, formId, form }) {
   const { data: submissions = [] } = useFormSubmissions(
-    workspaceSlug,
-    projectId,
+    workspaceId,
+    boardId,
     formId,
   );
   const updateStatus = useUpdateSubmissionStatus(
-    workspaceSlug,
-    projectId,
+    workspaceId,
+    boardId,
     formId,
   );
   const [expanded, setExpanded] = useState(null);

@@ -1,11 +1,11 @@
-import { useProject } from "./useProjects";
+import { useBoard } from "./useProjects";
 
 /**
- * Derives the current user's effective role from the project's `my_role` field.
- * No extra request — piggybacks on the project detail already in the cache.
+ * Derives the current user's effective role from the board's `my_role` field.
+ * No extra request — piggybacks on the board detail already in the cache.
  */
-export function useProjectPermissions(workspaceSlug, projectId) {
-  const { data: project, isLoading } = useProject(workspaceSlug, projectId);
+export function useBoardPermissions(workspaceId, boardId) {
+  const { data: project, isLoading } = useBoard(workspaceId, boardId);
 
   const role = project?.my_role ?? null;
 

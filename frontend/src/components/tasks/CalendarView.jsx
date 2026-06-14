@@ -271,8 +271,8 @@ export default function CalendarView({
   statuses = [],
   onTaskClick,
   onCreateTask,
-  workspaceSlug,
-  projectId,
+  workspaceId,
+  boardId,
   canEdit = false,
 }) {
   const [calMode, setCalMode] = useState("month");
@@ -286,7 +286,7 @@ export default function CalendarView({
   const [panelOpen, setPanelOpen] = useState(true);
   const [panelSearch, setPanelSearch] = useState("");
 
-  const updateTask = useUpdateTask(workspaceSlug, projectId);
+  const updateTask = useUpdateTask(workspaceId, boardId);
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 

@@ -1,22 +1,21 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 
-const base = (slug) => `/api/workspaces/${slug}/onboarding/`;
+const base = (workspaceId) => `/api/workspaces/${workspaceId}/onboarding/`;
 
-export function useOnboarding(workspaceSlug) {
+export function useOnboarding(workspaceId) {
   return useQuery({
-    queryKey: ["onboarding", workspaceSlug],
-    queryFn:  () => api.get(base(workspaceSlug)).then((r) => r.data),
-    enabled:  !!workspaceSlug,
+    queryKey: ["onboarding", workspaceId],
+    queryFn:  () => api.get(base(workspaceId)).then((r) => r.data),
+    enabled:  !!workspaceId,
     staleTime: 30_000,
   });
 }
 
-export function useUpdateOnboarding(workspaceSlug) {
+export function useUpdateOnboarding(workspaceId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data) => api.patch(base(workspaceSlug), data).then((r) => r.data),
-    onSuccess:  (data) => qc.setQueryData(["onboarding", workspaceSlug], data),
+    mutationFn: (data) => api.patch(base(workspaceId), data).then((r) => r.data),
+    onSuccess:  (data) => qc.setQueryData(["onboarding", workspaceId], data),
   });
 }
-

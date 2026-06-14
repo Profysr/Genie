@@ -52,11 +52,11 @@ function FormField({ label, children }) {
   );
 }
 
-function NewKeyModal({ workspaceSlug, onClose, onCreated }) {
+function NewKeyModal({ workspaceId, onClose, onCreated }) {
   const [name, setName] = useState("");
   const [scopes, setScopes] = useState(["read"]);
   const [expiryDays, setExpiry] = useState("");
-  const create = useCreateAPIKey(workspaceSlug);
+  const create = useCreateAPIKey(workspaceId);
 
   const toggleScope = (s) =>
     setScopes((prev) =>
@@ -302,9 +302,9 @@ function KeysTable({ keys, onRevoke }) {
 }
 
 export default function APIKeysPage() {
-  const { workspaceSlug } = useParams();
-  const { data: keys = [], isLoading } = useAPIKeys(workspaceSlug);
-  const revoke = useRevokeAPIKey(workspaceSlug);
+  const { workspaceId } = useParams();
+  const { data: keys = [], isLoading } = useAPIKeys(workspaceId);
+  const revoke = useRevokeAPIKey(workspaceId);
   const toast = useToast();
   const [showCreate, setShowCreate] = useState(false);
   const [newRawKey, setNewRawKey] = useState(null);
@@ -372,7 +372,7 @@ export default function APIKeysPage() {
 
       {showCreate && (
         <NewKeyModal
-          workspaceSlug={workspaceSlug}
+          workspaceId={workspaceId}
           onClose={() => setShowCreate(false)}
           onCreated={handleCreated}
         />

@@ -1,64 +1,64 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 
-function approvalsKey(workspaceSlug, projectId, taskId) {
-  return ["approvals", workspaceSlug, projectId, taskId];
+function approvalsKey(workspaceId, boardId, taskId) {
+  return ["approvals", workspaceId, boardId, taskId];
 }
 
-export function useApprovals(workspaceSlug, projectId, taskId) {
+export function useApprovals(workspaceId, boardId, taskId) {
   return useQuery({
-    queryKey: approvalsKey(workspaceSlug, projectId, taskId),
+    queryKey: approvalsKey(workspaceId, boardId, taskId),
     queryFn: () =>
       api
-        .get(`/api/workspaces/${workspaceSlug}/projects/${projectId}/tasks/${taskId}/approvals/`)
+        .get(`/api/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/approvals/`)
         .then((r) => r.data),
-    enabled: !!workspaceSlug && !!projectId && !!taskId,
+    enabled: !!workspaceId && !!boardId && !!taskId,
   });
 }
 
-export function useRequestApproval(workspaceSlug, projectId, taskId) {
+export function useRequestApproval(workspaceId, boardId, taskId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data) =>
       api
         .post(
-          `/api/workspaces/${workspaceSlug}/projects/${projectId}/tasks/${taskId}/approvals/`,
+          `/api/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/approvals/`,
           data,
         )
         .then((r) => r.data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: approvalsKey(workspaceSlug, projectId, taskId) });
+      qc.invalidateQueries({ queryKey: approvalsKey(workspaceId, boardId, taskId) });
     },
   });
 }
 
-export function useResubmitApproval(workspaceSlug, projectId, taskId, approvalId) {
+export function useResubmitApproval(workspaceId, boardId, taskId, approvalId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () =>
       api
         .post(
-          `/api/workspaces/${workspaceSlug}/projects/${projectId}/tasks/${taskId}/approvals/${approvalId}/resubmit/`,
+          `/api/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/approvals/${approvalId}/resubmit/`,
         )
         .then((r) => r.data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: approvalsKey(workspaceSlug, projectId, taskId) });
+      qc.invalidateQueries({ queryKey: approvalsKey(workspaceId, boardId, taskId) });
     },
   });
 }
 
-export function useSubmitReview(workspaceSlug, projectId, taskId, approvalId) {
+export function useSubmitReview(workspaceId, boardId, taskId, approvalId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data) =>
       api
         .post(
-          `/api/workspaces/${workspaceSlug}/projects/${projectId}/tasks/${taskId}/approvals/${approvalId}/review/`,
+          `/api/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/approvals/${approvalId}/review/`,
           data,
         )
         .then((r) => r.data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: approvalsKey(workspaceSlug, projectId, taskId) });
+      qc.invalidateQueries({ queryKey: approvalsKey(workspaceId, boardId, taskId) });
     },
   });
 }

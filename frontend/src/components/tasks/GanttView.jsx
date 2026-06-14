@@ -225,7 +225,7 @@ function computeCriticalPath(tasks) {
 // ── Main component ────────────────────────────────────────────────────────────
 export default function GanttView({
   tasks = [], statuses = [], sprints = [],
-  onTaskClick, workspaceSlug, projectId, canEdit = false,
+  onTaskClick, workspaceId, boardId, canEdit = false,
 }) {
   const [zoom,       setZoom]      = useState("week");
   const [groupBy,    setGroupBy]   = useState("status");
@@ -233,7 +233,7 @@ export default function GanttView({
   // Live drag preview: { taskId, type: "move"|"resize", deltaDays }
   const [dragPreview, setDragPreview] = useState(null);
 
-  const updateTask = useUpdateTask(workspaceSlug, projectId);
+  const updateTask = useUpdateTask(workspaceId, boardId);
   const pxPerDay   = PX[zoom];
 
   const { start: rangeStart, end: baseRangeEnd } = useMemo(() => computeRange(tasks), [tasks]);

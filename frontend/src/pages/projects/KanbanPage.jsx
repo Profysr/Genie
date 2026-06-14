@@ -2,12 +2,12 @@ import { lazy, Suspense, useState, useMemo, useEffect } from "react";
 import { Loader } from "@/components/ui/Loader";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { DragDropContext } from "@hello-pangea/dnd";
-import { useProject } from "@/hooks/useProjects";
+import { useBoard } from "@/hooks/useProjects";
 import { useTasks, useMoveTask, useUpdateTask } from "@/hooks/useTasks";
 import { useLabels, useCreateLabel } from "@/hooks/useLabels";
 import { useMembers } from "@/hooks/useMembers";
 import { useCreateStatus } from "@/hooks/useStatusManagement";
-import { useProjectFields } from "@/hooks/useCustomFields";
+import { useBoardFields } from "@/hooks/useCustomFields";
 import {
   useSavedViews,
   useCreateSavedView,
@@ -15,7 +15,7 @@ import {
 } from "@/hooks/useSavedViews";
 import { useSprints } from "@/hooks/useSprints";
 import { useWorkspaceSocket } from "@/hooks/useWorkspaceSocket";
-import { useProjectPermissions } from "@/hooks/useProjectPermissions";
+import { useBoardPermissions } from "@/hooks/useProjectPermissions";
 import { usePresence, useAnnouncePresence } from "@/hooks/usePresence";
 import { useAuthStore } from "@/store/authStore";
 import { useToast } from "@/components/ui/toast";
@@ -76,10 +76,10 @@ const VIEW_OPTIONS = [
 
 const COLUMN_COLORS = ["#94a3b8", ...APP_COLORS];
 
-function AddColumnButton({ workspaceSlug, projectId }) {
+function AddColumnButton({ workspaceId, boardId }) {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
-  const createStatus = useCreateStatus(workspaceSlug, projectId);
+  const createStatus = useCreateStatus(workspaceId, boardId);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -146,27 +146,27 @@ function AddColumnButton({ workspaceSlug, projectId }) {
 }
 
 export default function KanbanPage() {
-  const { workspaceSlug, projectId } = useParams();
+  const { workspaceId, boardId } = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const { user } = useAuthStore();
   const { toast } = useToast();
-  const { data: project } = useProject(workspaceSlug, projectId);
-  const { data: allTasks = [] } = useTasks(workspaceSlug, projectId);
-  const { data: labels = [] } = useLabels(workspaceSlug, projectId);
-  const { data: members = [] } = useMembers(workspaceSlug);
-  const { data: fields = [] } = useProjectFields(workspaceSlug, projectId);
-  const { data: sprints = [] } = useSprints(workspaceSlug, projectId);
-  const perms = useProjectPermissions(workspaceSlug, projectId);
+  const { data: project } = useBoard(workspaceId, boardId);
+  const { data: allTasks = [] } = useTasks(workspaceId, boardId);
+  const { data: labels = [] } = useLabels(workspaceId, boardId);
+  const { data: members = [] } = useMembers(workspaceId);
+  const { data: fields = [] } = useBoardFields(workspaceId, boardId);
+  const { data: sprints = [] } = useSprints(workspaceId, boardId);
+  const perms = useBoardPermissions(workspaceId, boardId);
 
-  const moveTask = useMoveTask(workspaceSlug, projectId);
-  const updateTask = useUpdateTask(workspaceSlug, projectId);
-  const createLabel = useCreateLabel(workspaceSlug, projectId);
+  const moveTask = useMoveTask(workspaceId, boardId);
+  const updateTask = useUpdateTask(workspaceId, boardId);
+  const createLabel = useCreateLabel(workspaceId, boardId);
 
-  const { data: savedViews = [] } = useSavedViews(workspaceSlug, projectId);
-  const createView = useCreateSavedView(workspaceSlug, projectId);
-  const deleteView = useDeleteSavedView(workspaceSlug, projectId);
+  const { data: savedViews = [] } = useSavedViews(workspaceId, boardId);
+  const createView = useCreateSavedView(workspaceId, boardId);
+  const deleteView = useDeleteSavedView(workspaceId, boardId);
 
   const [createModal, setCreateModal] = useState({
     open: false,
@@ -192,7 +192,7 @@ export default function KanbanPage() {
   );
   const [selectedIds, setSelectedIds] = useState(new Set());
 
-  const bulkUpdate = useBulkUpdateTasks(workspaceSlug, projectId);
+  const bulkUpdate = useBulkUpdateTasks(workspaceId, boardId);
 
   const toggleSelect = (taskId) => {
     setSelectedIds((prev) => {
@@ -205,7 +205,7 @@ export default function KanbanPage() {
   const handleExport = async () => {
     try {
       const resp = await api.get(
-        `/api/workspaces/${workspaceSlug}/projects/${projectId}/tasks/export/`,
+        `/api/workspaces/${workspaceId}/boards/${boardId}/tasks/export/`,
         { responseType: "blob" },
       );
       const url = URL.createObjectURL(
@@ -223,7 +223,7 @@ export default function KanbanPage() {
     }
   };
 
-  useWorkspaceSocket(workspaceSlug);
+  useWorkspaceSocket(workspaceId);
 
   // v3.9.0 — `c` shortcut creates a task in the current project
   useEffect(() => {
@@ -234,11 +234,11 @@ export default function KanbanPage() {
   }, []);
 
   // v3.5.0 — announce presence for this project board
-  useAnnouncePresence(workspaceSlug, "project", projectId);
+  useAnnouncePresence(workspaceId, "board", boardId);
   const { data: boardPresence = [] } = usePresence(
-    workspaceSlug,
-    "project",
-    projectId,
+    workspaceId,
+    "board",
+    boardId,
   );
 
   // Map task-scoped presence to individual task cards
@@ -355,7 +355,7 @@ export default function KanbanPage() {
         <div className="flex items-center justify-between px-6 py-3.5 border-b flex-shrink-0 bg-card/50">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate(`/w/${workspaceSlug}/projects`)}
+              onClick={() => navigate(`/w/${workspaceId}/boards`)}
               className="p-2 rounded-lg bg-accent/60 text-foreground/70 hover:text-foreground hover:bg-accent transition-colors active:scale-[0.97]"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -399,7 +399,7 @@ export default function KanbanPage() {
               <Tooltip content="Wiki">
                 <button
                   onClick={() =>
-                    navigate(`/w/${workspaceSlug}/projects/${projectId}/wiki`)
+                    navigate(`/w/${workspaceId}/boards/${boardId}/wiki`)
                   }
                   className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-background transition-colors active:scale-[0.97]"
                 >
@@ -409,7 +409,7 @@ export default function KanbanPage() {
               <Tooltip content="Forms">
                 <button
                   onClick={() =>
-                    navigate(`/w/${workspaceSlug}/projects/${projectId}/forms`)
+                    navigate(`/w/${workspaceId}/boards/${boardId}/forms`)
                   }
                   className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-background transition-colors active:scale-[0.97]"
                 >
@@ -420,7 +420,7 @@ export default function KanbanPage() {
                 <button
                   onClick={() =>
                     navigate(
-                      `/w/${workspaceSlug}/projects/${projectId}/automations`,
+                      `/w/${workspaceId}/boards/${boardId}/automations`,
                     )
                   }
                   className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-background transition-colors active:scale-[0.97]"
@@ -529,8 +529,8 @@ export default function KanbanPage() {
                     selectedTaskId={selectedTaskId}
                     selectedIds={selectedIds}
                     onToggleSelect={toggleSelect}
-                    workspaceSlug={workspaceSlug}
-                    projectId={projectId}
+                    workspaceId={workspaceId}
+                    boardId={boardId}
                     canEdit={perms.canEdit}
                     columnViewers={boardPresence.filter(
                       (p) =>
@@ -542,8 +542,8 @@ export default function KanbanPage() {
                 {/* Add column button */}
                 {perms.canEdit && (
                   <AddColumnButton
-                    workspaceSlug={workspaceSlug}
-                    projectId={projectId}
+                    workspaceId={workspaceId}
+                    boardId={boardId}
                   />
                 )}
               </div>
@@ -581,8 +581,8 @@ export default function KanbanPage() {
                       selectedTaskId={selectedTaskId}
                       selectedIds={selectedIds}
                       onToggleSelect={toggleSelect}
-                      workspaceSlug={workspaceSlug}
-                      projectId={projectId}
+                      workspaceId={workspaceId}
+                      boardId={boardId}
                       canEdit={perms.canEdit}
                       columnViewers={boardPresence.filter(
                         (p) =>
@@ -634,8 +634,8 @@ export default function KanbanPage() {
               onCreateTask={(date) =>
                 setCreateModal({ open: true, statusId: null, date })
               }
-              workspaceSlug={workspaceSlug}
-              projectId={projectId}
+              workspaceId={workspaceId}
+              boardId={boardId}
               canEdit={perms.canEdit}
             />
           </Suspense>
@@ -650,8 +650,8 @@ export default function KanbanPage() {
               members={members}
               sprints={sprints}
               onTaskClick={openTask}
-              workspaceSlug={workspaceSlug}
-              projectId={projectId}
+              workspaceId={workspaceId}
+              boardId={boardId}
               canEdit={perms.canEdit}
             />
           </Suspense>
@@ -661,8 +661,8 @@ export default function KanbanPage() {
       {/* Sprint panel (right side in sprint mode) */}
       {view === "sprint" && (
         <SprintPanel
-          workspaceSlug={workspaceSlug}
-          projectId={projectId}
+          workspaceId={workspaceId}
+          boardId={boardId}
           activeSprint={activeSprint}
           onSelectSprint={setActiveSprint}
         />
@@ -719,8 +719,8 @@ export default function KanbanPage() {
         onClose={() =>
           setCreateModal({ open: false, statusId: null, date: null })
         }
-        workspaceSlug={workspaceSlug}
-        projectId={projectId}
+        workspaceId={workspaceId}
+        boardId={boardId}
         defaultStatusId={createModal.statusId}
         defaultDate={createModal.date}
         statuses={project?.statuses || []}
@@ -730,16 +730,16 @@ export default function KanbanPage() {
       <BoardSettingsModal
         open={boardSettings}
         onClose={() => setBoardSettings(false)}
-        workspaceSlug={workspaceSlug}
-        projectId={projectId}
+        workspaceId={workspaceId}
+        boardId={boardId}
         statuses={project?.statuses || []}
       />
 
       <ProjectMembersModal
         open={membersModal}
         onClose={() => setMembersModal(false)}
-        workspaceSlug={workspaceSlug}
-        projectId={projectId}
+        workspaceId={workspaceId}
+        boardId={boardId}
         project={project}
         canAdmin={perms.canAdmin}
       />

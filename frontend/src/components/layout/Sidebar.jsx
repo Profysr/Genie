@@ -14,7 +14,7 @@ import UserPanel from "@/components/layout/UserPanel";
 
 export default function Sidebar({
   workspace,
-  workspaceSlug,
+  workspaceId,
   user,
   isFocusMode,
   onOpenPalette,
@@ -24,12 +24,12 @@ export default function Sidebar({
   onDisableFocus,
   onLogout,
 }) {
-  const inboxUnread = useInboxUnreadCount(workspaceSlug);
+  const inboxUnread = useInboxUnreadCount(workspaceId);
 
   const navGroups = resolvedNavGroups().map((group) => ({
     ...group,
     items: group.items.map((item) => ({
-      to: workspaceUrl(workspaceSlug, item.path),
+      to: workspaceUrl(workspaceId, item.path),
       icon: item.icon,
       label: item.label,
       key: item.key,
@@ -45,7 +45,7 @@ export default function Sidebar({
       {/* Workspace switcher */}
       <WorkspaceSwitcher
         currentWorkspace={workspace}
-        currentSlug={workspaceSlug}
+        currentId={workspaceId}
         canCreate={user?.can_create_workspace ?? false}
       />
 
@@ -116,7 +116,7 @@ export default function Sidebar({
 }
 
 // ── WorkspaceSwitcher ─────────────────────────────────────────────────────────
-function WorkspaceSwitcher({ currentWorkspace, currentSlug, canCreate }) {
+function WorkspaceSwitcher({ currentWorkspace, currentId, canCreate }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const ref = useRef(null);
@@ -167,7 +167,7 @@ function WorkspaceSwitcher({ currentWorkspace, currentSlug, canCreate }) {
             <button
               key={ws.id}
               onClick={() => {
-                navigate(`/w/${ws.slug}`);
+                navigate(`/w/${ws.id}`);
                 setOpen(false);
               }}
               className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-accent transition-colors text-left"
@@ -176,7 +176,7 @@ function WorkspaceSwitcher({ currentWorkspace, currentSlug, canCreate }) {
                 {ws.name?.[0]?.toUpperCase()}
               </div>
               <span className="text-sm flex-1 truncate">{ws.name}</span>
-              {ws.slug === currentSlug && (
+              {ws.id === currentId && (
                 <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />
               )}
             </button>

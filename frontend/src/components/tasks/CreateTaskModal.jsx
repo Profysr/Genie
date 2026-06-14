@@ -20,19 +20,19 @@ const PRIORITY_COLORS = Object.fromEntries(
 export default function CreateTaskModal({
   open,
   onClose,
-  workspaceSlug,
-  projectId,
+  workspaceId,
+  boardId,
   defaultStatusId,
   statuses = [],
   members = [],
   defaultParentId = null,
   defaultDate = null,
 }) {
-  const { mutate, isPending } = useCreateTask(workspaceSlug, projectId);
-  const { data: templates = [] } = useTaskTemplates(workspaceSlug, projectId, {
+  const { mutate, isPending } = useCreateTask(workspaceId, boardId);
+  const { data: templates = [] } = useTaskTemplates(workspaceId, boardId, {
     enabled: open,
   });
-  const createTemplate = useCreateTaskTemplate(workspaceSlug, projectId);
+  const createTemplate = useCreateTaskTemplate(workspaceId, boardId);
 
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState("no_priority");

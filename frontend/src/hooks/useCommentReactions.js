@@ -1,22 +1,21 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 
-export function useToggleReaction(workspaceSlug, projectId, taskId) {
+export function useToggleReaction(workspaceId, boardId, taskId) {
   const qc = useQueryClient();
 
   return useMutation({
     mutationFn: ({ commentId, emoji }) =>
       api
         .post(
-          `/api/workspaces/${workspaceSlug}/projects/${projectId}/tasks/${taskId}/comments/${commentId}/reactions/`,
+          `/api/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/comments/${commentId}/reactions/`,
           { emoji }
         )
         .then((r) => r.data),
 
     onSuccess: (data, { commentId }) => {
-      // Patch the reactions on the cached task detail
       qc.setQueryData(
-        ["task-detail", workspaceSlug, projectId, taskId],
+        ["task-detail", workspaceId, boardId, taskId],
         (old) => {
           if (!old) return old;
           return {

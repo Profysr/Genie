@@ -76,12 +76,12 @@ function ProgressRing({ pct, confidence, size = 56 }) {
 }
 
 // ── KR progress bar ───────────────────────────────────────────────────────────
-function KRProgressBar({ kr, workspaceSlug, objectiveId, canEdit }) {
+function KRProgressBar({ kr, workspaceId, objectiveId, canEdit }) {
   const [linkOpen, setLinkOpen] = useState(false);
   const [tasksOpen, setTasksOpen] = useState(false);
   const linkedTasks = kr.linked_tasks ?? [];
-  const deleteKR = useDeleteKeyResult(workspaceSlug, objectiveId);
-  const linkTasks = useLinkTasks(workspaceSlug, objectiveId, kr.id);
+  const deleteKR = useDeleteKeyResult(workspaceId, objectiveId);
+  const linkTasks = useLinkTasks(workspaceId, objectiveId, kr.id);
   const [taskSearch, setTaskSearch] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const abortRef = useRef(null);
@@ -277,12 +277,12 @@ function KRProgressBar({ kr, workspaceSlug, objectiveId, canEdit }) {
 }
 
 // ── Objective card ────────────────────────────────────────────────────────────
-function ObjectiveCard({ objective, workspaceSlug }) {
+function ObjectiveCard({ objective, workspaceId }) {
   const [expanded, setExpanded] = useState(true);
   const [addingKR, setAddingKR] = useState(false);
   const [krTitle, setKRTitle] = useState("");
-  const deleteObjective = useDeleteObjective(workspaceSlug);
-  const createKR = useCreateKeyResult(workspaceSlug, objective.id);
+  const deleteObjective = useDeleteObjective(workspaceId);
+  const createKR = useCreateKeyResult(workspaceId, objective.id);
   const cfg =
     CONFIDENCE_CONFIG[objective.confidence] || CONFIDENCE_CONFIG.on_track;
 
@@ -388,7 +388,7 @@ function ObjectiveCard({ objective, workspaceSlug }) {
             <KRProgressBar
               key={kr.id}
               kr={kr}
-              workspaceSlug={workspaceSlug}
+              workspaceId={workspaceId}
               objectiveId={objective.id}
               canEdit
             />
@@ -461,7 +461,7 @@ function Sparkline({ history = [], width = 80, height = 28 }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function GoalsPage() {
-  const { workspaceSlug } = useParams();
+  const { workspaceId } = useParams();
   const [timePeriod, setTimePeriod] = useState("all");
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState({
@@ -471,11 +471,11 @@ export default function GoalsPage() {
   });
 
   const { data: objectives = [], isLoading } = useObjectives(
-    workspaceSlug,
+    workspaceId,
     timePeriod,
   );
-  const { data: members = [] } = useMembers(workspaceSlug);
-  const createObjective = useCreateObjective(workspaceSlug);
+  const { data: members = [] } = useMembers(workspaceId);
+  const createObjective = useCreateObjective(workspaceId);
 
   const totalKRs = objectives.flatMap((o) => o.key_results || []).length;
   const onTrackCount = objectives.filter(
@@ -645,7 +645,7 @@ export default function GoalsPage() {
               <ObjectiveCard
                 key={obj.id}
                 objective={obj}
-                workspaceSlug={workspaceSlug}
+                workspaceId={workspaceId}
               />
             ))}
           </div>

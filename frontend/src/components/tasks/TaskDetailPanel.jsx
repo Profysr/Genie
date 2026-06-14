@@ -88,49 +88,49 @@ export default function TaskDetailPanel({
   onClose,
   canEdit = true,
 }) {
-  const { workspaceSlug, projectId } = useParams();
+  const { workspaceId, boardId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { data: members = [] } = useMembers(workspaceSlug);
+  const { data: members = [] } = useMembers(workspaceId);
   const { data: task, isLoading } = useTaskDetail(
-    workspaceSlug,
-    projectId,
+    workspaceId,
+    boardId,
     taskId,
   );
   const { data: childTasks = [] } = useChildTasks(
-    workspaceSlug,
-    projectId,
+    workspaceId,
+    boardId,
     taskId,
   );
-  const update = useUpdateTaskDetail(workspaceSlug, projectId, taskId);
-  const upsertField = useUpsertFieldValue(workspaceSlug, projectId, taskId);
-  const createComment = useCreateComment(workspaceSlug, projectId, taskId);
-  const deleteComment = useDeleteComment(workspaceSlug, projectId, taskId);
-  const createSubtask = useCreateSubtask(workspaceSlug, projectId, taskId);
-  const toggleSubtask = useToggleSubtask(workspaceSlug, projectId, taskId);
-  const deleteSubtask = useDeleteSubtask(workspaceSlug, projectId, taskId);
-  const deleteTask = useDeleteTask(workspaceSlug, projectId);
-  const createChild = useCreateChildTask(workspaceSlug, projectId, taskId);
-  const attachChild = useAttachChildTask(workspaceSlug, projectId, taskId);
-  const cloneTask = useCloneTask(workspaceSlug, projectId);
-  const { data: allTasks = [] } = useTasks(workspaceSlug, projectId);
+  const update = useUpdateTaskDetail(workspaceId, boardId, taskId);
+  const upsertField = useUpsertFieldValue(workspaceId, boardId, taskId);
+  const createComment = useCreateComment(workspaceId, boardId, taskId);
+  const deleteComment = useDeleteComment(workspaceId, boardId, taskId);
+  const createSubtask = useCreateSubtask(workspaceId, boardId, taskId);
+  const toggleSubtask = useToggleSubtask(workspaceId, boardId, taskId);
+  const deleteSubtask = useDeleteSubtask(workspaceId, boardId, taskId);
+  const deleteTask = useDeleteTask(workspaceId, boardId);
+  const createChild = useCreateChildTask(workspaceId, boardId, taskId);
+  const attachChild = useAttachChildTask(workspaceId, boardId, taskId);
+  const cloneTask = useCloneTask(workspaceId, boardId);
+  const { data: allTasks = [] } = useTasks(workspaceId, boardId);
   const { toast } = useToast();
 
   // v3.6.0 — approvals
   const { data: approvals = [] } = useApprovals(
-    workspaceSlug,
-    projectId,
+    workspaceId,
+    boardId,
     taskId,
   );
-  const requestApproval = useRequestApproval(workspaceSlug, projectId, taskId);
+  const requestApproval = useRequestApproval(workspaceId, boardId, taskId);
   const [approvalDropdown, setApprovalDropdown] = useState(false);
   const approvalBtnRef = useRef(null);
 
   // v3.5.0 — presence + conflict
-  useAnnouncePresence(workspaceSlug, "task", taskId);
-  const { data: taskViewers = [] } = usePresence(workspaceSlug, "task", taskId);
+  useAnnouncePresence(workspaceId, "task", taskId);
+  const { data: taskViewers = [] } = usePresence(workspaceId, "task", taskId);
   const otherViewers = taskViewers.filter((v) => v.user?.id !== user?.id);
-  const toggleReaction = useToggleReaction(workspaceSlug, projectId, taskId);
+  const toggleReaction = useToggleReaction(workspaceId, boardId, taskId);
 
   const [conflict, setConflict] = useState(null); // { current_version, updated_at }
   const [typingUsers, setTypingUsers] = useState([]); // [{id, name}]
@@ -729,15 +729,15 @@ export default function TaskDetailPanel({
 
             {/* Attachments */}
             <TaskAttachmentsSection
-              workspaceSlug={workspaceSlug}
-              projectId={projectId}
+              workspaceId={workspaceId}
+              boardId={boardId}
               taskId={taskId}
             />
 
             {/* Dependencies */}
             <TaskDependenciesSection
-              workspaceSlug={workspaceSlug}
-              projectId={projectId}
+              workspaceId={workspaceId}
+              boardId={boardId}
               taskId={taskId}
             />
 
@@ -1062,8 +1062,8 @@ export default function TaskDetailPanel({
                         key={approval.id}
                         approval={approval}
                         currentUserId={user?.id}
-                        workspaceSlug={workspaceSlug}
-                        projectId={projectId}
+                        workspaceId={workspaceId}
+                        boardId={boardId}
                         taskId={taskId}
                       />
                     ))
@@ -1673,22 +1673,22 @@ const REVIEWER_STATUS_CONFIG = {
 function ApprovalCard({
   approval,
   currentUserId,
-  workspaceSlug,
-  projectId,
+  workspaceId,
+  boardId,
   taskId,
   requestedById,
 }) {
   const [reviewComment, setReviewComment] = useState("");
   const [showReviewForm, setShowReviewForm] = useState(false);
   const submitReview = useSubmitReview(
-    workspaceSlug,
-    projectId,
+    workspaceId,
+    boardId,
     taskId,
     approval.id,
   );
   const resubmit = useResubmitApproval(
-    workspaceSlug,
-    projectId,
+    workspaceId,
+    boardId,
     taskId,
     approval.id,
   );

@@ -75,11 +75,11 @@ function AddDependencyPicker({ tasks, onAdd, onClose, label }) {
   );
 }
 
-export default function TaskDependenciesSection({ workspaceSlug, projectId, taskId }) {
-  const { data: deps = { blocked_by: [], blocking: [] } } = useDependencies(workspaceSlug, projectId, taskId);
-  const { data: allTasks = [] } = useTasks(workspaceSlug, projectId);
-  const addDep    = useAddDependency(workspaceSlug, projectId, taskId);
-  const removeDep = useRemoveDependency(workspaceSlug, projectId, taskId);
+export default function TaskDependenciesSection({ workspaceId, boardId, taskId }) {
+  const { data: deps = { blocked_by: [], blocking: [] } } = useDependencies(workspaceId, boardId, taskId);
+  const { data: allTasks = [] } = useTasks(workspaceId, boardId);
+  const addDep    = useAddDependency(workspaceId, boardId, taskId);
+  const removeDep = useRemoveDependency(workspaceId, boardId, taskId);
   const [picker, setPicker] = useState(null); // "blocked_by" | "blocks" | null
 
   const otherTasks = allTasks.filter((t) => t.id !== taskId);

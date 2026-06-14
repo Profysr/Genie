@@ -50,7 +50,7 @@ const SNOOZE_PRESETS = [
 ];
 
 export default function InboxPage() {
-  const { workspaceSlug } = useParams();
+  const { workspaceId } = useParams();
   const navigate = useNavigate();
 
   const [tab, setTab] = useState("for_you");
@@ -58,12 +58,12 @@ export default function InboxPage() {
   const [selected, setSelected] = useState(new Set());
   const [snoozeOpen, setSnoozeOpen] = useState(null); // item id
 
-  const { data: items = [], isLoading } = useInbox(workspaceSlug, {
+  const { data: items = [], isLoading } = useInbox(workspaceId, {
     tab,
     eventType: eventFilter || undefined,
   });
-  const update = useUpdateInboxItem(workspaceSlug);
-  const bulkUpdate = useBulkUpdateInbox(workspaceSlug);
+  const update = useUpdateInboxItem(workspaceId);
+  const bulkUpdate = useBulkUpdateInbox(workspaceId);
 
   const allSelected = items.length > 0 && selected.size === items.length;
   const toggleAll = () =>
@@ -95,12 +95,12 @@ export default function InboxPage() {
 
   const openTask = (item) => {
     if (
-      item.meta?.workspace_slug &&
-      item.meta?.project_id &&
+      item.meta?.workspace_id &&
+      item.meta?.board_id &&
       item.meta?.task_id
     ) {
       navigate(
-        `/w/${item.meta.workspace_slug}/projects/${item.meta.project_id}?task=${item.meta.task_id}`,
+        `/w/${item.meta.workspace_id}/boards/${item.meta.board_id}?task=${item.meta.task_id}`,
       );
     }
   };

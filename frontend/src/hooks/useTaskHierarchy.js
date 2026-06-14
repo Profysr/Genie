@@ -2,54 +2,53 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 
 const taskBase = (ws, proj, task) =>
-  `/api/workspaces/${ws}/projects/${proj}/tasks/${task}`;
+  `/api/workspaces/${ws}/boards/${proj}/tasks/${task}`;
 
 // ── Child tasks ───────────────────────────────────────────────────────────────
 
-export function useChildTasks(workspaceSlug, projectId, taskId) {
+export function useChildTasks(workspaceId, boardId, taskId) {
   return useQuery({
-    queryKey: ["children", workspaceSlug, projectId, taskId],
-    queryFn: () => api.get(`${taskBase(workspaceSlug, projectId, taskId)}/children/`).then(r => r.data),
+    queryKey: ["children", workspaceId, boardId, taskId],
+    queryFn: () => api.get(`${taskBase(workspaceId, boardId, taskId)}/children/`).then(r => r.data),
     enabled: !!taskId,
   });
 }
 
-export function useCreateChildTask(workspaceSlug, projectId, taskId) {
+export function useCreateChildTask(workspaceId, boardId, taskId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data) =>
-      api.post(`${taskBase(workspaceSlug, projectId, taskId)}/children/`, data).then(r => r.data),
+      api.post(`${taskBase(workspaceId, boardId, taskId)}/children/`, data).then(r => r.data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["children", workspaceSlug, projectId, taskId] });
-      // Refresh both the parent task detail (updates child_count) and the board card list
-      qc.invalidateQueries({ queryKey: ["task-detail", workspaceSlug, projectId, taskId] });
-      qc.invalidateQueries({ queryKey: ["tasks", workspaceSlug, projectId] });
+      qc.invalidateQueries({ queryKey: ["children", workspaceId, boardId, taskId] });
+      qc.invalidateQueries({ queryKey: ["task-detail", workspaceId, boardId, taskId] });
+      qc.invalidateQueries({ queryKey: ["tasks", workspaceId, boardId] });
     },
   });
 }
 
-export function useAttachChildTask(workspaceSlug, projectId, parentTaskId) {
+export function useAttachChildTask(workspaceId, boardId, parentTaskId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (childTaskId) =>
-      api.patch(`/api/workspaces/${workspaceSlug}/projects/${projectId}/tasks/${childTaskId}/`, { parent_id: parentTaskId }).then(r => r.data),
+      api.patch(`/api/workspaces/${workspaceId}/boards/${boardId}/tasks/${childTaskId}/`, { parent_id: parentTaskId }).then(r => r.data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["children", workspaceSlug, projectId, parentTaskId] });
-      qc.invalidateQueries({ queryKey: ["task-detail", workspaceSlug, projectId, parentTaskId] });
-      qc.invalidateQueries({ queryKey: ["tasks", workspaceSlug, projectId] });
+      qc.invalidateQueries({ queryKey: ["children", workspaceId, boardId, parentTaskId] });
+      qc.invalidateQueries({ queryKey: ["task-detail", workspaceId, boardId, parentTaskId] });
+      qc.invalidateQueries({ queryKey: ["tasks", workspaceId, boardId] });
     },
   });
 }
 
 // ── Clone ─────────────────────────────────────────────────────────────────────
 
-export function useCloneTask(workspaceSlug, projectId) {
+export function useCloneTask(workspaceId, boardId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (taskId) =>
-      api.post(`${taskBase(workspaceSlug, projectId, taskId)}/clone/`).then(r => r.data),
+      api.post(`${taskBase(workspaceId, boardId, taskId)}/clone/`).then(r => r.data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["tasks", workspaceSlug, projectId] });
+      qc.invalidateQueries({ queryKey: ["tasks", workspaceId, boardId] });
     },
   });
 }
@@ -57,39 +56,39 @@ export function useCloneTask(workspaceSlug, projectId) {
 // ── Templates ─────────────────────────────────────────────────────────────────
 
 const templateBase = (ws, proj) =>
-  `/api/workspaces/${ws}/projects/${proj}/task-templates/`;
+  `/api/workspaces/${ws}/boards/${proj}/task-templates/`;
 
-export function useTaskTemplates(workspaceSlug, projectId, { enabled = true } = {}) {
+export function useTaskTemplates(workspaceId, boardId, { enabled = true } = {}) {
   return useQuery({
-    queryKey: ["task-templates", workspaceSlug, projectId],
-    queryFn: () => api.get(templateBase(workspaceSlug, projectId)).then(r => r.data),
-    enabled: enabled && !!projectId,
+    queryKey: ["task-templates", workspaceId, boardId],
+    queryFn: () => api.get(templateBase(workspaceId, boardId)).then(r => r.data),
+    enabled: enabled && !!boardId,
   });
 }
 
-export function useCreateTaskTemplate(workspaceSlug, projectId) {
+export function useCreateTaskTemplate(workspaceId, boardId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data) => api.post(templateBase(workspaceSlug, projectId), data).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["task-templates", workspaceSlug, projectId] }),
+    mutationFn: (data) => api.post(templateBase(workspaceId, boardId), data).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["task-templates", workspaceId, boardId] }),
   });
 }
 
-export function useDeleteTaskTemplate(workspaceSlug, projectId) {
+export function useDeleteTaskTemplate(workspaceId, boardId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (templateId) => api.delete(`${templateBase(workspaceSlug, projectId)}${templateId}/`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["task-templates", workspaceSlug, projectId] }),
+    mutationFn: (templateId) => api.delete(`${templateBase(workspaceId, boardId)}${templateId}/`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["task-templates", workspaceId, boardId] }),
   });
 }
 
-export function useApplyTemplate(workspaceSlug, projectId, taskId) {
+export function useApplyTemplate(workspaceId, boardId, taskId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (templateId) =>
-      api.post(`${taskBase(workspaceSlug, projectId, taskId)}/apply-template/`, { template_id: templateId }).then(r => r.data),
+      api.post(`${taskBase(workspaceId, boardId, taskId)}/apply-template/`, { template_id: templateId }).then(r => r.data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["task", workspaceSlug, projectId, taskId] });
+      qc.invalidateQueries({ queryKey: ["task", workspaceId, boardId, taskId] });
     },
   });
 }

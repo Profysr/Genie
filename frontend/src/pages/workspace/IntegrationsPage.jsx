@@ -29,7 +29,7 @@ import {
   useUpdateChannelMapping,
   useDeleteChannelMapping,
 } from "@/hooks/useIntegrations";
-import { useProjects } from "@/hooks/useProjects";
+import { useBoards } from "@/hooks/useProjects";
 import { useToast } from "@/components/ui/toast";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -163,7 +163,7 @@ function EventsPicker({ value = [], onChange }) {
 }
 
 // ── MappingRow ────────────────────────────────────────────────────────────────
-function MappingRow({ mapping, workspaceSlug, onDelete }) {
+function MappingRow({ mapping, workspaceId, onDelete }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     webhook_url: mapping.webhook_url || "",
@@ -171,7 +171,7 @@ function MappingRow({ mapping, workspaceSlug, onDelete }) {
     enabled_events: mapping.enabled_events || [],
     is_active: mapping.is_active,
   });
-  const update = useUpdateChannelMapping(workspaceSlug);
+  const update = useUpdateChannelMapping(workspaceId);
   const toast = useToast();
 
   const patch = (key, val) => setForm((f) => ({ ...f, [key]: val }));
@@ -306,13 +306,13 @@ function MappingRow({ mapping, workspaceSlug, onDelete }) {
 
 // ── AddMappingInline ──────────────────────────────────────────────────────────
 function AddMappingInline({ projects, onAdd, onClose, isPending }) {
-  const [projectId, setProjectId] = useState("");
+  const [boardId, setProjectId] = useState("");
   return (
     <div className="border border-dashed border-primary/40 rounded-md px-4 py-3 bg-primary/5 space-y-3">
       <p className="text-xs font-semibold">Add mapping</p>
       <FieldRow label="Project scope">
         <select
-          value={projectId}
+          value={boardId}
           onChange={(e) => setProjectId(e.target.value)}
           className="w-full text-sm bg-background border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-ring"
         >
@@ -332,7 +332,7 @@ function AddMappingInline({ projects, onAdd, onClose, isPending }) {
           Cancel
         </button>
         <button
-          onClick={() => onAdd(projectId)}
+          onClick={() => onAdd(boardId)}
           disabled={isPending}
           className="px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
         >
@@ -346,23 +346,23 @@ function AddMappingInline({ projects, onAdd, onClose, isPending }) {
 // ── MappingsSection ───────────────────────────────────────────────────────────
 function MappingsSection({
   platform,
-  workspaceSlug,
+  workspaceId,
   projects,
   label = "Channel Mappings",
 }) {
   const [adding, setAdding] = useState(false);
-  const { data: mappings = [] } = useChannelMappings(workspaceSlug, {
+  const { data: mappings = [] } = useChannelMappings(workspaceId, {
     platform,
   });
-  const deleteMapping = useDeleteChannelMapping(workspaceSlug);
-  const create = useCreateChannelMapping(workspaceSlug);
+  const deleteMapping = useDeleteChannelMapping(workspaceId);
+  const create = useCreateChannelMapping(workspaceId);
   const toast = useToast();
 
-  const handleAdd = (projectId) =>
+  const handleAdd = (boardId) =>
     create.mutate(
       {
         platform,
-        project: projectId || null,
+        project: boardId || null,
         enabled_events: [],
         notification_format: "detailed",
         is_active: true,
@@ -383,7 +383,7 @@ function MappingsSection({
           <MappingRow
             key={m.id}
             mapping={m}
-            workspaceSlug={workspaceSlug}
+            workspaceId={workspaceId}
             onDelete={(id) => deleteMapping.mutate(id)}
           />
         ))}
@@ -407,7 +407,7 @@ function MappingsSection({
 
 // ── WebhookCard — shared shell for Teams + Google Chat ────────────────────────
 function WebhookCard({
-  workspaceSlug,
+  workspaceId,
   config,
   platform,
   icon,
@@ -422,7 +422,7 @@ function WebhookCard({
   sectionLabel,
 }) {
   const toast = useToast();
-  const { data: projects = [] } = useProjects(workspaceSlug);
+  const { data: projects = [] } = useBoards(workspaceId);
   const [webhookUrl, setWebhookUrl] = useState(config?.webhook_url || "");
   const [secondaryVal, setSecondaryVal] = useState(
     config?.[secondary.key] || "",
@@ -529,7 +529,7 @@ function WebhookCard({
         {config && (
           <MappingsSection
             platform={platform}
-            workspaceSlug={workspaceSlug}
+            workspaceId={workspaceId}
             projects={projects}
             label={sectionLabel}
           />
@@ -540,18 +540,18 @@ function WebhookCard({
 }
 
 // ── TeamsCard + GoogleChatCard — thin config wrappers ─────────────────────────
-function TeamsCard({ workspaceSlug, teams }) {
+function TeamsCard({ workspaceId, teams }) {
   return (
     <WebhookCard
-      workspaceSlug={workspaceSlug}
+      workspaceId={workspaceId}
       config={teams}
       platform="teams"
       icon={<BsMicrosoftTeams className="w-7 h-7 text-[#6264A7]" />}
       name="Microsoft Teams"
       description="Send task notifications to a Teams channel via incoming webhook. No app installation required."
-      save={useSaveTeams(workspaceSlug)}
-      disconnect={useDisconnectTeams(workspaceSlug)}
-      test={useTestTeams(workspaceSlug)}
+      save={useSaveTeams(workspaceId)}
+      disconnect={useDisconnectTeams(workspaceId)}
+      test={useTestTeams(workspaceId)}
       urlPlaceholder="https://yourorg.webhook.office.com/webhookb2/…"
       urlHowToHref="https://docs.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook"
       secondary={{
@@ -564,18 +564,18 @@ function TeamsCard({ workspaceSlug, teams }) {
   );
 }
 
-function GoogleChatCard({ workspaceSlug, googleChat }) {
+function GoogleChatCard({ workspaceId, googleChat }) {
   return (
     <WebhookCard
-      workspaceSlug={workspaceSlug}
+      workspaceId={workspaceId}
       config={googleChat}
       platform="google_chat"
       icon={<SiGooglechat className="w-7 h-7 text-[#00897B]" />}
       name="Google Chat"
       description="Send task notifications to a Google Chat Space via incoming webhook. Works with Google Workspace."
-      save={useSaveGoogleChat(workspaceSlug)}
-      disconnect={useDisconnectGoogleChat(workspaceSlug)}
-      test={useTestGoogleChat(workspaceSlug)}
+      save={useSaveGoogleChat(workspaceId)}
+      disconnect={useDisconnectGoogleChat(workspaceId)}
+      test={useTestGoogleChat(workspaceId)}
       urlPlaceholder="https://chat.googleapis.com/v1/spaces/…/messages?key=…"
       urlHowToHref="https://developers.google.com/chat/how-tos/webhooks"
       secondary={{
@@ -590,8 +590,8 @@ function GoogleChatCard({ workspaceSlug, googleChat }) {
 
 // ── IntegrationsPage ──────────────────────────────────────────────────────────
 export default function IntegrationsPage() {
-  const { workspaceSlug } = useParams();
-  const { data, isLoading } = useIntegrationStatus(workspaceSlug);
+  const { workspaceId } = useParams();
+  const { data, isLoading } = useIntegrationStatus(workspaceId);
 
   return (
     <div className="flex-1 overflow-auto">
@@ -610,9 +610,9 @@ export default function IntegrationsPage() {
           <Loader className="h-40" />
         ) : (
           <div className="space-y-4">
-            <TeamsCard workspaceSlug={workspaceSlug} teams={data?.teams} />
+            <TeamsCard workspaceId={workspaceId} teams={data?.teams} />
             <GoogleChatCard
-              workspaceSlug={workspaceSlug}
+              workspaceId={workspaceId}
               googleChat={data?.google_chat}
             />
           </div>

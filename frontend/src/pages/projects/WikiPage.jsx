@@ -18,15 +18,15 @@ import {
 import { useToast } from "@/components/ui/toast";
 
 export default function WikiPage() {
-  const { workspaceSlug, projectId, pageId } = useParams();
+  const { workspaceId, boardId, pageId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const { data: pages = [], isLoading: pagesLoading } = useWikiPages(workspaceSlug, projectId);
-  const { data: page, isLoading: pageLoading } = useWikiPage(workspaceSlug, projectId, pageId);
-  const createPage  = useCreateWikiPage(workspaceSlug, projectId);
-  const updatePage  = useUpdateWikiPage(workspaceSlug, projectId, pageId);
-  const deletePage  = useDeleteWikiPage(workspaceSlug, projectId);
+  const { data: pages = [], isLoading: pagesLoading } = useWikiPages(workspaceId, boardId);
+  const { data: page, isLoading: pageLoading } = useWikiPage(workspaceId, boardId, pageId);
+  const createPage  = useCreateWikiPage(workspaceId, boardId);
+  const updatePage  = useUpdateWikiPage(workspaceId, boardId, pageId);
+  const deletePage  = useDeleteWikiPage(workspaceId, boardId);
 
   const [editingTitle, setEditingTitle]   = useState(false);
   const [titleDraft, setTitleDraft]       = useState("");
@@ -44,7 +44,7 @@ export default function WikiPage() {
         onSuccess: (p) => {
           setNewPageTitle("");
           setCreatingPage(false);
-          navigate(`/w/${workspaceSlug}/projects/${projectId}/wiki/${p.id}`);
+          navigate(`/w/${workspaceId}/boards/${boardId}/wiki/${p.id}`);
         },
       }
     );
@@ -63,7 +63,7 @@ export default function WikiPage() {
       onConfirm: () => deletePage.mutate(pageId, {
         onSuccess: () => {
           toast.success("Page deleted");
-          navigate(`/w/${workspaceSlug}/projects/${projectId}/wiki`);
+          navigate(`/w/${workspaceId}/boards/${boardId}/wiki`);
         },
       }),
     });
@@ -76,7 +76,7 @@ export default function WikiPage() {
         <div className="flex items-center justify-between px-3 py-3 border-b">
           <div className="flex items-center gap-1.5">
             <button
-              onClick={() => navigate(`/w/${workspaceSlug}/projects/${projectId}`)}
+              onClick={() => navigate(`/w/${workspaceId}/boards/${boardId}`)}
               className="p-1 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
               title="Back to board"
             >
@@ -119,7 +119,7 @@ export default function WikiPage() {
               <button onClick={() => setCreatingPage(true)} className="text-primary hover:underline mt-1">Create first page</button>
             </div>
           ) : (
-            <WikiTree pages={pages} projectId={projectId} workspaceSlug={workspaceSlug} activePageId={pageId} />
+            <WikiTree pages={pages} boardId={boardId} workspaceId={workspaceId} activePageId={pageId} />
           )}
         </div>
       </div>
@@ -213,8 +213,8 @@ export default function WikiPage() {
               {/* Revisions panel */}
               {showRevisions && (
                 <RevisionPanel
-                  workspaceSlug={workspaceSlug}
-                  projectId={projectId}
+                  workspaceId={workspaceId}
+                  boardId={boardId}
                   pageId={pageId}
                   onRestore={(content) => updatePage.mutate({ content })}
                   onClose={() => setShowRevisions(false)}
@@ -237,15 +237,15 @@ export default function WikiPage() {
   );
 }
 
-function WikiTree({ pages, projectId, workspaceSlug, activePageId }) {
+function WikiTree({ pages, boardId, workspaceId, activePageId }) {
   return (
     <div className="space-y-0.5 px-2">
       {pages.map(page => (
         <WikiTreeNode
           key={page.id}
           page={page}
-          projectId={projectId}
-          workspaceSlug={workspaceSlug}
+          boardId={boardId}
+          workspaceId={workspaceId}
           activePageId={activePageId}
           depth={0}
         />
@@ -254,7 +254,7 @@ function WikiTree({ pages, projectId, workspaceSlug, activePageId }) {
   );
 }
 
-function WikiTreeNode({ page, projectId, workspaceSlug, activePageId, depth }) {
+function WikiTreeNode({ page, boardId, workspaceId, activePageId, depth }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(true);
   const hasChildren = page.children_count > 0;
@@ -262,7 +262,7 @@ function WikiTreeNode({ page, projectId, workspaceSlug, activePageId, depth }) {
   return (
     <div>
       <button
-        onClick={() => navigate(`/w/${workspaceSlug}/projects/${projectId}/wiki/${page.id}`)}
+        onClick={() => navigate(`/w/${workspaceId}/boards/${boardId}/wiki/${page.id}`)}
         className={cn(
           "w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm transition-colors text-left",
           activePageId === page.id
@@ -284,8 +284,8 @@ function WikiTreeNode({ page, projectId, workspaceSlug, activePageId, depth }) {
         <WikiTreeNode
           key={child.id}
           page={child}
-          projectId={projectId}
-          workspaceSlug={workspaceSlug}
+          boardId={boardId}
+          workspaceId={workspaceId}
           activePageId={activePageId}
           depth={depth + 1}
         />
@@ -294,8 +294,8 @@ function WikiTreeNode({ page, projectId, workspaceSlug, activePageId, depth }) {
   );
 }
 
-function RevisionPanel({ workspaceSlug, projectId, pageId, onRestore, onClose }) {
-  const { data: revisions = [] } = useWikiRevisions(workspaceSlug, projectId, pageId);
+function RevisionPanel({ workspaceId, boardId, pageId, onRestore, onClose }) {
+  const { data: revisions = [] } = useWikiRevisions(workspaceId, boardId, pageId);
   const [preview, setPreview] = useState(null);
 
   return (

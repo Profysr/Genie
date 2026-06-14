@@ -14,7 +14,7 @@ export const SHORTCUT_GROUPS = [
       {
         keys: ["g", "then", "p"],
         display: ["g", "p"],
-        description: "Go to Projects",
+        description: "Go to Boards",
       },
       {
         keys: ["g", "then", "d"],

@@ -356,7 +356,7 @@ function ReadyStep({ onComplete }) {
 
 /* ── Main Container: SetupWizard ─────────────────────────────────────────── */
 export default function SetupWizard() {
-  const { workspaceSlug } = useParams();
+  const { workspaceId } = useParams();
   const navigate = useNavigate();
 
   const [step, setStep] = useState(0);
@@ -365,11 +365,11 @@ export default function SetupWizard() {
   const [inviteRole, setInviteRole] = useState("member");
 
   const fireConfetti = useConfetti();
-  const updateOnboarding = useUpdateOnboarding(workspaceSlug);
+  const updateOnboarding = useUpdateOnboarding(workspaceId);
 
   const inviteMutation = useMutation({
     mutationFn: ({ email, role }) =>
-      api.post(`/api/workspaces/${workspaceSlug}/invites/`, { email, role }),
+      api.post(`/api/workspaces/${workspaceId}/invites/`, { email, role }),
   });
 
   const handleFinish = async () => {
@@ -386,7 +386,7 @@ export default function SetupWizard() {
     setTimeout(() => setStep(2), 400);
   };
 
-  const handleGoToWorkspace = () => navigate(`/w/${workspaceSlug}`);
+  const handleGoToWorkspace = () => navigate(`/w/${workspaceId}`);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">

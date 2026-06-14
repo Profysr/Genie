@@ -30,14 +30,14 @@ const PRESET_COLORS = [
   "#0ea5e9",
 ];
 
-function ColumnMenu({ column, workspaceSlug, projectId, onClose }) {
+function ColumnMenu({ column, workspaceId, boardId, onClose }) {
   const [renaming, setRenaming] = useState(false);
   const [nameVal, setNameVal] = useState(column.name);
   const [showColors, setShowColors] = useState(false);
   const [confirmState, setConfirmState] = useState(null);
 
-  const updateStatus = useUpdateStatus(workspaceSlug, projectId);
-  const deleteStatus = useDeleteStatus(workspaceSlug, projectId);
+  const updateStatus = useUpdateStatus(workspaceId, boardId);
+  const deleteStatus = useDeleteStatus(workspaceId, boardId);
 
   const commitRename = () => {
     if (nameVal.trim() && nameVal !== column.name) {
@@ -196,8 +196,8 @@ export default function KanbanColumn({
   selectedTaskId,
   selectedIds = new Set(),
   onToggleSelect,
-  workspaceSlug,
-  projectId,
+  workspaceId,
+  boardId,
   canEdit,
   columnViewers = [],
   taskViewerMap = {},
@@ -267,8 +267,8 @@ export default function KanbanColumn({
                   />
                   <ColumnMenu
                     column={column}
-                    workspaceSlug={workspaceSlug}
-                    projectId={projectId}
+                    workspaceId={workspaceId}
+                    boardId={boardId}
                     onClose={() => setMenuOpen(false)}
                   />
                 </>

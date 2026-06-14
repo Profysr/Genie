@@ -187,9 +187,9 @@ export default function MyWorkPage() {
   );
 
   const handleOpen = (task) => {
-    if (task.workspace_slug && task.project_id) {
+    if (task.workspace_id && task.board_id) {
       navigate(
-        `/w/${task.workspace_slug}/projects/${task.project_id}?task=${task.id}`,
+        `/w/${task.workspace_id}/boards/${task.board_id}?task=${task.id}`,
       );
     }
   };

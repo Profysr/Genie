@@ -1,71 +1,71 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 
-const formBase = (ws, proj) => `/api/workspaces/${ws}/projects/${proj}/forms/`;
+const formBase = (ws, proj) => `/api/workspaces/${ws}/boards/${proj}/forms/`;
 
-export function useForms(workspaceSlug, projectId) {
+export function useForms(workspaceId, boardId) {
   return useQuery({
-    queryKey: ["forms", workspaceSlug, projectId],
-    queryFn: () => api.get(formBase(workspaceSlug, projectId)).then(r => r.data),
-    enabled: !!projectId,
+    queryKey: ["forms", workspaceId, boardId],
+    queryFn: () => api.get(formBase(workspaceId, boardId)).then(r => r.data),
+    enabled: !!boardId,
   });
 }
 
-export function useForm(workspaceSlug, projectId, formId) {
+export function useForm(workspaceId, boardId, formId) {
   return useQuery({
-    queryKey: ["form", workspaceSlug, projectId, formId],
-    queryFn: () => api.get(`${formBase(workspaceSlug, projectId)}${formId}/`).then(r => r.data),
+    queryKey: ["form", workspaceId, boardId, formId],
+    queryFn: () => api.get(`${formBase(workspaceId, boardId)}${formId}/`).then(r => r.data),
     enabled: !!formId,
   });
 }
 
-export function useCreateForm(workspaceSlug, projectId) {
+export function useCreateForm(workspaceId, boardId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data) => api.post(formBase(workspaceSlug, projectId), data).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["forms", workspaceSlug, projectId] }),
+    mutationFn: (data) => api.post(formBase(workspaceId, boardId), data).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["forms", workspaceId, boardId] }),
   });
 }
 
-export function useUpdateForm(workspaceSlug, projectId, formId) {
+export function useUpdateForm(workspaceId, boardId, formId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data) => api.patch(`${formBase(workspaceSlug, projectId)}${formId}/`, data).then(r => r.data),
+    mutationFn: (data) => api.patch(`${formBase(workspaceId, boardId)}${formId}/`, data).then(r => r.data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["form", workspaceSlug, projectId, formId] });
-      qc.invalidateQueries({ queryKey: ["forms", workspaceSlug, projectId] });
+      qc.invalidateQueries({ queryKey: ["form", workspaceId, boardId, formId] });
+      qc.invalidateQueries({ queryKey: ["forms", workspaceId, boardId] });
     },
   });
 }
 
-export function useDeleteForm(workspaceSlug, projectId) {
+export function useDeleteForm(workspaceId, boardId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (formId) => api.delete(`${formBase(workspaceSlug, projectId)}${formId}/`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["forms", workspaceSlug, projectId] }),
+    mutationFn: (formId) => api.delete(`${formBase(workspaceId, boardId)}${formId}/`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["forms", workspaceId, boardId] }),
   });
 }
 
-export function useUpdateFormFields(workspaceSlug, projectId, formId) {
+export function useUpdateFormFields(workspaceId, boardId, formId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (fields) => api.put(`${formBase(workspaceSlug, projectId)}${formId}/fields/`, fields).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["form", workspaceSlug, projectId, formId] }),
+    mutationFn: (fields) => api.put(`${formBase(workspaceId, boardId)}${formId}/fields/`, fields).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["form", workspaceId, boardId, formId] }),
   });
 }
 
-export function useFormSubmissions(workspaceSlug, projectId, formId) {
+export function useFormSubmissions(workspaceId, boardId, formId) {
   return useQuery({
-    queryKey: ["form-submissions", workspaceSlug, projectId, formId],
-    queryFn: () => api.get(`${formBase(workspaceSlug, projectId)}${formId}/submissions/`).then(r => r.data),
+    queryKey: ["form-submissions", workspaceId, boardId, formId],
+    queryFn: () => api.get(`${formBase(workspaceId, boardId)}${formId}/submissions/`).then(r => r.data),
     enabled: !!formId,
   });
 }
 
-export function useUpdateSubmissionStatus(workspaceSlug, projectId, formId) {
+export function useUpdateSubmissionStatus(workspaceId, boardId, formId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data) => api.patch(`${formBase(workspaceSlug, projectId)}${formId}/submissions/`, data).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["form-submissions", workspaceSlug, projectId, formId] }),
+    mutationFn: (data) => api.patch(`${formBase(workspaceId, boardId)}${formId}/submissions/`, data).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["form-submissions", workspaceId, boardId, formId] }),
   });
 }

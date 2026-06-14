@@ -380,9 +380,9 @@ function StepBar({ current }) {
 }
 
 // ── Job history row ───────────────────────────────────────────────────────────
-function JobHistoryRow({ job, workspaceSlug, onResume }) {
-  const rollback = useRollbackImport(workspaceSlug);
-  const deleteJob = useDeleteImportJob(workspaceSlug);
+function JobHistoryRow({ job, workspaceId, onResume }) {
+  const rollback = useRollbackImport(workspaceId);
+  const deleteJob = useDeleteImportJob(workspaceId);
   const toast = useToast();
 
   const statusColor =
@@ -458,16 +458,16 @@ function JobHistoryRow({ job, workspaceSlug, onResume }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function ImportPage() {
-  const { workspaceSlug } = useParams();
+  const { workspaceId } = useParams();
   const toast = useToast();
 
-  const { data: sources = [] } = useImportSources(workspaceSlug);
+  const { data: sources = [] } = useImportSources(workspaceId);
   const { data: jobs = [], refetch: refetchJobs } =
-    useImportJobs(workspaceSlug);
+    useImportJobs(workspaceId);
 
-  const upload = useUploadImport(workspaceSlug);
-  const updateMapping = useUpdateImportMapping(workspaceSlug);
-  const runImport = useRunImport(workspaceSlug);
+  const upload = useUploadImport(workspaceId);
+  const updateMapping = useUpdateImportMapping(workspaceId);
+  const runImport = useRunImport(workspaceId);
 
   const [step, setStep] = useState(0); // 0–4
   const [source, setSource] = useState(null);
@@ -483,7 +483,7 @@ export default function ImportPage() {
   });
 
   // Listen for import.progress events via WebSocket
-  useWorkspaceSocket(workspaceSlug, (event) => {
+  useWorkspaceSocket(workspaceId, (event) => {
     if (event.type === "import.progress") {
       const p = event.payload;
       setProgress({
@@ -526,7 +526,7 @@ export default function ImportPage() {
     async (jobId) => {
       try {
         const { data } = await api.get(
-          `/api/workspaces/${workspaceSlug}/import/jobs/${jobId}/`,
+          `/api/workspaces/${workspaceId}/import/jobs/${jobId}/`,
         );
         setSource(data.source);
         setJobData(data);
@@ -538,7 +538,7 @@ export default function ImportPage() {
         toast.error("Could not load job — please try re-uploading the file.");
       }
     },
-    [workspaceSlug],
+    [workspaceId],
   );
 
   const handleSaveMapping = () => {
@@ -817,7 +817,7 @@ export default function ImportPage() {
               </p>
             </div>
             {jobs.map((j) => (
-              <JobHistoryRow key={j.id} job={j} workspaceSlug={workspaceSlug} onResume={handleResume} />
+              <JobHistoryRow key={j.id} job={j} workspaceId={workspaceId} onResume={handleResume} />
             ))}
           </div>
         )}

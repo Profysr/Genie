@@ -196,23 +196,23 @@ function buildHeader(rangeStart, rangeEnd, pxPerDay, zoom) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function RoadmapPage() {
-  const { workspaceSlug } = useParams();
+  const { workspaceId } = useParams();
 
   const { data: projects = [] } = useQuery({
-    queryKey: ["projects", workspaceSlug],
+    queryKey: ["boards", workspaceId],
     queryFn: () =>
-      api.get(`/api/workspaces/${workspaceSlug}/projects/`).then((r) => r.data),
-    enabled: !!workspaceSlug,
+      api.get(`/api/workspaces/${workspaceId}/boards/`).then((r) => r.data),
+    enabled: !!workspaceId,
   });
 
   const sprintResults = useQueries({
     queries: projects.map((p) => ({
-      queryKey: ["sprints", workspaceSlug, p.id],
+      queryKey: ["sprints", workspaceId, p.id],
       queryFn: () =>
         api
-          .get(`/api/workspaces/${workspaceSlug}/projects/${p.id}/sprints/`)
+          .get(`/api/workspaces/${workspaceId}/boards/${p.id}/sprints/`)
           .then((r) => r.data),
-      enabled: !!workspaceSlug && projects.length > 0,
+      enabled: !!workspaceId && projects.length > 0,
     })),
   });
 
@@ -542,8 +542,8 @@ export default function RoadmapPage() {
                         }
                         setDragPreview={setDragPreview}
                         rightRef={rightRef}
-                        workspaceSlug={workspaceSlug}
-                        projectId={project.id}
+                        workspaceId={workspaceId}
+                        boardId={project.id}
                       />
                     ))}
                   </div>
@@ -582,10 +582,10 @@ function SprintBar({
   dragPreview,
   setDragPreview,
   rightRef,
-  workspaceSlug,
-  projectId,
+  workspaceId,
+  boardId,
 }) {
-  const updateSprint = useUpdateSprint(workspaceSlug, projectId);
+  const updateSprint = useUpdateSprint(workspaceId, boardId);
   const dragRef = useRef(null);
   const rafRef = useRef(null);
   const didDragRef = useRef(false);

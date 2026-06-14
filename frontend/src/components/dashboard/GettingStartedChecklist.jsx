@@ -16,14 +16,14 @@ const ITEMS = [
     key: "create_project",
     label: "Create your first project",
     desc: "Set up a project and invite the team",
-    action: (navigate, ws) => navigate(`/w/${ws}/projects`),
+    action: (navigate, ws) => navigate(`/w/${ws}/boards`),
     cta: "Create project",
   },
   {
     key: "add_task",
     label: "Add a task",
     desc: "Break work into trackable pieces",
-    action: (navigate, ws) => navigate(`/w/${ws}/projects`),
+    action: (navigate, ws) => navigate(`/w/${ws}/boards`),
     cta: "Go to projects",
   },
   {
@@ -45,19 +45,19 @@ const ITEMS = [
     key: "setup_automation",
     label: "Set up an automation",
     desc: "Automate repetitive work",
-    action: (navigate, ws) => navigate(`/w/${ws}/projects`),
+    action: (navigate, ws) => navigate(`/w/${ws}/boards`),
     cta: "Explore automations",
     future: true,
   },
 ];
 
 export default function GettingStartedChecklist() {
-  const { workspaceSlug } = useParams();
+  const { workspaceId } = useParams();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
 
-  const { data: onboarding } = useOnboarding(workspaceSlug);
-  const updateOnboarding = useUpdateOnboarding(workspaceSlug);
+  const { data: onboarding } = useOnboarding(workspaceId);
+  const updateOnboarding = useUpdateOnboarding(workspaceId);
 
   // Only workspace admins see the setup checklist.
   // Non-admins join an existing workspace — it's already configured.
@@ -139,7 +139,7 @@ export default function GettingStartedChecklist() {
                     : "hover:bg-accent/30 cursor-pointer group",
                 )}
                 onClick={() =>
-                  !done && !item.future && item.action(navigate, workspaceSlug)
+                  !done && !item.future && item.action(navigate, workspaceId)
                 }
               >
                 {/* Checkbox */}

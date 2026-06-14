@@ -15,7 +15,7 @@ export default function WorkspaceRedirect() {
     }
     if (!data) return;
     if (data.length > 0) {
-      navigate(`/w/${data[0].slug}`, { replace: true });
+      navigate(`/w/${data[0].id}`, { replace: true });
     } else {
       navigate("/onboarding", { replace: true });
     }

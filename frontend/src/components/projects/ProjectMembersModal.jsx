@@ -6,27 +6,19 @@ import {
   Users,
   Lock,
   Unlock,
-  Link2,
   Trash2,
   Plus,
   Check,
   ChevronDown,
-  Copy,
-  Clock,
 } from "lucide-react";
 import {
-  useProjectMembers,
-  useAddProjectMember,
-  useUpdateProjectMember,
-  useRemoveProjectMember,
+  useBoardMembers,
+  useAddBoardMember,
+  useUpdateBoardMember,
+  useRemoveBoardMember,
 } from "@/hooks/useProjectMembers";
-import {
-  useGuestTokens,
-  useCreateGuestToken,
-  useRevokeGuestToken,
-} from "@/hooks/useGuestTokens";
 import { useMembers } from "@/hooks/useMembers";
-import { useUpdateProject } from "@/hooks/useProjects";
+import { useUpdateBoard } from "@/hooks/useProjects";
 import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
@@ -56,19 +48,13 @@ const ROLE_PERMS = {
   guest: [false, false, false, false],
 };
 
-const EXPIRY_OPTIONS = [
-  { days: 7, label: "7 days" },
-  { days: 14, label: "14 days" },
-  { days: 30, label: "30 days" },
-];
-
-const TABS = ["members", "permissions", "sharing"];
+const TABS = ["members", "permissions"];
 
 export default function ProjectMembersModal({
   open,
   onClose,
-  workspaceSlug,
-  projectId,
+  workspaceId,
+  boardId,
   project,
   canAdmin,
 }) {
@@ -76,28 +62,16 @@ export default function ProjectMembersModal({
   const [addOpen, setAddOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState("");
   const [addRole, setAddRole] = useState("editor");
-  const [tokenLabel, setTokenLabel] = useState("");
-  const [tokenDays, setTokenDays] = useState(30);
-  const [copied, setCopied] = useState(null);
 
-  const toast = useToast(); // full object: { toast, success, error, warning, info }
+  const toast = useToast();
 
-  const { data: projectMembers = [] } = useProjectMembers(
-    workspaceSlug,
-    projectId,
-    { enabled: open },
-  );
-  const { data: wsMembers = [] } = useMembers(workspaceSlug);
-  const { data: guestTokens = [] } = useGuestTokens(workspaceSlug, projectId, {
-    enabled: open,
-  });
+  const { data: projectMembers = [] } = useBoardMembers(workspaceId, boardId, { enabled: open });
+  const { data: wsMembers = [] } = useMembers(workspaceId);
 
-  const addMember = useAddProjectMember(workspaceSlug, projectId);
-  const updateMember = useUpdateProjectMember(workspaceSlug, projectId);
-  const removeMember = useRemoveProjectMember(workspaceSlug, projectId);
-  const createToken = useCreateGuestToken(workspaceSlug, projectId);
-  const revokeToken = useRevokeGuestToken(workspaceSlug, projectId);
-  const updateProject = useUpdateProject(workspaceSlug, projectId);
+  const addMember = useAddBoardMember(workspaceId, boardId);
+  const updateMember = useUpdateBoardMember(workspaceId, boardId);
+  const removeMember = useRemoveBoardMember(workspaceId, boardId);
+  const updateProject = useUpdateBoard(workspaceId, boardId);
 
   // Workspace members not yet in the project-level list
   const alreadyAdded = new Set(projectMembers.map((m) => m.user.id));
@@ -115,27 +89,6 @@ export default function ProjectMembersModal({
           toast.success("Member added");
         },
         onError: () => toast.error("Failed to add member"),
-      },
-    );
-  };
-
-  const handleCopyLink = (token) => {
-    const url = `${window.location.origin}/w/${workspaceSlug}/projects/${projectId}?guest_token=${token.token}`;
-    navigator.clipboard.writeText(url);
-    setCopied(token.id);
-    setTimeout(() => setCopied(null), 2000);
-    toast.success("Link copied");
-  };
-
-  const handleCreateToken = () => {
-    createToken.mutate(
-      { label: tokenLabel || "Shared link", days: tokenDays },
-      {
-        onSuccess: () => {
-          setTokenLabel("");
-          toast.success("Guest link created");
-        },
-        onError: () => toast.error("Failed to create link"),
       },
     );
   };
@@ -173,11 +126,7 @@ export default function ProjectMembersModal({
                     : "border-transparent text-muted-foreground hover:text-foreground",
                 )}
               >
-                {t === "members"
-                  ? "Members"
-                  : t === "permissions"
-                    ? "Permissions"
-                    : "Sharing"}
+                {t === "members" ? "Members" : "Permissions"}
               </button>
             ))}
           </div>
@@ -397,111 +346,6 @@ export default function ProjectMembersModal({
               </div>
             )}
 
-            {/* ── Sharing tab ── */}
-            {tab === "sharing" && (
-              <div className="space-y-5">
-                {/* Active tokens */}
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    Active guest links
-                  </p>
-                  {guestTokens.length === 0 && (
-                    <p className="text-sm text-muted-foreground py-4 text-center">
-                      No guest links yet.
-                    </p>
-                  )}
-                  {guestTokens.map((t) => (
-                    <div
-                      key={t.id}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg border bg-background"
-                    >
-                      <Link2 className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">
-                          {t.label || "Shared link"}
-                        </p>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          Expires{" "}
-                          {formatDistanceToNow(new Date(t.expires_at), {
-                            addSuffix: true,
-                          })}
-                          {t.is_expired && (
-                            <Badge variant="destructive" size="sm">
-                              Expired
-                            </Badge>
-                          )}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => handleCopyLink(t)}
-                        className={cn(
-                          "flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border transition-colors",
-                          copied === t.id
-                            ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                            : "border-border hover:border-primary hover:text-primary",
-                        )}
-                      >
-                        {copied === t.id ? (
-                          <Check className="w-3 h-3" />
-                        ) : (
-                          <Copy className="w-3 h-3" />
-                        )}
-                        {copied === t.id ? "Copied!" : "Copy link"}
-                      </button>
-                      {canAdmin && (
-                        <button
-                          onClick={() => revokeToken.mutate(t.id)}
-                          className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                          title="Revoke"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Create new token */}
-                {canAdmin && (
-                  <div className="border-t pt-4 space-y-3">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Create guest link
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <input
-                        className="flex-1 text-sm border rounded-lg px-3 py-2 bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-                        placeholder="Link label (optional)…"
-                        value={tokenLabel}
-                        onChange={(e) => setTokenLabel(e.target.value)}
-                      />
-                      <select
-                        className="text-sm border rounded-lg px-3 py-2 bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-                        value={tokenDays}
-                        onChange={(e) => setTokenDays(Number(e.target.value))}
-                      >
-                        {EXPIRY_OPTIONS.map((o) => (
-                          <option key={o.days} value={o.days}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
-                      <Button
-                        size="sm"
-                        onClick={handleCreateToken}
-                        disabled={createToken.isPending}
-                      >
-                        {createToken.isPending ? "Creating…" : "Create"}
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Guest links grant read-only access. Anyone with the link
-                      can view tasks without signing in.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </Dialog.Content>
       </Dialog.Portal>

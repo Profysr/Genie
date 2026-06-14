@@ -92,15 +92,15 @@ const AUTOMATION_TEMPLATES = [
 ];
 
 export default function AutomationsPage() {
-  const { workspaceSlug, projectId } = useParams();
+  const { workspaceId, boardId } = useParams();
   const navigate = useNavigate();
   const { data: rules = [], isLoading } = useAutomations(
-    workspaceSlug,
-    projectId,
+    workspaceId,
+    boardId,
   );
-  const createRule = useCreateAutomation(workspaceSlug, projectId);
-  const updateRule = useUpdateAutomation(workspaceSlug, projectId);
-  const deleteRule = useDeleteAutomation(workspaceSlug, projectId);
+  const createRule = useCreateAutomation(workspaceId, boardId);
+  const updateRule = useUpdateAutomation(workspaceId, boardId);
+  const deleteRule = useDeleteAutomation(workspaceId, boardId);
 
   const [building, setBuilding] = useState(false);
   const [draft, setDraft] = useState({
@@ -166,7 +166,7 @@ export default function AutomationsPage() {
           <div className="flex items-center gap-3">
             <button
               onClick={() =>
-                navigate(`/w/${workspaceSlug}/projects/${projectId}`)
+                navigate(`/w/${workspaceId}/boards/${boardId}`)
               }
               className="p-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors active:scale-[0.97]"
               title="Back to board"

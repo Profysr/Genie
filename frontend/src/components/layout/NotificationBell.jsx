@@ -196,7 +196,7 @@ const FILTERS = [
 ];
 
 export default function NotificationBell() {
-  const { workspaceSlug } = useParams();
+  const { workspaceId } = useParams();
   const [open, setOpen] = useState(false);
 
   // 1. Set "unread" as the default tab view
@@ -210,14 +210,14 @@ export default function NotificationBell() {
     data: items = [],
     isLoading,
     isFetching,
-  } = useInbox(workspaceSlug, {
+  } = useInbox(workspaceId, {
     tab: "for_you",
     limit,
     enabled: open,
   });
-  const unreadCount = useInboxUnreadCount(workspaceSlug);
-  const updateItem = useUpdateInboxItem(workspaceSlug);
-  const bulkUpdate = useBulkUpdateInbox(workspaceSlug);
+  const unreadCount = useInboxUnreadCount(workspaceId);
+  const updateItem = useUpdateInboxItem(workspaceId);
+  const bulkUpdate = useBulkUpdateInbox(workspaceId);
 
   useEffect(() => {
     if (!open) setExpanded(false);

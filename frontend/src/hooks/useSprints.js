@@ -4,42 +4,42 @@ import api from "@/lib/api";
 const sprintsKey  = (ws, proj) => ["sprints", ws, proj];
 const burndownKey = (ws, proj, sprintId) => ["burndown", ws, proj, sprintId];
 
-export const useSprints = (workspaceSlug, projectId) =>
+export const useSprints = (workspaceId, boardId) =>
   useQuery({
-    queryKey: sprintsKey(workspaceSlug, projectId),
-    queryFn: () => api.get(`/api/workspaces/${workspaceSlug}/projects/${projectId}/sprints/`).then(r => r.data),
-    enabled: !!workspaceSlug && !!projectId,
+    queryKey: sprintsKey(workspaceId, boardId),
+    queryFn: () => api.get(`/api/workspaces/${workspaceId}/boards/${boardId}/sprints/`).then(r => r.data),
+    enabled: !!workspaceId && !!boardId,
   });
 
-export const useCreateSprint = (workspaceSlug, projectId) => {
+export const useCreateSprint = (workspaceId, boardId) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data) => api.post(`/api/workspaces/${workspaceSlug}/projects/${projectId}/sprints/`, data).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: sprintsKey(workspaceSlug, projectId) }),
+    mutationFn: (data) => api.post(`/api/workspaces/${workspaceId}/boards/${boardId}/sprints/`, data).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: sprintsKey(workspaceId, boardId) }),
   });
 };
 
-export const useUpdateSprint = (workspaceSlug, projectId) => {
+export const useUpdateSprint = (workspaceId, boardId) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ sprintId, ...data }) =>
-      api.patch(`/api/workspaces/${workspaceSlug}/projects/${projectId}/sprints/${sprintId}/`, data).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: sprintsKey(workspaceSlug, projectId) }),
+      api.patch(`/api/workspaces/${workspaceId}/boards/${boardId}/sprints/${sprintId}/`, data).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: sprintsKey(workspaceId, boardId) }),
   });
 };
 
-export const useDeleteSprint = (workspaceSlug, projectId) => {
+export const useDeleteSprint = (workspaceId, boardId) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (sprintId) => api.delete(`/api/workspaces/${workspaceSlug}/projects/${projectId}/sprints/${sprintId}/`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: sprintsKey(workspaceSlug, projectId) }),
+    mutationFn: (sprintId) => api.delete(`/api/workspaces/${workspaceId}/boards/${boardId}/sprints/${sprintId}/`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: sprintsKey(workspaceId, boardId) }),
   });
 };
 
-export const useSprintBurndown = (workspaceSlug, projectId, sprintId) =>
+export const useSprintBurndown = (workspaceId, boardId, sprintId) =>
   useQuery({
-    queryKey: burndownKey(workspaceSlug, projectId, sprintId),
-    queryFn: () => api.get(`/api/workspaces/${workspaceSlug}/projects/${projectId}/sprints/${sprintId}/burndown/`).then(r => r.data),
+    queryKey: burndownKey(workspaceId, boardId, sprintId),
+    queryFn: () => api.get(`/api/workspaces/${workspaceId}/boards/${boardId}/sprints/${sprintId}/burndown/`).then(r => r.data),
     enabled: !!sprintId,
     staleTime: 60_000,
   });

@@ -48,9 +48,9 @@ function HealthBadge({ health }) {
 }
 
 export default function ProjectsPage() {
-  const { workspaceSlug } = useParams();
+  const { workspaceId } = useParams();
   const navigate = useNavigate();
-  const { data: projects, isLoading } = usePortfolio(workspaceSlug);
+  const { data: projects, isLoading } = usePortfolio(workspaceId);
   const [showCreate, setShowCreate] = useState(false);
 
   const list = projects ?? [];
@@ -62,10 +62,10 @@ export default function ProjectsPage() {
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Boards</h1>
           <div className="flex items-center gap-3 mt-1 flex-wrap">
             <p className="text-muted-foreground text-sm">
-              {list.length} project{list.length !== 1 ? "s" : ""} in this
+              {list.length} board{list.length !== 1 ? "s" : ""} in this
               workspace
             </p>
             {/* {hasHealth && (atRisk > 0 || offTrack > 0) && (
@@ -90,7 +90,7 @@ export default function ProjectsPage() {
           </div>
         </div>
         <Button onClick={() => setShowCreate(true)}>
-          <Plus className="w-4 h-4 mr-1.5" /> New Project
+          <Plus className="w-4 h-4 mr-1.5" /> New Board
         </Button>
       </div>
 
@@ -101,11 +101,11 @@ export default function ProjectsPage() {
       {!isLoading && list.length === 0 && (
         <EmptyState
           illustration="projects"
-          title="No projects yet"
-          description="Create a project to start tracking work."
+          title="No boards yet"
+          description="Create a board to start tracking work."
           action={
             <Button onClick={() => setShowCreate(true)}>
-              <Plus className="w-4 h-4 mr-1.5" /> New Project
+              <Plus className="w-4 h-4 mr-1.5" /> New Board
             </Button>
           }
         />
@@ -135,7 +135,7 @@ export default function ProjectsPage() {
             <button
               key={project.id}
               onClick={() =>
-                navigate(`/w/${workspaceSlug}/projects/${project.id}`)
+                navigate(`/w/${workspaceId}/boards/${project.id}`)
               }
               className="text-left rounded-md border bg-card p-5 hover:shadow-card-hover hover:border-primary/30 transition-all duration-200 group shadow-card"
             >

@@ -1,56 +1,71 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 
-export const useProjects = (workspaceSlug) =>
+export const useBoards = (workspaceId) =>
   useQuery({
-    queryKey: ["projects", workspaceSlug],
+    queryKey: ["boards", workspaceId],
     queryFn: () =>
-      api.get(`/api/workspaces/${workspaceSlug}/projects/`).then((r) => r.data),
-    enabled: !!workspaceSlug,
+      api.get(`/api/workspaces/${workspaceId}/boards/`).then((r) => r.data),
+    enabled: !!workspaceId,
   });
 
-export const useProject = (workspaceSlug, projectId) =>
+// Keep legacy alias so any remaining consumers don't break
+export const useProjects = useBoards;
+
+export const useBoard = (workspaceId, boardId) =>
   useQuery({
-    queryKey: ["project", workspaceSlug, projectId],
+    queryKey: ["board", workspaceId, boardId],
     queryFn: () =>
       api
-        .get(`/api/workspaces/${workspaceSlug}/projects/${projectId}/`)
+        .get(`/api/workspaces/${workspaceId}/boards/${boardId}/`)
         .then((r) => r.data),
-    enabled: !!workspaceSlug && !!projectId,
+    enabled: !!workspaceId && !!boardId,
   });
 
-export const useCreateProject = (workspaceSlug) => {
+// Keep legacy alias
+export const useProject = useBoard;
+
+export const useCreateBoard = (workspaceId) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data) =>
       api
-        .post(`/api/workspaces/${workspaceSlug}/projects/`, data)
+        .post(`/api/workspaces/${workspaceId}/boards/`, data)
         .then((r) => r.data),
     onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["projects", workspaceSlug] }),
+      qc.invalidateQueries({ queryKey: ["boards", workspaceId] }),
   });
 };
 
-export const useUpdateProject = (workspaceSlug, projectId) => {
+// Keep legacy alias
+export const useCreateProject = useCreateBoard;
+
+export const useUpdateBoard = (workspaceId, boardId) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data) =>
       api
-        .patch(`/api/workspaces/${workspaceSlug}/projects/${projectId}/`, data)
+        .patch(`/api/workspaces/${workspaceId}/boards/${boardId}/`, data)
         .then((r) => r.data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["projects", workspaceSlug] });
-      qc.invalidateQueries({ queryKey: ["project", workspaceSlug, projectId] });
+      qc.invalidateQueries({ queryKey: ["boards", workspaceId] });
+      qc.invalidateQueries({ queryKey: ["board", workspaceId, boardId] });
     },
   });
 };
 
-export const useDeleteProject = (workspaceSlug) => {
+// Keep legacy alias
+export const useUpdateProject = useUpdateBoard;
+
+export const useDeleteBoard = (workspaceId) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (projectId) =>
-      api.delete(`/api/workspaces/${workspaceSlug}/projects/${projectId}/`),
+    mutationFn: (boardId) =>
+      api.delete(`/api/workspaces/${workspaceId}/boards/${boardId}/`),
     onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["projects", workspaceSlug] }),
+      qc.invalidateQueries({ queryKey: ["boards", workspaceId] }),
   });
 };
+
+// Keep legacy alias
+export const useDeleteProject = useDeleteBoard;

@@ -55,17 +55,17 @@ export function useKeyboardShortcuts({
   onOpenFilter,
 } = {}) {
   const navigate = useNavigate();
-  const { workspaceSlug } = useParams();
+  const { workspaceId } = useParams();
 
   // Tracks the first key of a chord (e.g. "g" in "g p")
   const chordRef = useRef(null);
   const chordTimer = useRef(null);
 
   useEffect(() => {
-    if (!workspaceSlug) return;
-    const ws = (path) => `/w/${workspaceSlug}/${path}`;
+    if (!workspaceId) return;
+    const ws = (path) => `/w/${workspaceId}/${path}`;
     const CHORD_MAP = {
-      p: () => navigate(ws("projects")),
+      p: () => navigate(ws("boards")),
       d: () => navigate(ws("dashboards")),
       m: () => navigate(ws("my-work")),
       i: () => navigate(ws("inbox")),
@@ -134,7 +134,7 @@ export function useKeyboardShortcuts({
       clearTimeout(chordTimer.current);
     };
   }, [
-    workspaceSlug,
+    workspaceId,
     navigate,
     onOpenPalette,
     onOpenShortcuts,

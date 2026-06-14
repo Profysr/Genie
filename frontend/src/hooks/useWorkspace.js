@@ -1,13 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 
-/** Fetch a single workspace by slug. Shared across pages/layout. */
-export function useWorkspace(workspaceSlug) {
+/** Fetch a single workspace by ID. Shared across pages/layout. */
+export function useWorkspace(workspaceId) {
   return useQuery({
-    queryKey: ["workspace", workspaceSlug],
+    queryKey: ["workspace", workspaceId],
     queryFn: () =>
-      api.get(`/api/workspaces/${workspaceSlug}/`).then((r) => r.data),
-    enabled: !!workspaceSlug,
+      api.get(`/api/workspaces/${workspaceId}/`).then((r) => r.data),
+    enabled: !!workspaceId,
   });
 }
 
@@ -21,22 +21,22 @@ export function useWorkspaces() {
   });
 }
 
-export const useUpdateWorkspace = (workspaceSlug) => {
+export const useUpdateWorkspace = (workspaceId) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data) =>
-      api.patch(`/api/workspaces/${workspaceSlug}/`, data).then((r) => r.data),
+      api.patch(`/api/workspaces/${workspaceId}/`, data).then((r) => r.data),
     onSuccess: (updated) => {
       qc.invalidateQueries({ queryKey: ["workspaces"] });
-      qc.setQueryData(["workspace", workspaceSlug], updated);
+      qc.setQueryData(["workspace", workspaceId], updated);
     },
   });
 };
 
-export const useDeleteWorkspace = (workspaceSlug) => {
+export const useDeleteWorkspace = (workspaceId) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => api.delete(`/api/workspaces/${workspaceSlug}/`),
+    mutationFn: () => api.delete(`/api/workspaces/${workspaceId}/`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["workspaces"] }),
   });
 };

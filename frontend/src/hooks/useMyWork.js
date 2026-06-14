@@ -8,10 +8,10 @@ export const useMyWork = () =>
     staleTime: 30_000,
   });
 
-export const usePortfolio = (workspaceSlug) =>
+export const usePortfolio = (workspaceId) =>
   useQuery({
-    queryKey: ["portfolio", workspaceSlug],
-    queryFn: () => api.get(`/api/workspaces/${workspaceSlug}/portfolio/`).then(r => r.data),
-    enabled: !!workspaceSlug,
+    queryKey: ["portfolio", workspaceId],
+    queryFn: () => api.get(`/api/workspaces/${workspaceId}/portfolio/`).then(r => r.data),
+    enabled: !!workspaceId,
     staleTime: 60_000,
   });

@@ -20,12 +20,12 @@ const STEPS = [
   { n: 5, text: "Click ✓ to mark the sprint complete when done" },
 ];
 
-export default function SprintPanel({ workspaceSlug, projectId, activeSprint, onSelectSprint }) {
-  const { data: sprints = [] } = useSprints(workspaceSlug, projectId);
-  const createSprint = useCreateSprint(workspaceSlug, projectId);
-  const updateSprint = useUpdateSprint(workspaceSlug, projectId);
-  const deleteSprint = useDeleteSprint(workspaceSlug, projectId);
-  const { data: burndown } = useSprintBurndown(workspaceSlug, projectId, activeSprint?.id);
+export default function SprintPanel({ workspaceId, boardId, activeSprint, onSelectSprint }) {
+  const { data: sprints = [] } = useSprints(workspaceId, boardId);
+  const createSprint = useCreateSprint(workspaceId, boardId);
+  const updateSprint = useUpdateSprint(workspaceId, boardId);
+  const deleteSprint = useDeleteSprint(workspaceId, boardId);
+  const { data: burndown } = useSprintBurndown(workspaceId, boardId, activeSprint?.id);
 
   const [creating, setCreating]         = useState(false);
   const [form, setForm]                 = useState({ name: "", goal: "", start_date: "", end_date: "" });

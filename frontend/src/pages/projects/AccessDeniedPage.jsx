@@ -5,14 +5,14 @@ import { useToast } from "@/components/ui/toast";
 import api from "@/lib/api";
 
 export default function AccessDeniedPage({ projectName }) {
-  const { workspaceSlug, projectId } = useParams();
+  const { workspaceId, boardId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const handleRequestAccess = async () => {
     try {
       await api.post(
-        `/api/workspaces/${workspaceSlug}/projects/${projectId}/request-access/`,
+        `/api/workspaces/${workspaceId}/boards/${boardId}/request-access/`,
       );
       toast.success("Request sent", "Project admins have been notified.");
     } catch {
@@ -44,7 +44,7 @@ export default function AccessDeniedPage({ projectName }) {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => navigate(`/w/${workspaceSlug}/projects`)}
+          onClick={() => navigate(`/w/${workspaceId}/boards`)}
         >
           <ArrowLeft className="w-3.5 h-3.5 mr-1.5" /> Back to projects
         </Button>

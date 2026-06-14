@@ -2,34 +2,34 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 
 const BASE = (ws, proj, task) =>
-  `/api/workspaces/${ws}/projects/${proj}/tasks/${task}/dependencies/`;
+  `/api/workspaces/${ws}/boards/${proj}/tasks/${task}/dependencies/`;
 
-export function useDependencies(workspaceSlug, projectId, taskId) {
+export function useDependencies(workspaceId, boardId, taskId) {
   return useQuery({
-    queryKey: ["dependencies", workspaceSlug, projectId, taskId],
-    queryFn: () => api.get(BASE(workspaceSlug, projectId, taskId)).then((r) => r.data),
+    queryKey: ["dependencies", workspaceId, boardId, taskId],
+    queryFn: () => api.get(BASE(workspaceId, boardId, taskId)).then((r) => r.data),
     enabled: !!taskId,
   });
 }
 
-export function useAddDependency(workspaceSlug, projectId, taskId) {
+export function useAddDependency(workspaceId, boardId, taskId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload) =>
-      api.post(BASE(workspaceSlug, projectId, taskId), payload).then((r) => r.data),
+      api.post(BASE(workspaceId, boardId, taskId), payload).then((r) => r.data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["dependencies", workspaceSlug, projectId, taskId] });
+      qc.invalidateQueries({ queryKey: ["dependencies", workspaceId, boardId, taskId] });
     },
   });
 }
 
-export function useRemoveDependency(workspaceSlug, projectId, taskId) {
+export function useRemoveDependency(workspaceId, boardId, taskId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (depId) =>
-      api.delete(`${BASE(workspaceSlug, projectId, taskId)}${depId}/`),
+      api.delete(`${BASE(workspaceId, boardId, taskId)}${depId}/`),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["dependencies", workspaceSlug, projectId, taskId] });
+      qc.invalidateQueries({ queryKey: ["dependencies", workspaceId, boardId, taskId] });
     },
   });
 }

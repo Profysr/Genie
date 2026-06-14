@@ -26,11 +26,11 @@ export const NAV_ITEMS = [
     path: "dashboards",
   },
   {
-    key: "projects",
+    key: "boards",
     icon: FolderKanban,
-    label: "Projects",
-    desc: "All projects",
-    path: "projects",
+    label: "Boards",
+    desc: "All boards",
+    path: "boards",
   },
   {
     key: "my-work",
@@ -109,7 +109,7 @@ export const NAV_ITEMS = [
 export const NAV_GROUPS = [
   {
     label: null,
-    items: ["dashboards", "projects"],
+    items: ["dashboards", "boards"],
   },
   {
     label: "Work",
@@ -146,6 +146,6 @@ export function resolvedNavGroups() {
   }));
 }
 
-export function workspaceUrl(slug, path) {
-  return `/w/${slug}/${path}`;
+export function workspaceUrl(id, path) {
+  return `/w/${id}/${path}`;
 }

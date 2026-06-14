@@ -4,16 +4,16 @@ import { notificationsKey } from "@/hooks/useNotifications";
 import { presenceKey } from "@/hooks/usePresence";
 import { BACKEND_WS_URL } from "@/lib/env";
 
-export function useWorkspaceSocket(workspaceSlug) {
+export function useWorkspaceSocket(workspaceId) {
   const qc = useQueryClient();
   const wsRef = useRef(null);
 
   useEffect(() => {
-    if (!workspaceSlug) return;
+    if (!workspaceId) return;
 
     const token = localStorage.getItem("access_token");
     const ws = new WebSocket(
-      `${BACKEND_WS_URL}/ws/workspaces/${workspaceSlug}/?token=${token}`
+      `${BACKEND_WS_URL}/ws/workspaces/${workspaceId}/?token=${token}`
     );
     wsRef.current = ws;
 
@@ -22,14 +22,14 @@ export function useWorkspaceSocket(workspaceSlug) {
 
       // ── Task events ────────────────────────────────────────────
       if (type === "task.created") {
-        qc.setQueryData(["tasks", workspaceSlug, payload.project_id], (old) => {
+        qc.setQueryData(["tasks", workspaceId, payload.project_id], (old) => {
           if (!old) return [payload];
           return old.find((t) => t.id === payload.id) ? old : [...old, payload];
         });
       }
 
       if (type === "task.updated") {
-        qc.setQueryData(["tasks", workspaceSlug, payload.project_id], (old) => {
+        qc.setQueryData(["tasks", workspaceId, payload.project_id], (old) => {
           if (!old) return old;
           return old.map((t) => (t.id === payload.id ? payload : t));
         });
@@ -39,7 +39,7 @@ export function useWorkspaceSocket(workspaceSlug) {
         // Merge server data but KEEP the optimistic `order` value already in the cache.
         // The server recalculates order server-side; our DnD position is already visually
         // correct. Using the server order would re-sort columns and cause a visible flicker.
-        qc.setQueryData(["tasks", workspaceSlug, payload.project_id], (old) => {
+        qc.setQueryData(["tasks", workspaceId, payload.project_id], (old) => {
           if (!old) return old;
           return old.map((t) =>
             t.id === payload.id
@@ -50,14 +50,14 @@ export function useWorkspaceSocket(workspaceSlug) {
       }
 
       if (type === "task.deleted") {
-        qc.setQueryData(["tasks", workspaceSlug, payload.project_id], (old) =>
+        qc.setQueryData(["tasks", workspaceId, payload.project_id], (old) =>
           old?.filter((t) => t.id !== payload.id)
         );
       }
 
       // ── Comment events — update the task detail cache ──────────
       if (type === "comment.created") {
-        qc.setQueryData(["task-detail", workspaceSlug, payload.project_id, payload.task_id], (old) => {
+        qc.setQueryData(["task-detail", workspaceId, payload.project_id, payload.task_id], (old) => {
           if (!old) return old;
           const exists = old.comments?.find((c) => c.id === payload.comment.id);
           if (exists) return old;
@@ -70,7 +70,7 @@ export function useWorkspaceSocket(workspaceSlug) {
       }
 
       if (type === "comment.deleted") {
-        qc.setQueryData(["task-detail", workspaceSlug, payload.project_id, payload.task_id], (old) => {
+        qc.setQueryData(["task-detail", workspaceId, payload.project_id, payload.task_id], (old) => {
           if (!old) return old;
           return {
             ...old,
@@ -91,16 +91,15 @@ export function useWorkspaceSocket(workspaceSlug) {
 
       // ── Inbox: invalidate on new notification ──────────────────
       if (type === "notification.created") {
-        qc.invalidateQueries({ queryKey: ["inbox", workspaceSlug] });
+        qc.invalidateQueries({ queryKey: ["inbox", workspaceId] });
       }
 
       // ── Approval events ────────────────────────────────────────
       if (type === "approval.created" || type === "approval.updated") {
         qc.invalidateQueries({
-          queryKey: ["approvals", workspaceSlug, payload.project_id, payload.task_id],
+          queryKey: ["approvals", workspaceId, payload.project_id, payload.task_id],
         });
-        // Also refresh task list so approval badge updates
-        qc.invalidateQueries({ queryKey: ["tasks", workspaceSlug, payload.project_id] });
+        qc.invalidateQueries({ queryKey: ["tasks", workspaceId, payload.project_id] });
       }
 
       // ── Typing indicators — forwarded to a custom event for TaskDetailPanel ──
@@ -111,18 +110,16 @@ export function useWorkspaceSocket(workspaceSlug) {
       // ── Presence events ────────────────────────────────────────
       if (type === "presence.updated") {
         const { resource_type, resource_id } = payload;
-        // Invalidate so the next refetch shows the fresh list
         qc.invalidateQueries({
-          queryKey: presenceKey(workspaceSlug, resource_type, resource_id),
+          queryKey: presenceKey(workspaceId, resource_type, resource_id),
         });
-        // Also invalidate the workspace-wide "all" list
-        qc.invalidateQueries({ queryKey: ["presence", workspaceSlug, "all"] });
+        qc.invalidateQueries({ queryKey: ["presence", workspaceId, "all"] });
       }
 
       // ── Comment reaction events ────────────────────────────────
       if (type === "reaction.updated") {
         qc.setQueryData(
-          ["task-detail", workspaceSlug, payload.project_id, payload.task_id],
+          ["task-detail", workspaceId, payload.project_id, payload.task_id],
           (old) => {
             if (!old) return old;
             return {
@@ -141,7 +138,7 @@ export function useWorkspaceSocket(workspaceSlug) {
     ws.onerror = () => console.warn("WebSocket error — realtime updates unavailable");
 
     return () => ws.close();
-  }, [workspaceSlug, qc]);
+  }, [workspaceId, qc]);
 
   return wsRef;
 }

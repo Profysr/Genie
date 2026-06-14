@@ -1,103 +1,103 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 
-const wikiBase = (ws, proj) => `/api/workspaces/${ws}/projects/${proj}/wiki/`;
+const wikiBase = (ws, proj) => `/api/workspaces/${ws}/boards/${proj}/wiki/`;
 const docBase  = (ws)       => `/api/workspaces/${ws}/documents/`;
 
 // ── Wiki pages ────────────────────────────────────────────────────────────────
 
-export function useWikiPages(workspaceSlug, projectId) {
+export function useWikiPages(workspaceId, boardId) {
   return useQuery({
-    queryKey: ["wiki", workspaceSlug, projectId],
-    queryFn: () => api.get(wikiBase(workspaceSlug, projectId)).then(r => r.data),
-    enabled: !!projectId,
+    queryKey: ["wiki", workspaceId, boardId],
+    queryFn: () => api.get(wikiBase(workspaceId, boardId)).then(r => r.data),
+    enabled: !!boardId,
   });
 }
 
-export function useWikiPage(workspaceSlug, projectId, pageId) {
+export function useWikiPage(workspaceId, boardId, pageId) {
   return useQuery({
-    queryKey: ["wiki-page", workspaceSlug, projectId, pageId],
-    queryFn: () => api.get(`${wikiBase(workspaceSlug, projectId)}${pageId}/`).then(r => r.data),
+    queryKey: ["wiki-page", workspaceId, boardId, pageId],
+    queryFn: () => api.get(`${wikiBase(workspaceId, boardId)}${pageId}/`).then(r => r.data),
     enabled: !!pageId,
   });
 }
 
-export function useCreateWikiPage(workspaceSlug, projectId) {
+export function useCreateWikiPage(workspaceId, boardId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data) => api.post(wikiBase(workspaceSlug, projectId), data).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["wiki", workspaceSlug, projectId] }),
+    mutationFn: (data) => api.post(wikiBase(workspaceId, boardId), data).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["wiki", workspaceId, boardId] }),
   });
 }
 
-export function useUpdateWikiPage(workspaceSlug, projectId, pageId) {
+export function useUpdateWikiPage(workspaceId, boardId, pageId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data) => api.patch(`${wikiBase(workspaceSlug, projectId)}${pageId}/`, data).then(r => r.data),
+    mutationFn: (data) => api.patch(`${wikiBase(workspaceId, boardId)}${pageId}/`, data).then(r => r.data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["wiki-page", workspaceSlug, projectId, pageId] });
-      qc.invalidateQueries({ queryKey: ["wiki", workspaceSlug, projectId] });
+      qc.invalidateQueries({ queryKey: ["wiki-page", workspaceId, boardId, pageId] });
+      qc.invalidateQueries({ queryKey: ["wiki", workspaceId, boardId] });
     },
   });
 }
 
-export function useDeleteWikiPage(workspaceSlug, projectId) {
+export function useDeleteWikiPage(workspaceId, boardId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (pageId) => api.delete(`${wikiBase(workspaceSlug, projectId)}${pageId}/`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["wiki", workspaceSlug, projectId] }),
+    mutationFn: (pageId) => api.delete(`${wikiBase(workspaceId, boardId)}${pageId}/`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["wiki", workspaceId, boardId] }),
   });
 }
 
-export function useWikiRevisions(workspaceSlug, projectId, pageId) {
+export function useWikiRevisions(workspaceId, boardId, pageId) {
   return useQuery({
-    queryKey: ["wiki-revisions", workspaceSlug, projectId, pageId],
-    queryFn: () => api.get(`${wikiBase(workspaceSlug, projectId)}${pageId}/revisions/`).then(r => r.data),
+    queryKey: ["wiki-revisions", workspaceId, boardId, pageId],
+    queryFn: () => api.get(`${wikiBase(workspaceId, boardId)}${pageId}/revisions/`).then(r => r.data),
     enabled: !!pageId,
   });
 }
 
 // ── Documents ─────────────────────────────────────────────────────────────────
 
-export function useDocuments(workspaceSlug) {
+export function useDocuments(workspaceId) {
   return useQuery({
-    queryKey: ["documents", workspaceSlug],
-    queryFn: () => api.get(docBase(workspaceSlug)).then(r => r.data),
-    enabled: !!workspaceSlug,
+    queryKey: ["documents", workspaceId],
+    queryFn: () => api.get(docBase(workspaceId)).then(r => r.data),
+    enabled: !!workspaceId,
   });
 }
 
-export function useDocument(workspaceSlug, docId) {
+export function useDocument(workspaceId, docId) {
   return useQuery({
-    queryKey: ["document", workspaceSlug, docId],
-    queryFn: () => api.get(`${docBase(workspaceSlug)}${docId}/`).then(r => r.data),
+    queryKey: ["document", workspaceId, docId],
+    queryFn: () => api.get(`${docBase(workspaceId)}${docId}/`).then(r => r.data),
     enabled: !!docId,
   });
 }
 
-export function useCreateDocument(workspaceSlug) {
+export function useCreateDocument(workspaceId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data) => api.post(docBase(workspaceSlug), data).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["documents", workspaceSlug] }),
+    mutationFn: (data) => api.post(docBase(workspaceId), data).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["documents", workspaceId] }),
   });
 }
 
-export function useUpdateDocument(workspaceSlug, docId) {
+export function useUpdateDocument(workspaceId, docId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data) => api.patch(`${docBase(workspaceSlug)}${docId}/`, data).then(r => r.data),
+    mutationFn: (data) => api.patch(`${docBase(workspaceId)}${docId}/`, data).then(r => r.data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["document", workspaceSlug, docId] });
-      qc.invalidateQueries({ queryKey: ["documents", workspaceSlug] });
+      qc.invalidateQueries({ queryKey: ["document", workspaceId, docId] });
+      qc.invalidateQueries({ queryKey: ["documents", workspaceId] });
     },
   });
 }
 
-export function useDeleteDocument(workspaceSlug) {
+export function useDeleteDocument(workspaceId) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (docId) => api.delete(`${docBase(workspaceSlug)}${docId}/`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["documents", workspaceSlug] }),
+    mutationFn: (docId) => api.delete(`${docBase(workspaceId)}${docId}/`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["documents", workspaceId] }),
   });
 }

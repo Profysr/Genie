@@ -13,12 +13,12 @@ const ShortcutOverlay = lazy(() => import("@/components/ShortcutOverlay"));
 const UserSettingsModal = lazy(() => import("@/components/UserSettingsModal"));
 
 export default function AppLayout() {
-  const { workspaceSlug } = useParams();
+  const { workspaceId } = useParams();
   const { user, logout } = useAuthStore();
   const hydrateTheme = useThemeStore((s) => s.hydrate);
   const navigate = useNavigate();
 
-  const { data: workspace } = useWorkspace(workspaceSlug);
+  const { data: workspace } = useWorkspace(workspaceId);
 
   useEffect(() => {
     if (!user) return;
@@ -31,7 +31,7 @@ export default function AppLayout() {
   };
 
   // v3.5.0 — announce workspace-level presence so other users see us as online
-  useAnnouncePresence(workspaceSlug, "project", workspaceSlug);
+  useAnnouncePresence(workspaceId, "board", workspaceId);
 
   // v3.9.0 — command palette + shortcut overlay + user settings modal
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -71,7 +71,7 @@ export default function AppLayout() {
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar
         workspace={workspace}
-        workspaceSlug={workspaceSlug}
+        workspaceId={workspaceId}
         user={user}
         isFocusMode={isFocusMode}
         onOpenPalette={() => setPaletteOpen(true)}
@@ -95,7 +95,7 @@ export default function AppLayout() {
         <CommandPalette
           open={paletteOpen}
           onClose={() => setPaletteOpen(false)}
-          workspaceSlug={workspaceSlug}
+          workspaceId={workspaceId}
         />
       </Suspense>
       <Suspense fallback={null}>

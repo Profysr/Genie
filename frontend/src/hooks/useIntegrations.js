@@ -3,122 +3,122 @@ import api from "@/lib/api";
 
 // ── Status (all platforms) ────────────────────────────────────────────────────
 
-export function useIntegrationStatus(workspaceSlug) {
+export function useIntegrationStatus(workspaceId) {
   return useQuery({
-    queryKey: ["integrations", workspaceSlug],
+    queryKey: ["integrations", workspaceId],
     queryFn: () =>
-      api.get(`/api/workspaces/${workspaceSlug}/integrations/`).then((r) => r.data),
-    enabled: !!workspaceSlug,
+      api.get(`/api/workspaces/${workspaceId}/integrations/`).then((r) => r.data),
+    enabled: !!workspaceId,
     staleTime: 30_000,
     retry: false,
   });
 }
 
 // ── Teams ─────────────────────────────────────────────────────────────────────
-export function useSaveTeams(workspaceSlug) {
+export function useSaveTeams(workspaceId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data) =>
       api
-        .put(`/api/workspaces/${workspaceSlug}/integrations/teams/`, data)
+        .put(`/api/workspaces/${workspaceId}/integrations/teams/`, data)
         .then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["integrations", workspaceSlug] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["integrations", workspaceId] }),
   });
 }
 
-export function useDisconnectTeams(workspaceSlug) {
+export function useDisconnectTeams(workspaceId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () =>
-      api.delete(`/api/workspaces/${workspaceSlug}/integrations/teams/`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["integrations", workspaceSlug] }),
+      api.delete(`/api/workspaces/${workspaceId}/integrations/teams/`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["integrations", workspaceId] }),
   });
 }
 
-export function useTestTeams(workspaceSlug) {
+export function useTestTeams(workspaceId) {
   return useMutation({
     mutationFn: () =>
       api
-        .post(`/api/workspaces/${workspaceSlug}/integrations/teams/test/`)
+        .post(`/api/workspaces/${workspaceId}/integrations/teams/test/`)
         .then((r) => r.data),
   });
 }
 
 // ── Google Chat ───────────────────────────────────────────────────────────────
-export function useSaveGoogleChat(workspaceSlug) {
+export function useSaveGoogleChat(workspaceId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data) =>
       api
-        .put(`/api/workspaces/${workspaceSlug}/integrations/google-chat/`, data)
+        .put(`/api/workspaces/${workspaceId}/integrations/google-chat/`, data)
         .then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["integrations", workspaceSlug] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["integrations", workspaceId] }),
   });
 }
 
-export function useDisconnectGoogleChat(workspaceSlug) {
+export function useDisconnectGoogleChat(workspaceId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () =>
-      api.delete(`/api/workspaces/${workspaceSlug}/integrations/google-chat/`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["integrations", workspaceSlug] }),
+      api.delete(`/api/workspaces/${workspaceId}/integrations/google-chat/`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["integrations", workspaceId] }),
   });
 }
 
-export function useTestGoogleChat(workspaceSlug) {
+export function useTestGoogleChat(workspaceId) {
   return useMutation({
     mutationFn: () =>
       api
-        .post(`/api/workspaces/${workspaceSlug}/integrations/google-chat/test/`)
+        .post(`/api/workspaces/${workspaceId}/integrations/google-chat/test/`)
         .then((r) => r.data),
   });
 }
 
 // ── Channel mappings ──────────────────────────────────────────────────────────
-export function useChannelMappings(workspaceSlug, { platform } = {}) {
+export function useChannelMappings(workspaceId, { platform } = {}) {
   return useQuery({
-    queryKey: ["integrations", workspaceSlug, "mappings", platform],
+    queryKey: ["integrations", workspaceId, "mappings", platform],
     queryFn: () =>
       api
-        .get(`/api/workspaces/${workspaceSlug}/integrations/mappings/`, {
+        .get(`/api/workspaces/${workspaceId}/integrations/mappings/`, {
           params: platform ? { platform } : {},
         })
         .then((r) => r.data),
-    enabled: !!workspaceSlug,
+    enabled: !!workspaceId,
     staleTime: 30_000,
   });
 }
 
-export function useCreateChannelMapping(workspaceSlug) {
+export function useCreateChannelMapping(workspaceId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data) =>
       api
-        .post(`/api/workspaces/${workspaceSlug}/integrations/mappings/`, data)
+        .post(`/api/workspaces/${workspaceId}/integrations/mappings/`, data)
         .then((r) => r.data),
     onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["integrations", workspaceSlug, "mappings"] }),
+      qc.invalidateQueries({ queryKey: ["integrations", workspaceId, "mappings"] }),
   });
 }
 
-export function useUpdateChannelMapping(workspaceSlug) {
+export function useUpdateChannelMapping(workspaceId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ mappingId, ...data }) =>
       api
-        .patch(`/api/workspaces/${workspaceSlug}/integrations/mappings/${mappingId}/`, data)
+        .patch(`/api/workspaces/${workspaceId}/integrations/mappings/${mappingId}/`, data)
         .then((r) => r.data),
     onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["integrations", workspaceSlug, "mappings"] }),
+      qc.invalidateQueries({ queryKey: ["integrations", workspaceId, "mappings"] }),
   });
 }
 
-export function useDeleteChannelMapping(workspaceSlug) {
+export function useDeleteChannelMapping(workspaceId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (mappingId) =>
-      api.delete(`/api/workspaces/${workspaceSlug}/integrations/mappings/${mappingId}/`),
+      api.delete(`/api/workspaces/${workspaceId}/integrations/mappings/${mappingId}/`),
     onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["integrations", workspaceSlug, "mappings"] }),
+      qc.invalidateQueries({ queryKey: ["integrations", workspaceId, "mappings"] }),
   });
 }

@@ -13,10 +13,10 @@ function isImage(mime) {
   return mime?.startsWith("image/");
 }
 
-export default function TaskAttachmentsSection({ workspaceSlug, projectId, taskId }) {
-  const { data: attachments = [] } = useAttachments(workspaceSlug, projectId, taskId);
-  const upload  = useUploadAttachment(workspaceSlug, projectId, taskId);
-  const remove  = useDeleteAttachment(workspaceSlug, projectId, taskId);
+export default function TaskAttachmentsSection({ workspaceId, boardId, taskId }) {
+  const { data: attachments = [] } = useAttachments(workspaceId, boardId, taskId);
+  const upload  = useUploadAttachment(workspaceId, boardId, taskId);
+  const remove  = useDeleteAttachment(workspaceId, boardId, taskId);
   const fileRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
 

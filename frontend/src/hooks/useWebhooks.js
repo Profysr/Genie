@@ -1,59 +1,58 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 
-export function useWebhooks(workspaceSlug) {
+export function useWebhooks(workspaceId) {
   return useQuery({
-    queryKey: ["webhooks", workspaceSlug],
+    queryKey: ["webhooks", workspaceId],
     queryFn: () =>
-      api.get(`/api/workspaces/${workspaceSlug}/webhooks/`).then((r) => r.data),
-    enabled: !!workspaceSlug,
+      api.get(`/api/workspaces/${workspaceId}/webhooks/`).then((r) => r.data),
+    enabled: !!workspaceId,
     staleTime: 30_000,
   });
 }
 
-export function useCreateWebhook(workspaceSlug) {
+export function useCreateWebhook(workspaceId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data) =>
-      api.post(`/api/workspaces/${workspaceSlug}/webhooks/`, data).then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["webhooks", workspaceSlug] }),
+      api.post(`/api/workspaces/${workspaceId}/webhooks/`, data).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["webhooks", workspaceId] }),
   });
 }
 
-export function useUpdateWebhook(workspaceSlug) {
+export function useUpdateWebhook(workspaceId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ hookId, ...data }) =>
-      api.patch(`/api/workspaces/${workspaceSlug}/webhooks/${hookId}/`, data).then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["webhooks", workspaceSlug] }),
+      api.patch(`/api/workspaces/${workspaceId}/webhooks/${hookId}/`, data).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["webhooks", workspaceId] }),
   });
 }
 
-export function useDeleteWebhook(workspaceSlug) {
+export function useDeleteWebhook(workspaceId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (hookId) =>
-      api.delete(`/api/workspaces/${workspaceSlug}/webhooks/${hookId}/`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["webhooks", workspaceSlug] }),
+      api.delete(`/api/workspaces/${workspaceId}/webhooks/${hookId}/`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["webhooks", workspaceId] }),
   });
 }
 
-export function useTestWebhook(workspaceSlug) {
+export function useTestWebhook(workspaceId) {
   return useMutation({
     mutationFn: (hookId) =>
-      api.post(`/api/workspaces/${workspaceSlug}/webhooks/${hookId}/test/`).then((r) => r.data),
+      api.post(`/api/workspaces/${workspaceId}/webhooks/${hookId}/test/`).then((r) => r.data),
   });
 }
 
-// Get the logs
-export function useWebhookDeliveries(workspaceSlug, hookId) {
+export function useWebhookDeliveries(workspaceId, hookId) {
   return useQuery({
-    queryKey: ["webhooks", workspaceSlug, hookId, "deliveries"],
+    queryKey: ["webhooks", workspaceId, hookId, "deliveries"],
     queryFn: () =>
       api
-        .get(`/api/workspaces/${workspaceSlug}/webhooks/${hookId}/deliveries/`)
+        .get(`/api/workspaces/${workspaceId}/webhooks/${hookId}/deliveries/`)
         .then((r) => r.data),
-    enabled: !!(workspaceSlug && hookId),
+    enabled: !!(workspaceId && hookId),
     staleTime: 15_000,
   });
 }

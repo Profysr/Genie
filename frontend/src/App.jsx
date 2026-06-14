@@ -90,26 +90,26 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<FullPageSuspense />}>
           <Route path="/onboarding" element={<OnboardingPage />} />
-          <Route path="/w/:workspaceSlug/setup" element={<SetupWizard />} />
+          <Route path="/w/:workspaceId/setup" element={<SetupWizard />} />
           <Route path="/" element={<WorkspaceRedirect />} />
         </Route>
 
         {/* AppLayout shell loads eagerly; page content lazy-loads inside SuspenseOutlet */}
-        <Route path="/w/:workspaceSlug" element={<AppLayout />}>
+        <Route path="/w/:workspaceId" element={<AppLayout />}>
           <Route element={<SuspenseOutlet />}>
             <Route index element={<Navigate to="dashboards" replace />} />
 
-            {/* Projects */}
-            <Route path="projects" element={<ProjectsPage />} />
-            <Route path="projects/:projectId" element={<KanbanPage />} />
-            <Route path="projects/:projectId/wiki" element={<WikiPage />} />
+            {/* Boards */}
+            <Route path="boards" element={<ProjectsPage />} />
+            <Route path="boards/:boardId" element={<KanbanPage />} />
+            <Route path="boards/:boardId/wiki" element={<WikiPage />} />
             <Route
-              path="projects/:projectId/wiki/:pageId"
+              path="boards/:boardId/wiki/:pageId"
               element={<WikiPage />}
             />
-            <Route path="projects/:projectId/forms" element={<FormsPage />} />
+            <Route path="boards/:boardId/forms" element={<FormsPage />} />
             <Route
-              path="projects/:projectId/automations"
+              path="boards/:boardId/automations"
               element={<AutomationsPage />}
             />
 

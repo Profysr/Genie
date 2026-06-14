@@ -72,7 +72,7 @@ function applyShortcutFilters(tasks) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function CommandPalette({ open, onClose, workspaceSlug }) {
+export default function CommandPalette({ open, onClose, workspaceId }) {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -154,7 +154,7 @@ export default function CommandPalette({ open, onClose, workspaceSlug }) {
 
   // Quick actions
   const quickActions = useMemo(() => {
-    if (!workspaceSlug) return [];
+    if (!workspaceId) return [];
     return [
       // {
       //   type: "action",
@@ -169,7 +169,7 @@ export default function CommandPalette({ open, onClose, workspaceSlug }) {
         icon: Hash,
         label: "Create project",
         desc: "New project in workspace",
-        action: () => navigate(`/w/${workspaceSlug}/projects`),
+        action: () => navigate(`/w/${workspaceId}/boards`),
         hotkey: "P",
       },
       {
@@ -177,23 +177,23 @@ export default function CommandPalette({ open, onClose, workspaceSlug }) {
         icon: UserPlus,
         label: "Invite member",
         desc: "Add someone to this workspace",
-        action: () => navigate(`/w/${workspaceSlug}/members`),
+        action: () => navigate(`/w/${workspaceId}/members`),
         hotkey: "I",
       },
     ];
-  }, [workspaceSlug, navigate]);
+  }, [workspaceId, navigate]);
 
   // Navigation links — derived from the same NAV_ITEMS used by AppLayout
   const navLinks = useMemo(() => {
-    if (!workspaceSlug) return [];
+    if (!workspaceId) return [];
     return NAV_ITEMS.map((item) => ({
       type: "nav",
       icon: item.icon,
       label: item.label,
       desc: item.desc,
-      action: () => navigate(workspaceUrl(workspaceSlug, item.path)),
+      action: () => navigate(workspaceUrl(workspaceId, item.path)),
     }));
-  }, [workspaceSlug, navigate]);
+  }, [workspaceId, navigate]);
 
   const sections = useMemo(() => {
     const q = query.trim();
@@ -240,7 +240,7 @@ export default function CommandPalette({ open, onClose, workspaceSlug }) {
       due_date: t.due_date,
       action: () =>
         navigate(
-          `/w/${t.workspace_slug}/projects/${t.project_id}?task=${t.id}`,
+          `/w/${t.workspace_id}/boards/${t.board_id}?task=${t.id}`,
         ),
     }));
 
@@ -254,7 +254,7 @@ export default function CommandPalette({ open, onClose, workspaceSlug }) {
       icon: Hash,
       label: p.name,
       meta: p.workspace_name,
-      action: () => navigate(`/w/${p.workspace_slug}/projects`),
+      action: () => navigate(`/w/${p.workspace_id}/boards`),
     }));
 
     return [

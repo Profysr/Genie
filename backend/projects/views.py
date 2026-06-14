@@ -1727,7 +1727,7 @@ class UserPresenceView(APIView):
 
     def post(self, request, workspace_id):
         workspace     = self._get_workspace(workspace_id, request.user)
-        resource_type = request.data.get("resource_type", UserPresence.ResourceType.PROJECT)
+        resource_type = request.data.get("resource_type", UserPresence.ResourceType.BOARD)
         resource_id   = str(request.data.get("resource_id", ""))
         if not resource_id:
             return Response({"detail": "resource_id required."}, status=status.HTTP_400_BAD_REQUEST)

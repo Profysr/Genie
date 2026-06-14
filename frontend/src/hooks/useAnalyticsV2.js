@@ -3,109 +3,118 @@ import api from "@/lib/api";
 
 const STALE = 60_000; // 1 min
 
-function metric(workspaceSlug, name, params = {}) {
+function metric(workspaceId, name, params = {}) {
   return api
-    .get(`/api/workspaces/${workspaceSlug}/analytics/${name}/`, { params })
+    .get(`/api/workspaces/${workspaceId}/analytics/${name}/`, { params })
     .then((r) => r.data);
 }
 
-export function useVelocity(workspaceSlug, { projectId, limit = 8 } = {}) {
+export function useWorkspaceOverview(workspaceId, { boardId } = {}) {
   return useQuery({
-    queryKey: ["analytics", "velocity", workspaceSlug, projectId, limit],
-    queryFn: () => metric(workspaceSlug, "velocity", { project_id: projectId, limit }),
-    enabled: !!workspaceSlug,
+    queryKey: ["analytics", "overview", workspaceId, boardId],
+    queryFn: () => metric(workspaceId, "overview", { project_id: boardId }),
+    enabled: !!workspaceId,
     staleTime: STALE,
   });
 }
 
-export function useCycleTime(workspaceSlug, { projectId, days = 90 } = {}) {
+export function useVelocity(workspaceId, { boardId, limit = 8 } = {}) {
   return useQuery({
-    queryKey: ["analytics", "cycle-time", workspaceSlug, projectId, days],
-    queryFn: () => metric(workspaceSlug, "cycle_time", { project_id: projectId, days }),
-    enabled: !!workspaceSlug,
+    queryKey: ["analytics", "velocity", workspaceId, boardId, limit],
+    queryFn: () => metric(workspaceId, "velocity", { project_id: boardId, limit }),
+    enabled: !!workspaceId,
     staleTime: STALE,
   });
 }
 
-export function useLeadTime(workspaceSlug, { projectId, days = 90 } = {}) {
+export function useCycleTime(workspaceId, { boardId, days = 90 } = {}) {
   return useQuery({
-    queryKey: ["analytics", "lead-time", workspaceSlug, projectId, days],
-    queryFn: () => metric(workspaceSlug, "lead_time", { project_id: projectId, days }),
-    enabled: !!workspaceSlug,
+    queryKey: ["analytics", "cycle-time", workspaceId, boardId, days],
+    queryFn: () => metric(workspaceId, "cycle_time", { project_id: boardId, days }),
+    enabled: !!workspaceId,
     staleTime: STALE,
   });
 }
 
-export function useThroughput(workspaceSlug, { projectId, period = "week", days = 90 } = {}) {
+export function useLeadTime(workspaceId, { boardId, days = 90 } = {}) {
   return useQuery({
-    queryKey: ["analytics", "throughput", workspaceSlug, projectId, period, days],
-    queryFn: () => metric(workspaceSlug, "throughput", { project_id: projectId, period, days }),
-    enabled: !!workspaceSlug,
+    queryKey: ["analytics", "lead-time", workspaceId, boardId, days],
+    queryFn: () => metric(workspaceId, "lead_time", { project_id: boardId, days }),
+    enabled: !!workspaceId,
     staleTime: STALE,
   });
 }
 
-export function useCFD(workspaceSlug, { projectId, days = 30 } = {}) {
+export function useThroughput(workspaceId, { boardId, period = "week", days = 90 } = {}) {
   return useQuery({
-    queryKey: ["analytics", "cfd", workspaceSlug, projectId, days],
-    queryFn: () => metric(workspaceSlug, "cfd", { project_id: projectId, days }),
-    enabled: !!workspaceSlug,
+    queryKey: ["analytics", "throughput", workspaceId, boardId, period, days],
+    queryFn: () => metric(workspaceId, "throughput", { project_id: boardId, period, days }),
+    enabled: !!workspaceId,
     staleTime: STALE,
   });
 }
 
-export function useBurnup(workspaceSlug, { sprintId, projectId, days = 30 } = {}) {
+export function useCFD(workspaceId, { boardId, days = 30 } = {}) {
   return useQuery({
-    queryKey: ["analytics", "burnup", workspaceSlug, sprintId, projectId, days],
+    queryKey: ["analytics", "cfd", workspaceId, boardId, days],
+    queryFn: () => metric(workspaceId, "cfd", { project_id: boardId, days }),
+    enabled: !!workspaceId,
+    staleTime: STALE,
+  });
+}
+
+export function useBurnup(workspaceId, { sprintId, boardId, days = 30 } = {}) {
+  return useQuery({
+    queryKey: ["analytics", "burnup", workspaceId, sprintId, boardId, days],
     queryFn: () =>
-      metric(workspaceSlug, "burnup", { sprint_id: sprintId, project_id: projectId, days }),
-    enabled: !!workspaceSlug && !!(sprintId || projectId),
+      metric(workspaceId, "burnup", { sprint_id: sprintId, project_id: boardId, days }),
+    enabled: !!workspaceId && !!(sprintId || boardId),
     staleTime: STALE,
   });
 }
 
-export function useWorkloadHeatmap(workspaceSlug, { projectId, days = 14 } = {}) {
+export function useWorkloadHeatmap(workspaceId, { boardId, days = 14 } = {}) {
   return useQuery({
-    queryKey: ["analytics", "workload-heatmap", workspaceSlug, projectId, days],
-    queryFn: () => metric(workspaceSlug, "workload_heatmap", { project_id: projectId, days }),
-    enabled: !!workspaceSlug,
+    queryKey: ["analytics", "workload-heatmap", workspaceId, boardId, days],
+    queryFn: () => metric(workspaceId, "workload_heatmap", { project_id: boardId, days }),
+    enabled: !!workspaceId,
     staleTime: STALE,
   });
 }
 
-export function useTimeInStatus(workspaceSlug, { projectId, days = 30 } = {}) {
+export function useTimeInStatus(workspaceId, { boardId, days = 30 } = {}) {
   return useQuery({
-    queryKey: ["analytics", "time-in-status", workspaceSlug, projectId, days],
-    queryFn: () => metric(workspaceSlug, "time_in_status", { project_id: projectId, days }),
-    enabled: !!workspaceSlug,
+    queryKey: ["analytics", "time-in-status", workspaceId, boardId, days],
+    queryFn: () => metric(workspaceId, "time_in_status", { project_id: boardId, days }),
+    enabled: !!workspaceId,
     staleTime: STALE,
   });
 }
 
-export function useOverdueAging(workspaceSlug, { projectId } = {}) {
+export function useOverdueAging(workspaceId, { boardId } = {}) {
   return useQuery({
-    queryKey: ["analytics", "overdue-aging", workspaceSlug, projectId],
-    queryFn: () => metric(workspaceSlug, "overdue_aging", { project_id: projectId }),
-    enabled: !!workspaceSlug,
+    queryKey: ["analytics", "overdue-aging", workspaceId, boardId],
+    queryFn: () => metric(workspaceId, "overdue_aging", { project_id: boardId }),
+    enabled: !!workspaceId,
     staleTime: STALE,
   });
 }
 
-export function useCompletionRate(workspaceSlug, { projectId, limit = 8 } = {}) {
+export function useCompletionRate(workspaceId, { boardId, limit = 8 } = {}) {
   return useQuery({
-    queryKey: ["analytics", "completion-rate", workspaceSlug, projectId, limit],
-    queryFn: () => metric(workspaceSlug, "completion_rate", { project_id: projectId, limit }),
-    enabled: !!workspaceSlug,
+    queryKey: ["analytics", "completion-rate", workspaceId, boardId, limit],
+    queryFn: () => metric(workspaceId, "completion_rate", { project_id: boardId, limit }),
+    enabled: !!workspaceId,
     staleTime: STALE,
   });
 }
 
-export function useEstimationAccuracy(workspaceSlug, { projectId, limit = 8 } = {}) {
+export function useEstimationAccuracy(workspaceId, { boardId, limit = 8 } = {}) {
   return useQuery({
-    queryKey: ["analytics", "estimation-accuracy", workspaceSlug, projectId, limit],
+    queryKey: ["analytics", "estimation-accuracy", workspaceId, boardId, limit],
     queryFn: () =>
-      metric(workspaceSlug, "estimation_accuracy", { project_id: projectId, limit }),
-    enabled: !!workspaceSlug,
+      metric(workspaceId, "estimation_accuracy", { project_id: boardId, limit }),
+    enabled: !!workspaceId,
     staleTime: STALE,
   });
 }

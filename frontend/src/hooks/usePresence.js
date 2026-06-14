@@ -4,21 +4,21 @@ import api from "@/lib/api";
 
 const HEARTBEAT_MS = 90_000;
 
-export function presenceKey(workspaceSlug, resourceType, resourceId) {
-  return ["presence", workspaceSlug, resourceType, resourceId];
+export function presenceKey(workspaceId, resourceType, resourceId) {
+  return ["presence", workspaceId, resourceType, resourceId];
 }
 
 /** Fetch who is viewing a specific resource right now. */
-export function usePresence(workspaceSlug, resourceType, resourceId) {
+export function usePresence(workspaceId, resourceType, resourceId) {
   return useQuery({
-    queryKey: presenceKey(workspaceSlug, resourceType, resourceId),
+    queryKey: presenceKey(workspaceId, resourceType, resourceId),
     queryFn: () =>
       api
-        .get(`/api/workspaces/${workspaceSlug}/presence/`, {
+        .get(`/api/workspaces/${workspaceId}/presence/`, {
           params: { resource_type: resourceType, resource_id: resourceId },
         })
         .then((r) => r.data),
-    enabled: !!workspaceSlug && !!resourceType && !!resourceId,
+    enabled: !!workspaceId && !!resourceType && !!resourceId,
     refetchInterval: HEARTBEAT_MS,
     staleTime: 20_000,
   });
@@ -28,54 +28,52 @@ export function usePresence(workspaceSlug, resourceType, resourceId) {
  * Announce the current user's presence for a resource.
  * Sends heartbeat every 90s; sends leave on unmount.
  */
-export function useAnnouncePresence(workspaceSlug, resourceType, resourceId) {
+export function useAnnouncePresence(workspaceId, resourceType, resourceId) {
   const timerRef = useRef(null);
   const qc = useQueryClient();
 
   const announce = useCallback(() => {
-    if (!workspaceSlug || !resourceType || !resourceId) return;
+    if (!workspaceId || !resourceType || !resourceId) return;
     api
-      .post(`/api/workspaces/${workspaceSlug}/presence/`, {
+      .post(`/api/workspaces/${workspaceId}/presence/`, {
         resource_type: resourceType,
         resource_id: resourceId,
       })
       .then(() => {
         qc.invalidateQueries({
-          queryKey: presenceKey(workspaceSlug, resourceType, resourceId),
+          queryKey: presenceKey(workspaceId, resourceType, resourceId),
         });
       })
       .catch(() => {});
-  }, [workspaceSlug, resourceType, resourceId, qc]);
+  }, [workspaceId, resourceType, resourceId, qc]);
 
   useEffect(() => {
-    // run the annouce function, Hey, I'm online and set an interval that runs after every 90s
     announce();
     timerRef.current = setInterval(announce, HEARTBEAT_MS);
 
-    // It clears the timer and sends a DELETE request to the server saying "I am leaving now".
     return () => {
       clearInterval(timerRef.current);
-      if (workspaceSlug && resourceType && resourceId) {
+      if (workspaceId && resourceType && resourceId) {
         api
-          .delete(`/api/workspaces/${workspaceSlug}/presence/`, {
+          .delete(`/api/workspaces/${workspaceId}/presence/`, {
             data: { resource_type: resourceType, resource_id: resourceId },
           })
           .catch(() => {});
         qc.invalidateQueries({
-          queryKey: presenceKey(workspaceSlug, resourceType, resourceId),
+          queryKey: presenceKey(workspaceId, resourceType, resourceId),
         });
       }
     };
-  }, [announce, workspaceSlug, resourceType, resourceId, qc]);
+  }, [announce, workspaceId, resourceType, resourceId, qc]);
 }
 
 /** Fetch all users online in a workspace (any resource, active in last 90s). */
-export function useWorkspaceOnlineUsers(workspaceSlug) {
+export function useWorkspaceOnlineUsers(workspaceId) {
   return useQuery({
-    queryKey: ["presence", workspaceSlug, "all"],
+    queryKey: ["presence", workspaceId, "all"],
     queryFn: () =>
-      api.get(`/api/workspaces/${workspaceSlug}/presence/`).then((r) => r.data),
-    enabled: !!workspaceSlug,
+      api.get(`/api/workspaces/${workspaceId}/presence/`).then((r) => r.data),
+    enabled: !!workspaceId,
     refetchInterval: HEARTBEAT_MS,
     staleTime: 20_000,
   });
