@@ -115,12 +115,14 @@ def _apply_status_items(board, existing, items):
                 s.name != item["name"]
                 or s.color != item["color"]
                 or s.is_done != item["is_done"]
+                or s.is_started != item["is_started"]
                 or s.order != i
             )
             if changed:
                 s.name = item["name"]
                 s.color = item["color"]
                 s.is_done = item["is_done"]
+                s.is_started = item["is_started"]
                 s.order = i
                 to_update.append(s)
         else:
@@ -130,6 +132,7 @@ def _apply_status_items(board, existing, items):
                     name=item["name"],
                     color=item["color"],
                     is_done=item["is_done"],
+                    is_started=item["is_started"],
                     order=i,
                 )
             )
@@ -158,7 +161,7 @@ class TaskStatusBulkUpdateView(APIView):
             board.statuses.exclude(id__in=incoming_ids).delete()
             to_update = _apply_status_items(board, existing, items)
             TaskStatus.objects.bulk_update(
-                to_update, ["name", "color", "is_done", "order"]
+                to_update, ["name", "color", "is_done", "is_started", "order"]
             )
 
         statuses_data = TaskStatusSerializer(board.statuses.order_by("order").all(), many=True).data
@@ -310,8 +313,15 @@ class TaskMoveView(APIView):
         if order is not None:
             task.order = order
 
-        # Single UPDATE — only touch the three columns that can change here.
-        task.save(update_fields=["status", "order", "updated_at"])
+        update_fields = ["status", "order", "updated_at"]
+
+        # if a task is moved to is_started column and it hasn't any start date define at the moment, give it todays date
+        if status_id is not None and task_status.is_started and task.start_date is None:
+            from django.utils import timezone
+            task.start_date = timezone.now().date()
+            update_fields.append("start_date")
+
+        task.save(update_fields=update_fields)
 
         # Only write an activity row when the column actually changed.
         if task.status != old_status:
@@ -1019,7 +1029,7 @@ class TaskChildrenView(APIView):
         broadcast(workspace_id, "task.created", serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-# ── Task Templates ────────────────────────────────────────────
+#/ ── Task Templates ────────────────────────────────────────────
 class TaskTemplateListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 

@@ -99,6 +99,7 @@ class TaskStatus(models.Model):
     color = models.CharField(max_length=7, default="#6366f1")
     order = models.PositiveIntegerField(default=0)
     is_done = models.BooleanField(default=False)
+    is_started = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["order"]

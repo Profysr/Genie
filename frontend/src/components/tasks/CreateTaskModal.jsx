@@ -1,14 +1,10 @@
 import { useState, useEffect } from "react";
 import { useCreateTask } from "@/hooks/useTasks";
-import {
-  useTaskTemplates,
-  useCreateTaskTemplate,
-} from "@/hooks/useTaskHierarchy";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import * as Dialog from "@radix-ui/react-dialog";
-import { X, ChevronDown, LayoutTemplate, Plus } from "lucide-react";
+import { X, ChevronDown } from "lucide-react";
 import { PRIORITIES, TASK_TYPES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -29,10 +25,6 @@ export default function CreateTaskModal({
   defaultDate = null,
 }) {
   const { mutate, isPending } = useCreateTask(workspaceId, boardId);
-  const { data: templates = [] } = useTaskTemplates(workspaceId, boardId, {
-    enabled: open,
-  });
-  const createTemplate = useCreateTaskTemplate(workspaceId, boardId);
 
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState("no_priority");
@@ -46,9 +38,6 @@ export default function CreateTaskModal({
   const [parentId, setParentId] = useState(defaultParentId || "");
   const [desc, setDesc] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [templateOpen, setTemplateOpen] = useState(false);
-  const [newTplName, setNewTplName] = useState("");
-  const [creatingTpl, setCreatingTpl] = useState(false);
 
   // Sync defaultDate whenever the modal opens with a new date
   useEffect(() => {
@@ -68,13 +57,6 @@ export default function CreateTaskModal({
     setParentId(defaultParentId || "");
     setDesc("");
     setShowAdvanced(false);
-  };
-
-  const applyTemplate = (tpl) => {
-    setTaskType(tpl.task_type || "task");
-    setPriority(tpl.priority || "no_priority");
-    if (tpl.description) setDesc(tpl.description);
-    setTemplateOpen(false);
   };
 
   const handleSubmit = (e) => {
@@ -120,132 +102,6 @@ export default function CreateTaskModal({
               Create Task
             </Dialog.Title>
             <div className="flex items-center gap-2">
-              {/* Template picker — always visible */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTemplateOpen((o) => !o);
-                    setCreatingTpl(false);
-                  }}
-                  className="flex items-center gap-1.5 text-xs text-muted-foreground border rounded-md px-2.5 py-1.5 hover:bg-accent transition-colors"
-                >
-                  <LayoutTemplate className="w-3.5 h-3.5" />
-                  Template
-                  {templates.length > 0 && (
-                    <span className="bg-primary/20 text-primary rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none">
-                      {templates.length}
-                    </span>
-                  )}
-                </button>
-                {templateOpen && (
-                  <div className="absolute right-0 top-9 z-50 w-56 bg-popover border rounded-md shadow-popover p-1.5">
-                    {templates.length === 0 && !creatingTpl ? (
-                      <div className="px-3 py-3 text-center">
-                        <p className="text-xs text-muted-foreground mb-2">
-                          No templates yet.
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => setCreatingTpl(true)}
-                          className="text-xs text-primary hover:underline flex items-center gap-1 mx-auto"
-                        >
-                          <Plus className="w-3 h-3" /> Save current as template
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        {templates.map((tpl) => (
-                          <button
-                            key={tpl.id}
-                            type="button"
-                            onClick={() => {
-                              applyTemplate(tpl);
-                              setTemplateOpen(false);
-                            }}
-                            className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-accent transition-colors"
-                          >
-                            <p className="font-medium text-sm">{tpl.name}</p>
-                            {tpl.description && (
-                              <p className="text-xs text-muted-foreground truncate">
-                                {tpl.description}
-                              </p>
-                            )}
-                          </button>
-                        ))}
-                        <div className="border-t mt-1 pt-1">
-                          <button
-                            type="button"
-                            onClick={() => setCreatingTpl(true)}
-                            className="w-full text-left px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent rounded-lg transition-colors flex items-center gap-1.5"
-                          >
-                            <Plus className="w-3 h-3" /> Save current as
-                            template
-                          </button>
-                        </div>
-                      </>
-                    )}
-                    {/* Inline template name input */}
-                    {creatingTpl && (
-                      <div className="px-2 pt-1 pb-2 border-t mt-1">
-                        <p className="text-xs font-medium text-muted-foreground mb-1.5">
-                          Template name
-                        </p>
-                        <input
-                          autoFocus
-                          className="w-full text-xs border rounded px-2 py-1.5 bg-background outline-none focus:ring-1 focus:ring-ring"
-                          placeholder="e.g. Bug Report"
-                          value={newTplName}
-                          onChange={(e) => setNewTplName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Escape") setCreatingTpl(false);
-                            if (e.key === "Enter" && newTplName.trim()) {
-                              createTemplate.mutate({
-                                name: newTplName.trim(),
-                                task_type: taskType,
-                                priority,
-                                description: desc,
-                              });
-                              setNewTplName("");
-                              setCreatingTpl(false);
-                              setTemplateOpen(false);
-                            }
-                          }}
-                        />
-                        <div className="flex gap-1.5 mt-1.5">
-                          <button
-                            type="button"
-                            disabled={
-                              !newTplName.trim() || createTemplate.isPending
-                            }
-                            onClick={() => {
-                              createTemplate.mutate({
-                                name: newTplName.trim(),
-                                task_type: taskType,
-                                priority,
-                                description: desc,
-                              });
-                              setNewTplName("");
-                              setCreatingTpl(false);
-                              setTemplateOpen(false);
-                            }}
-                            className="flex-1 text-xs bg-primary text-primary-foreground rounded py-1 font-medium disabled:opacity-50"
-                          >
-                            Save
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setCreatingTpl(false)}
-                            className="text-xs text-muted-foreground px-2"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
               <Dialog.Close asChild>
                 <button className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-accent">
                   <X className="w-4 h-4" />

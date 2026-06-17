@@ -41,7 +41,6 @@ export function useAttachChildTask(workspaceId, boardId, parentTaskId) {
 }
 
 // ── Clone ─────────────────────────────────────────────────────────────────────
-
 export function useCloneTask(workspaceId, boardId) {
   const qc = useQueryClient();
   return useMutation({
@@ -53,43 +52,43 @@ export function useCloneTask(workspaceId, boardId) {
   });
 }
 
-// ── Templates ─────────────────────────────────────────────────────────────────
+// ── Templates (UI removed — hooks kept for future use) ────────────────────────
 
-const templateBase = (ws, proj) =>
-  `/api/workspaces/${ws}/boards/${proj}/task-templates/`;
+// const templateBase = (ws, proj) =>
+//   `/api/workspaces/${ws}/boards/${proj}/task-templates/`;
 
-export function useTaskTemplates(workspaceId, boardId, { enabled = true } = {}) {
-  return useQuery({
-    queryKey: ["task-templates", workspaceId, boardId],
-    queryFn: () => api.get(templateBase(workspaceId, boardId)).then(r => r.data),
-    enabled: enabled && !!boardId,
-    staleTime: Infinity,
-  });
-}
+// export function useTaskTemplates(workspaceId, boardId, { enabled = true } = {}) {
+//   return useQuery({
+//     queryKey: ["task-templates", workspaceId, boardId],
+//     queryFn: () => api.get(templateBase(workspaceId, boardId)).then(r => r.data),
+//     enabled: enabled && !!boardId,
+//     staleTime: Infinity,
+//   });
+// }
 
-export function useCreateTaskTemplate(workspaceId, boardId) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data) => api.post(templateBase(workspaceId, boardId), data).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["task-templates", workspaceId, boardId] }),
-  });
-}
+// export function useCreateTaskTemplate(workspaceId, boardId) {
+//   const qc = useQueryClient();
+//   return useMutation({
+//     mutationFn: (data) => api.post(templateBase(workspaceId, boardId), data).then(r => r.data),
+//     onSuccess: () => qc.invalidateQueries({ queryKey: ["task-templates", workspaceId, boardId] }),
+//   });
+// }
 
-export function useDeleteTaskTemplate(workspaceId, boardId) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (templateId) => api.delete(`${templateBase(workspaceId, boardId)}${templateId}/`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["task-templates", workspaceId, boardId] }),
-  });
-}
+// export function useDeleteTaskTemplate(workspaceId, boardId) {
+//   const qc = useQueryClient();
+//   return useMutation({
+//     mutationFn: (templateId) => api.delete(`${templateBase(workspaceId, boardId)}${templateId}/`),
+//     onSuccess: () => qc.invalidateQueries({ queryKey: ["task-templates", workspaceId, boardId] }),
+//   });
+// }
 
-export function useApplyTemplate(workspaceId, boardId, taskId) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (templateId) =>
-      api.post(`${taskBase(workspaceId, boardId, taskId)}/apply-template/`, { template_id: templateId }).then(r => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["task", workspaceId, boardId, taskId] });
-    },
-  });
-}
+// export function useApplyTemplate(workspaceId, boardId, taskId) {
+//   const qc = useQueryClient();
+//   return useMutation({
+//     mutationFn: (templateId) =>
+//       api.post(`${taskBase(workspaceId, boardId, taskId)}/apply-template/`, { template_id: templateId }).then(r => r.data),
+//     onSuccess: () => {
+//       qc.invalidateQueries({ queryKey: ["task", workspaceId, boardId, taskId] });
+//     },
+//   });
+// }

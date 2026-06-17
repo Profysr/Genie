@@ -44,9 +44,16 @@ export default function BoardSettingsModal({
     setLocal((prev) => {
       let next = prev.map((s) => (s.id === id ? { ...s, ...patch } : s));
 
-      // Enforce single-done: unmark others when one is toggled on
+      // Enforce single-done / single-started, and mutual exclusivity on the same column
       if (patch.is_done) {
-        next = next.map((s) => (s.id !== id ? { ...s, is_done: false } : s));
+        next = next.map((s) =>
+          s.id !== id ? { ...s, is_done: false } : { ...s, is_started: false }
+        );
+      }
+      if (patch.is_started) {
+        next = next.map((s) =>
+          s.id !== id ? { ...s, is_started: false } : { ...s, is_done: false }
+        );
       }
 
       return next;
@@ -72,7 +79,7 @@ export default function BoardSettingsModal({
     if (!newName.trim()) return;
     setLocal((prev) => [
       ...prev,
-      { id: tempId(), name: newName.trim(), color: newColor, is_done: false, _isNew: true },
+      { id: tempId(), name: newName.trim(), color: newColor, is_done: false, is_started: false, _isNew: true },
     ]);
     setNewName("");
     setNewColor("#6366f1");
@@ -101,10 +108,14 @@ export default function BoardSettingsModal({
       padding="p-0"
     >
       <div className="p-5 max-h-[60vh] overflow-y-auto">
-        <p className="text-xs text-muted-foreground mb-3">
+        <p className="text-xs text-muted-foreground">
           Drag to reorder. Mark a column as{" "}
           <span className="font-semibold text-emerald-600">Done</span> to count
           its tasks toward the project completion %.
+        </p>
+        <p className="text-xs text-muted-foreground mb-3">
+          Mark a column as{" "}
+          <span className="font-semibold text-indigo-600">Started</span> to automatically set a task's start date when it's moved into that column. Only one column can be Started or Done at a time, and a column cannot be both.
         </p>
 
         <DragDropContext onDragEnd={handleDragEnd}>
@@ -145,6 +156,20 @@ export default function BoardSettingsModal({
                           name={s.name}
                           onRename={(name) => update(s.id, { name })}
                         />
+
+                        <button
+                          onClick={() => update(s.id, { is_started: !s.is_started })}
+                          title={s.is_started ? "Marked as Started — click to unmark" : "Mark as Started column"}
+                          className={cn(
+                            "flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded border transition-all shrink-0",
+                            s.is_started
+                              ? "bg-indigo-50 text-indigo-600 border-indigo-200"
+                              : "text-muted-foreground border-transparent hover:border-border",
+                          )}
+                        >
+                          <Check className="w-3 h-3" />
+                          {s.is_started ? "Started" : "Mark started"}
+                        </button>
 
                         <button
                           onClick={() => update(s.id, { is_done: !s.is_done })}

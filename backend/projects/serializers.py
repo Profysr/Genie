@@ -40,7 +40,7 @@ from accounts.serializers import MiniUserSerializer
 class TaskStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = TaskStatus
-        fields = ["id", "name", "color", "order", "is_done"]
+        fields = ["id", "name", "color", "order", "is_done", "is_started"]
 
 
 class BulkStatusItemSerializer(serializers.Serializer):
@@ -49,6 +49,7 @@ class BulkStatusItemSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=100)
     color = serializers.CharField(max_length=20, default="#6366f1")
     is_done = serializers.BooleanField(default=False)
+    is_started = serializers.BooleanField(default=False)
 
 
 class BulkStatusUpdateSerializer(serializers.Serializer):
