@@ -18,7 +18,6 @@ import {
   Tag,
   Layers,
   Copy,
-  GitBranch,
   ShieldCheck,
   XCircle,
   RotateCcw,
@@ -58,7 +57,6 @@ import {
   useChildTasks,
   useCreateChildTask,
   useAttachChildTask,
-  useCloneTask,
 } from "@/hooks/useTaskHierarchy";
 import { useTasks } from "@/hooks/useTasks";
 import { useAnnouncePresence, usePresence } from "@/hooks/usePresence";
@@ -112,7 +110,6 @@ export default function TaskDetailPanel({
   const deleteTask = useDeleteTask(workspaceId, boardId);
   const createChild = useCreateChildTask(workspaceId, boardId, taskId);
   const attachChild = useAttachChildTask(workspaceId, boardId, taskId);
-  const cloneTask = useCloneTask(workspaceId, boardId);
   const { data: allTasks = [] } = useTasks(workspaceId, boardId);
   const { toast } = useToast();
 
@@ -127,9 +124,10 @@ export default function TaskDetailPanel({
   const approvalBtnRef = useRef(null);
 
   // v3.5.0 — presence + conflict
-  useAnnouncePresence(workspaceId, "task", taskId);
-  const { data: taskViewers = [] } = usePresence(workspaceId, "task", taskId);
-  const otherViewers = taskViewers.filter((v) => v.user?.id !== user?.id);
+  // useAnnouncePresence(workspaceId, "task", taskId);
+  // const { data: taskViewers = [] } = usePresence(workspaceId, "task", taskId);
+  // const otherViewers = taskViewers.filter((v) => v.user?.id !== user?.id);
+  const otherViewers = [];
   const toggleReaction = useToggleReaction(workspaceId, boardId, taskId);
 
   const [conflict, setConflict] = useState(null); // { current_version, updated_at }
@@ -256,12 +254,6 @@ export default function TaskDetailPanel({
     );
   };
 
-  const handleClone = () => {
-    cloneTask.mutate(taskId, {
-      onSuccess: (cloned) => toast.success(`Cloned as "${cloned.title}"`),
-    });
-  };
-
   const openParent = (parentId) => {
     navigate(`?task=${parentId}`, { replace: true });
   };
@@ -303,17 +295,6 @@ export default function TaskDetailPanel({
                 <Copy className="w-3.5 h-3.5" />
               </button>
             </Tooltip>
-
-            {canEdit && (
-              <Tooltip content="Clone task">
-                <button
-                  onClick={handleClone}
-                  className="p-1.5 rounded-md bg-accent/60 text-foreground/70 hover:text-foreground hover:bg-accent transition-colors active:scale-[0.97]"
-                >
-                  <GitBranch className="w-3.5 h-3.5" />
-                </button>
-              </Tooltip>
-            )}
 
             {/* v3.6.0 — request approval dropdown */}
             {canEdit && (

@@ -9,6 +9,7 @@ export const useLabels = (workspaceId, boardId) =>
     queryFn: () =>
       api.get(`/api/workspaces/${workspaceId}/boards/${boardId}/labels/`).then((r) => r.data),
     enabled: !!workspaceId && !!boardId,
+    staleTime: Infinity,
   });
 
 export const useCreateLabel = (workspaceId, boardId) => {

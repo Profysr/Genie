@@ -7,7 +7,7 @@ import { useTasks, useMoveTask, useUpdateTask } from "@/hooks/useTasks";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useLabels, useCreateLabel } from "@/hooks/useLabels";
 import { useMembers } from "@/hooks/useMembers";
-import { useCreateStatus } from "@/hooks/useStatusManagement";
+import { useStatuses } from "@/hooks/useStatusManagement";
 import { useBoardFields } from "@/hooks/useCustomFields";
 import {
   useSavedViews,
@@ -35,7 +35,6 @@ import { OnlineUsersIndicator } from "@/components/ui/OnlineUsersIndicator";
 import {
   Plus,
   ArrowLeft,
-  Download,
   Settings2,
   Users,
   Lock,
@@ -47,6 +46,7 @@ import {
   BookOpen,
   FormInput,
 } from "lucide-react";
+
 // Lazy — only rendered when the user switches to that view
 const CalendarView = lazy(() => import("@/components/tasks/CalendarView"));
 const GanttView = lazy(() => import("@/components/tasks/GanttView"));
@@ -56,7 +56,6 @@ const TaskDetailPanel = lazy(
 import { cn } from "@/lib/utils";
 import { APP_COLORS } from "@/lib/constants";
 import { useBulkUpdateTasks } from "@/hooks/useBulkActions";
-import api from "@/lib/api";
 
 const EMPTY_FILTERS = {
   search: "",
@@ -159,12 +158,17 @@ export default function KanbanPage() {
   const debouncedSearch = useDebounce(filters.search, 350);
   const apiFilters = { ...filters, search: debouncedSearch };
 
-  const { data: board, isError: boardError, error: boardErrorDetail } = useBoard(workspaceId, boardId);
+  const {
+    data: board,
+    isError: boardError,
+    error: boardErrorDetail,
+  } = useBoard(workspaceId, boardId);
   const { data: allTasks = [] } = useTasks(workspaceId, boardId, apiFilters);
   const { data: labels = [] } = useLabels(workspaceId, boardId);
   const { data: members = [] } = useMembers(workspaceId);
   const { data: fields = [] } = useBoardFields(workspaceId, boardId);
   const { data: sprints = [] } = useSprints(workspaceId, boardId);
+  const { data: statuses = [] } = useStatuses(workspaceId, boardId);
   const perms = useBoardPermissions(workspaceId, boardId);
 
   const moveTask = useMoveTask(workspaceId, boardId);
@@ -188,14 +192,17 @@ export default function KanbanPage() {
   );
   const [view, setView] = useState("kanban");
 
-  // Keep selectedTaskId in sync whenever ?task= param changes (e.g. navigating to a child task from the panel)
+  // Automatically get the task id from param and opens up the task
   useEffect(() => {
     const param = searchParams.get("task") || null;
     setSelectedTaskId(param);
   }, [searchParams]);
+
   const [activeSprint, setActiveSprint] = useState(
     () => sprints.find((s) => s.status === "active") || null,
   );
+
+  // Use for bulk updates
   const [selectedIds, setSelectedIds] = useState(new Set());
 
   const toggleSelect = (taskId) => {
@@ -206,36 +213,7 @@ export default function KanbanPage() {
     });
   };
 
-  const handleExport = async () => {
-    try {
-      const resp = await api.get(
-        `/api/workspaces/${workspaceId}/boards/${boardId}/tasks/export/`,
-        { responseType: "blob" },
-      );
-      const url = URL.createObjectURL(
-        new Blob([resp.data], { type: "text/csv" }),
-      );
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${board?.name || "tasks"}-tasks.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch {
-      // silently ignore — network errors show in console
-    }
-  };
-
   useWorkspaceSocket(workspaceId);
-
-  // v3.9.0 — `c` shortcut creates a task in the current board
-  useEffect(() => {
-    const handler = () =>
-      setCreateModal({ open: true, statusId: null, date: null });
-    window.addEventListener("jcn:create-task", handler);
-    return () => window.removeEventListener("jcn:create-task", handler);
-  }, []);
 
   // v3.5.0 — announce presence for this board board
   useAnnouncePresence(workspaceId, "board", boardId);
@@ -244,6 +222,14 @@ export default function KanbanPage() {
     "board",
     boardId,
   );
+
+  // v3.9.0 — `c` shortcut creates a task in the current board
+  useEffect(() => {
+    const handler = () =>
+      setCreateModal({ open: true, statusId: null, date: null });
+    window.addEventListener("jcn:create-task", handler);
+    return () => window.removeEventListener("jcn:create-task", handler);
+  }, []);
 
   // Map task-scoped presence to individual task cards
   // const taskViewerMap = useMemo(() => {
@@ -289,18 +275,21 @@ export default function KanbanPage() {
     if (
       source.droppableId === destination.droppableId &&
       source.index === destination.index
-    ) return;
+    )
+      return;
 
-    // Approval gate: block move to a done column if the task still has pending
-    // approvals — mirrors the server-side check so we never fire the request.
+    // Mirrors the server-side check such as if the user grabbed and place task into same column, or a task is moved to complete column even has pending approvals, return for these scenarios
     if (source.droppableId !== destination.droppableId) {
-      const destStatus = board?.statuses?.find((s) => s.id === destination.droppableId);
+      const destStatus = statuses?.find(
+        (s) => s.id === destination.droppableId,
+      );
       if (destStatus?.is_done) {
         const task = tasks.find((t) => t.id === draggableId);
         if (task?.pending_approval_count > 0) {
           toast({
             title: "Approval required",
-            description: "Resolve pending approvals before marking this task done.",
+            description:
+              "Resolve pending approvals before marking this task done.",
             type: "error",
           });
           return;
@@ -319,7 +308,8 @@ export default function KanbanPage() {
           if (err?.response?.data?.approval_required) {
             toast({
               title: "Approval required",
-              description: "Resolve pending approvals before marking this task done.",
+              description:
+                "Resolve pending approvals before marking this task done.",
               type: "error",
             });
           }
@@ -328,6 +318,7 @@ export default function KanbanPage() {
     );
   };
 
+  // Helps us to determine the column of s task
   const tasksByStatus = (statusId) =>
     tasks
       .filter((t) => t.status_detail?.id === statusId)
@@ -395,6 +386,7 @@ export default function KanbanPage() {
                     {perms.role}
                   </Badge>
                 )}
+                
                 <OnlineUsersIndicator users={boardPresence} />
               </div>
               {board?.description && (
@@ -439,12 +431,6 @@ export default function KanbanPage() {
                 onClick: () => setBoardSettings(true),
                 show: perms.canAdmin,
               },
-              {
-                label: "Export CSV",
-                Icon: Download,
-                onClick: handleExport,
-                show: true,
-              },
             ]
               .filter(({ show }) => show)
               .map(({ label, Icon, onClick }) => (
@@ -464,7 +450,7 @@ export default function KanbanPage() {
                 onClick={() =>
                   setCreateModal({
                     open: true,
-                    statusId: board?.statuses?.[0]?.id,
+                    statusId: statuses?.[0]?.id,
                   })
                 }
               >
@@ -516,7 +502,7 @@ export default function KanbanPage() {
           <div className="flex-1 overflow-x-auto p-6">
             <DragDropContext onDragEnd={handleDragEnd}>
               <div className="flex gap-5 h-full items-start">
-                {board?.statuses?.map((col) => (
+                {statuses?.map((col) => (
                   <KanbanColumn
                     key={col.id}
                     column={col}
@@ -553,7 +539,7 @@ export default function KanbanPage() {
         {view === "list" && (
           <ListView
             tasks={tasks}
-            statuses={board?.statuses || []}
+            statuses={statuses || []}
             members={members}
             onTaskClick={(id) => openTask(id)}
             selectedTaskId={selectedTaskId}
@@ -568,7 +554,7 @@ export default function KanbanPage() {
             <div className="flex-1 overflow-x-auto p-6">
               <DragDropContext onDragEnd={handleDragEnd}>
                 <div className="flex gap-5 h-full">
-                  {board?.statuses?.map((col) => (
+                  {statuses?.map((col) => (
                     <KanbanColumn
                       key={col.id}
                       column={col}
@@ -628,7 +614,7 @@ export default function KanbanPage() {
           <Suspense fallback={<Loader className="flex-1" />}>
             <CalendarView
               tasks={tasks}
-              statuses={board?.statuses || []}
+              statuses={statuses || []}
               onTaskClick={openTask}
               onCreateTask={(date) =>
                 setCreateModal({ open: true, statusId: null, date })
@@ -645,7 +631,7 @@ export default function KanbanPage() {
           <Suspense fallback={<Loader className="flex-1" />}>
             <GanttView
               tasks={tasks}
-              statuses={board?.statuses || []}
+              statuses={statuses || []}
               members={members}
               sprints={sprints}
               onTaskClick={openTask}
@@ -670,7 +656,7 @@ export default function KanbanPage() {
       {/* Bulk action bar */}
       <BulkActionBar
         count={selectedIds.size}
-        statuses={board?.statuses || []}
+        statuses={statuses || []}
         members={members}
         onUpdate={(updates) =>
           bulkUpdate.mutate({
@@ -703,7 +689,7 @@ export default function KanbanPage() {
         >
           <TaskDetailPanel
             taskId={selectedTaskId}
-            projectStatuses={board?.statuses || []}
+            projectStatuses={statuses || []}
             projectLabels={labels}
             projectFields={fields}
             onCreateLabel={(data, opts) => createLabel.mutate(data, opts)}
@@ -722,7 +708,7 @@ export default function KanbanPage() {
         boardId={boardId}
         defaultStatusId={createModal.statusId}
         defaultDate={createModal.date}
-        statuses={board?.statuses || []}
+        statuses={statuses || []}
         members={members}
       />
 
@@ -731,7 +717,7 @@ export default function KanbanPage() {
         onClose={() => setBoardSettings(false)}
         workspaceId={workspaceId}
         boardId={boardId}
-        statuses={board?.statuses || []}
+        statuses={statuses || []}
       />
 
       <ProjectMembersModal

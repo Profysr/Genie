@@ -20,7 +20,19 @@ export function usePresence(workspaceId, resourceType, resourceId) {
         .then((r) => r.data),
     enabled: !!workspaceId && !!resourceType && !!resourceId,
     refetchInterval: HEARTBEAT_MS,
-    staleTime: 20_000,
+    staleTime: Infinity,
+  });
+}
+
+/** Fetch all users online in a workspace (any resource, active in last 90s). */
+export function useWorkspaceOnlineUsers(workspaceId) {
+  return useQuery({
+    queryKey: ["presence", workspaceId, "all"],
+    queryFn: () =>
+      api.get(`/api/workspaces/${workspaceId}/presence/`).then((r) => r.data),
+    enabled: !!workspaceId,
+    refetchInterval: HEARTBEAT_MS,
+    staleTime: Infinity,
   });
 }
 
@@ -32,6 +44,7 @@ export function useAnnouncePresence(workspaceId, resourceType, resourceId) {
   const timerRef = useRef(null);
   const qc = useQueryClient();
 
+  // Create an entry onto backend saying that I'm Online
   const announce = useCallback(() => {
     if (!workspaceId || !resourceType || !resourceId) return;
     api
@@ -47,34 +60,27 @@ export function useAnnouncePresence(workspaceId, resourceType, resourceId) {
       .catch(() => {});
   }, [workspaceId, resourceType, resourceId, qc]);
 
+  // Delete the presence record from the backend so the system will identify, ok the user has left
+  const leave = useCallback(() => {
+    if (!workspaceId || !resourceType || !resourceId) return;
+    api
+      .delete(`/api/workspaces/${workspaceId}/presence/`, {
+        data: { resource_type: resourceType, resource_id: resourceId },
+      })
+      .catch(() => {});
+    qc.invalidateQueries({
+      queryKey: presenceKey(workspaceId, resourceType, resourceId),
+    });
+  }, [workspaceId, resourceType, resourceId, qc]);
+
+  // Main effect that keeps updating user presence
   useEffect(() => {
     announce();
     timerRef.current = setInterval(announce, HEARTBEAT_MS);
 
     return () => {
       clearInterval(timerRef.current);
-      if (workspaceId && resourceType && resourceId) {
-        api
-          .delete(`/api/workspaces/${workspaceId}/presence/`, {
-            data: { resource_type: resourceType, resource_id: resourceId },
-          })
-          .catch(() => {});
-        qc.invalidateQueries({
-          queryKey: presenceKey(workspaceId, resourceType, resourceId),
-        });
-      }
+      leave();
     };
-  }, [announce, workspaceId, resourceType, resourceId, qc]);
-}
-
-/** Fetch all users online in a workspace (any resource, active in last 90s). */
-export function useWorkspaceOnlineUsers(workspaceId) {
-  return useQuery({
-    queryKey: ["presence", workspaceId, "all"],
-    queryFn: () =>
-      api.get(`/api/workspaces/${workspaceId}/presence/`).then((r) => r.data),
-    enabled: !!workspaceId,
-    refetchInterval: HEARTBEAT_MS,
-    staleTime: 20_000,
-  });
+  }, [announce, leave, workspaceId, resourceType, resourceId, qc]);
 }

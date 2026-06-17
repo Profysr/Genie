@@ -152,7 +152,9 @@ class TaskStatusBulkUpdateView(APIView):
                 to_update, ["name", "color", "is_done", "order"]
             )
 
-        return Response(TaskStatusSerializer(board.statuses.all(), many=True).data)
+        statuses_data = TaskStatusSerializer(board.statuses.order_by("order").all(), many=True).data
+        broadcast(workspace_id, "status.updated", {"board_id": str(board.id), "statuses": statuses_data})
+        return Response(statuses_data)
 
 
 # ── Task helpers ──────────────────────────────────────────────────────────────
@@ -874,8 +876,6 @@ class TaskDependencyDeleteView(APIView):
 
 
 # ── CSV Export (v1.7.0) ───────────────────────────────────────────────────────
-
-
 class TaskExportView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 

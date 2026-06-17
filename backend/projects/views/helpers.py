@@ -300,6 +300,7 @@ def _fire_webhooks(workspace_id, event_type, data):
             "task.commented": "task.commented",
             "tasks.bulk_updated": "task.updated",
             "tasks.bulk_deleted": "task.deleted",
+            "status.updated": "status.updated",
             "sprint.started": "sprint.started",
             "sprint.completed": "sprint.completed",
         }

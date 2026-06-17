@@ -5,6 +5,7 @@ WEBHOOK_EVENTS = [
     "task.assigned",
     "task.commented",
     "task.completed",
+    "status.updated",
     "sprint.started",
     "sprint.completed",
     "member.added",

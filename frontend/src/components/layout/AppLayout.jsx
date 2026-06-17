@@ -31,7 +31,7 @@ export default function AppLayout() {
   };
 
   // v3.5.0 — announce workspace-level presence so other users see us as online
-  useAnnouncePresence(workspaceId, "board", workspaceId);
+  // useAnnouncePresence(workspaceId, "board", workspaceId);
 
   // v3.9.0 — command palette + shortcut overlay + user settings modal
   const [paletteOpen, setPaletteOpen] = useState(false);

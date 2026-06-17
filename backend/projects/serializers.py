@@ -166,7 +166,6 @@ class PortfolioBoardSerializer(serializers.ModelSerializer):
 
 class BoardSerializer(serializers.ModelSerializer):
     created_by = MiniUserSerializer(read_only=True)
-    statuses = TaskStatusSerializer(many=True, read_only=True)
     task_count = serializers.SerializerMethodField()
     done_task_count = serializers.SerializerMethodField()
     my_role = serializers.SerializerMethodField()
@@ -181,14 +180,13 @@ class BoardSerializer(serializers.ModelSerializer):
             "status",
             "is_private",
             "created_by",
-            "statuses",
             "task_count",
             "done_task_count",
             "my_role",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_by", "statuses", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_by", "created_at", "updated_at"]
 
     def get_task_count(self, obj):
         return obj.task_count

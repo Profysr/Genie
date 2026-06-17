@@ -23,6 +23,7 @@ function buildTaskParams(filters = {}) {
   return p.toString();
 }
 
+// Get tasks, accept filters too
 export const useTasks = (workspaceId, boardId, filters = {}) => {
   const qs = buildTaskParams(filters);
   return useQuery({
@@ -37,6 +38,7 @@ export const useTasks = (workspaceId, boardId, filters = {}) => {
   });
 };
 
+// Get a specific task details
 export const useTask = (workspaceId, boardId, taskId) =>
   useQuery({
     queryKey: ["task", workspaceId, boardId, taskId],
@@ -78,6 +80,7 @@ export const useUpdateTask = (workspaceId, boardId) => {
   });
 };
 
+//! Need Re-work
 export const useMoveTask = (workspaceId, boardId) => {
   const qc = useQueryClient();
   return useMutation({

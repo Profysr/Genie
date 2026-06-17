@@ -63,7 +63,7 @@ export default function Sidebar({
   return (
     <aside
       className={cn(
-        "flex-shrink-0 border-r flex flex-col overflow-hidden transition-[width] duration-200 ease-out",
+        "flex-shrink-0 border-r flex flex-col transition-[width] duration-200 ease-out",
         collapsed ? "w-12" : "w-64",
       )}
       style={{ background: "hsl(var(--sidebar-bg))" }}

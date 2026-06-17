@@ -12,14 +12,14 @@ import { useBoard } from "./useProjects";
 const ROLE_WEIGHT = { admin: 4, editor: 3, viewer: 2, guest: 1 };
 
 export function useBoardPermissions(workspaceId, boardId) {
-  const { data: project, isLoading } = useBoard(workspaceId, boardId);
+  const { data: board, isLoading } = useBoard(workspaceId, boardId);
 
-  const role   = project?.my_role ?? null;
+  const role   = board?.my_role ?? null;
   const weight = ROLE_WEIGHT[role] ?? 0;
 
   return {
     role,
-    isLoaded:  !isLoading && !!project,
+    isLoaded:  !isLoading && !!board,
     canView:   weight >= 2,
     canEdit:   weight >= 3,
     canDelete: weight >= 3,
