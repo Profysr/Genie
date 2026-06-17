@@ -27,12 +27,6 @@ const ALL_COLUMNS = [
   { id: "priority", label: "Priority", sortable: true, defaultVisible: true },
   { id: "assignee", label: "Assignee", sortable: true, defaultVisible: true },
   { id: "due_date", label: "Due Date", sortable: true, defaultVisible: true },
-  {
-    id: "estimate_points",
-    label: "Points",
-    sortable: true,
-    defaultVisible: false,
-  },
   { id: "sprint", label: "Sprint", sortable: true, defaultVisible: false },
   { id: "labels", label: "Labels", sortable: false, defaultVisible: false },
 ];
@@ -49,7 +43,6 @@ function getSortValue(task, col, statuses) {
       ""
     ).toLowerCase();
   if (col === "due_date") return task.due_date || "9999";
-  if (col === "estimate_points") return task.estimate_points ?? 9999;
   if (col === "sprint") return task.sprint_detail?.name?.toLowerCase() || "";
   return "";
 }
@@ -400,19 +393,6 @@ export default function ListView({
       );
     }
 
-    if (col === "estimate_points") {
-      return (
-        <td key="estimate_points" className="px-3 py-2">
-          {task.estimate_points != null ? (
-            <span className="text-xs font-semibold text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-              {task.estimate_points}
-            </span>
-          ) : (
-            <span className="text-muted-foreground/50 text-xs">—</span>
-          )}
-        </td>
-      );
-    }
 
     if (col === "sprint") {
       return (
@@ -599,15 +579,6 @@ export default function ListView({
                     {i === 0 ? (
                       <span className="font-semibold">
                         {tasks.length} tasks
-                      </span>
-                    ) : c.id === "estimate_points" &&
-                      tasks.some((t) => t.estimate_points != null) ? (
-                      <span>
-                        {tasks.reduce(
-                          (s, t) => s + (t.estimate_points || 0),
-                          0,
-                        )}{" "}
-                        pts
                       </span>
                     ) : null}
                   </td>

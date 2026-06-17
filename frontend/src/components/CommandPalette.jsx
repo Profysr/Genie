@@ -24,19 +24,6 @@ const PRIORITY_COLOR = Object.fromEntries(
 
 // ── Recently viewed (localStorage) ────────────────────────────────────────────
 const RV_KEY = "jcn_recently_viewed";
-// const MAX_RV = 8;
-
-// export function trackRecentlyViewed(item) {
-//   // item: { type: "task"|"project"|"page", id, title, url }
-//   try {
-//     const list = JSON.parse(localStorage.getItem(RV_KEY) || "[]");
-//     const filtered = list.filter(
-//       (i) => !(i.type === item.type && i.id === item.id),
-//     );
-//     filtered.unshift(item);
-//     localStorage.setItem(RV_KEY, JSON.stringify(filtered.slice(0, MAX_RV)));
-//   } catch {}
-// }
 
 function getRecentlyViewed() {
   try {
@@ -64,12 +51,7 @@ function parseShortcuts(raw) {
   return { cleanQuery: rest.join(" "), filters };
 }
 
-// All shortcut filters are now applied server-side via query params.
-// This function is kept only as a safety net — the server already
-// pre-filters results, so this is a no-op in normal usage.
-function applyShortcutFilters(tasks) {
-  return tasks;
-}
+const SEARCH_LIMIT = 75;
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function CommandPalette({ open, onClose, workspaceId }) {
@@ -118,6 +100,7 @@ export default function CommandPalette({ open, onClose, workspaceId }) {
       params.set("priority", shortcutFilters.priority);
     if (shortcutFilters.special === "overdue") params.set("overdue", "true");
     if (shortcutFilters.special === "today") params.set("today", "true");
+    params.set("limit", String(SEARCH_LIMIT));
 
     setIsFetching(true);
     api
@@ -244,12 +227,8 @@ export default function CommandPalette({ open, onClose, workspaceId }) {
         ),
     }));
 
-    // Apply shortcut filters client-side
-    if (hasShortcuts) {
-      taskItems = applyShortcutFilters(taskItems, shortcutFilters);
-    }
 
-    const projectItems = (results?.projects || []).map((p) => ({
+    const projectItems = (results?.boards || []).map((p) => ({
       type: "project",
       icon: Hash,
       label: p.name,
