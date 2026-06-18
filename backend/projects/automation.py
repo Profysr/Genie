@@ -136,7 +136,7 @@ def _run_action(task, action, actor):
                     verb=InboxItem.Verb.TASK_ASSIGNED,
                     event_type="automated",
                     resource_name=task.title,
-                    project_id=str(task.board_id),
+                    board_id=str(task.board_id),
                     project_name=task.board.name,
                     meta=meta,
                 )

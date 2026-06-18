@@ -34,9 +34,9 @@ VERB_LABEL = {
 
 
 # ── Message formatters ────────────────────────────────────────────────────────
-def _task_url(workspace_id, project_id, task_id):
+def _task_url(workspace_id, board_id, task_id):
     frontend = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
-    return f"{frontend}/w/{workspace_id}/boards/{project_id}?task={task_id}"
+    return f"{frontend}/w/{workspace_id}/boards/{board_id}?task={task_id}"
 
 
 def format_teams_card(verb, task, actor, workspace_id):

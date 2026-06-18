@@ -15,15 +15,15 @@ from .helpers import (
 class WikiPageListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, workspace_id, project_id):
+    def get(self, request, workspace_id, board_id):
         workspace = get_workspace_for_user(workspace_id, request.user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         pages = board.wiki_pages.filter(parent=None).prefetch_related("children")
         return Response(WikiPageSerializer(pages, many=True).data)
 
-    def post(self, request, workspace_id, project_id):
+    def post(self, request, workspace_id, board_id):
         workspace = get_workspace_for_user(workspace_id, request.user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         _require_board_perm(request.user, board, "edit")
         serializer = WikiPageSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -34,17 +34,17 @@ class WikiPageListCreateView(APIView):
 class WikiPageDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def _get_page(self, workspace_id, project_id, page_id, user):
+    def _get_page(self, workspace_id, board_id, page_id, user):
         workspace = get_workspace_for_user(workspace_id, user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         return get_object_or_404(WikiPage, id=page_id, board=board), board
 
-    def get(self, request, workspace_id, project_id, page_id):
-        page, _ = self._get_page(workspace_id, project_id, page_id, request.user)
+    def get(self, request, workspace_id, board_id, page_id):
+        page, _ = self._get_page(workspace_id, board_id, page_id, request.user)
         return Response(WikiPageSerializer(page).data)
 
-    def patch(self, request, workspace_id, project_id, page_id):
-        page, board = self._get_page(workspace_id, project_id, page_id, request.user)
+    def patch(self, request, workspace_id, board_id, page_id):
+        page, board = self._get_page(workspace_id, board_id, page_id, request.user)
         _require_board_perm(request.user, board, "edit")
         # Save a revision before updating
         WikiRevision.objects.create(
@@ -55,8 +55,8 @@ class WikiPageDetailView(APIView):
         serializer.save()
         return Response(serializer.data)
 
-    def delete(self, request, workspace_id, project_id, page_id):
-        page, board = self._get_page(workspace_id, project_id, page_id, request.user)
+    def delete(self, request, workspace_id, board_id, page_id):
+        page, board = self._get_page(workspace_id, board_id, page_id, request.user)
         _require_board_perm(request.user, board, "admin")
         page.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -65,9 +65,9 @@ class WikiPageDetailView(APIView):
 class WikiPageRevisionsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, workspace_id, project_id, page_id):
+    def get(self, request, workspace_id, board_id, page_id):
         workspace = get_workspace_for_user(workspace_id, request.user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         page = get_object_or_404(WikiPage, id=page_id, board=board)
         revisions = page.revisions.select_related("author")[:20]
         return Response(WikiRevisionSerializer(revisions, many=True).data)

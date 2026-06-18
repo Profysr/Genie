@@ -138,7 +138,7 @@ class InboxItem(models.Model):
         max_length=20, choices=EventType.choices, default=EventType.ASSIGNED
     )
     resource_name = models.CharField(max_length=500, blank=True)
-    project_id = models.CharField(max_length=100, blank=True)
+    board_id = models.CharField(max_length=100, blank=True)
     project_name = models.CharField(max_length=255, blank=True)
     meta = models.JSONField(default=dict)
     status = models.CharField(

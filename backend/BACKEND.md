@@ -24,7 +24,7 @@
 ```
 core/           Django settings, URLs, Celery, ASGI, custom fields (UUIDv7, PrefixedUUID)
 accounts/       User auth, UserProfile prefs
-workspaces/     Workspace, members, invites, notifications, inbox, API keys, webhooks, imports, onboarding
+workspaces/     Workspace, members, invites, inbox, API keys, webhooks, imports, onboarding
 projects/       Boards, tasks, sprints, statuses, labels, comments, wiki, forms, automations, OKRs, approvals
 integrations/   Teams + Google Chat outbound webhooks, channel routing
 analytics/      On-the-fly metrics (no models, computed from tasks/activity)
@@ -37,6 +37,8 @@ analytics/      On-the-fly metrics (no models, computed from tasks/activity)
 All model PKs use `UUIDv7Field` from `core.fields` — time-sortable, no B-tree fragmentation.
 Opaque token fields (invite tokens, form tokens) stay UUID4.
 The DRF layer serializes PKs as prefixed strings via `PrefixedUUIDField` (e.g. `tsk_018e…`, `brd_…`, `wsp_…`).
+
+URL route kwargs use the full UUID (prefixed or plain) — helpers parse both via `_parse_pk()`.
 
 ---
 
@@ -54,7 +56,7 @@ Default permission: `IsAuthenticated`. Public endpoints (forms, invite detail) u
 ## URL Reference
 
 > Format: `METHOD /path/` — description  
-> `{ws}` = workspace slug, `{pid}` = board/project UUID, `{tid}` = task UUID
+> `{ws}` = workspace UUID (e.g. `wsp_018e…`), `{pid}` = board UUID, `{tid}` = task UUID
 
 ### Auth (`/api/auth/`)
 
@@ -94,12 +96,10 @@ Default permission: `IsAuthenticated`. Public endpoints (forms, invite detail) u
 | GET | `/api/invites/{token}/` | Public — get invite info (workspace name, inviter) |
 | POST | `/api/invites/{token}/accept/` | Accept invite and join workspace |
 
-### Notifications & Inbox
+### Inbox
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/notifications/` | Recent bell notifications for current user |
-| POST | `/api/notifications/mark-read/` | Mark one or all notifications as read |
 | GET | `/api/inbox/` | Inbox items (filterable by status: UNREAD/READ/ARCHIVED/SNOOZED) |
 | GET | `/api/inbox/unread-count/` | Fast unread count (optionally scoped to workspace) |
 | PATCH | `/api/inbox/{id}/` | Update single inbox item (read, archive, snooze) |
@@ -147,16 +147,16 @@ Default permission: `IsAuthenticated`. Public endpoints (forms, invite detail) u
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/workspaces/{ws}/boards/` | List all boards in workspace |
+| GET | `/api/workspaces/{ws}/boards/` | List active boards visible to the current user |
 | POST | `/api/workspaces/{ws}/boards/` | Create board |
 | GET | `/api/workspaces/{ws}/boards/{pid}/` | Board detail with statuses and counts |
 | PATCH | `/api/workspaces/{ws}/boards/{pid}/` | Update board name/type/status |
 | DELETE | `/api/workspaces/{ws}/boards/{pid}/` | Delete board |
 | GET | `/api/workspaces/{ws}/boards/{pid}/members/` | List board-level members |
 | POST | `/api/workspaces/{ws}/boards/{pid}/members/` | Add board member with role |
+| POST | `/api/workspaces/{ws}/boards/{pid}/members/bulk/` | Bulk-add board members |
 | PATCH | `/api/workspaces/{ws}/boards/{pid}/members/{id}/` | Change board member role |
 | DELETE | `/api/workspaces/{ws}/boards/{pid}/members/{id}/` | Remove board member |
-| GET | `/api/workspaces/{ws}/boards/{pid}/my-permissions/` | Caller's effective role on this board |
 
 ### Task Statuses (Columns)
 
@@ -164,6 +164,7 @@ Default permission: `IsAuthenticated`. Public endpoints (forms, invite detail) u
 |--------|------|-------------|
 | GET | `/api/workspaces/{ws}/boards/{pid}/statuses/` | List board statuses ordered by `order` |
 | POST | `/api/workspaces/{ws}/boards/{pid}/statuses/` | Create status column |
+| POST | `/api/workspaces/{ws}/boards/{pid}/statuses/bulk/` | Bulk reorder / update statuses |
 | PATCH | `/api/workspaces/{ws}/boards/{pid}/statuses/{id}/` | Rename/reorder/recolor status |
 | DELETE | `/api/workspaces/{ws}/boards/{pid}/statuses/{id}/` | Delete status (tasks moved to first remaining) |
 
@@ -171,7 +172,7 @@ Default permission: `IsAuthenticated`. Public endpoints (forms, invite detail) u
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/workspaces/{ws}/boards/{pid}/tasks/` | List tasks (filters: status, assignee, priority, sprint, label, due_before, search) |
+| GET | `/api/workspaces/{ws}/boards/{pid}/tasks/` | List tasks (filters: status, assignee, priority, sprint, label, type, due, search, pending_approval) |
 | POST | `/api/workspaces/{ws}/boards/{pid}/tasks/` | Create task |
 | POST | `/api/workspaces/{ws}/boards/{pid}/tasks/bulk/` | Bulk update tasks (status, assignee, priority, labels) |
 | GET | `/api/workspaces/{ws}/boards/{pid}/tasks/export/` | Export tasks as CSV or JSON |
@@ -179,7 +180,7 @@ Default permission: `IsAuthenticated`. Public endpoints (forms, invite detail) u
 | PATCH | `/api/workspaces/{ws}/boards/{pid}/tasks/{tid}/` | Update task fields |
 | DELETE | `/api/workspaces/{ws}/boards/{pid}/tasks/{tid}/` | Delete task |
 | POST | `/api/workspaces/{ws}/boards/{pid}/tasks/{tid}/move/` | Reorder task within/between statuses |
-| GET | `/api/workspaces/{ws}/boards/{pid}/tasks/{tid}/children/` | List child tasks (subtask tasks) |
+| GET | `/api/workspaces/{ws}/boards/{pid}/tasks/{tid}/children/` | List child tasks |
 | POST | `/api/workspaces/{ws}/boards/{pid}/tasks/{tid}/clone/` | Deep-clone task with all children |
 | POST | `/api/workspaces/{ws}/boards/{pid}/tasks/{tid}/apply-template/` | Create task from a template |
 | GET | `/api/workspaces/{ws}/boards/{pid}/tasks/{tid}/activity/` | Audit trail for task |
@@ -256,7 +257,6 @@ Default permission: `IsAuthenticated`. Public endpoints (forms, invite detail) u
 | GET | `/api/workspaces/{ws}/boards/{pid}/sprints/{id}/` | Sprint detail |
 | PATCH | `/api/workspaces/{ws}/boards/{pid}/sprints/{id}/` | Update sprint |
 | DELETE | `/api/workspaces/{ws}/boards/{pid}/sprints/{id}/` | Delete sprint |
-| GET | `/api/workspaces/{ws}/boards/{pid}/sprints/{id}/burndown/` | Burndown chart data points |
 
 ### Task Templates
 
@@ -387,24 +387,23 @@ Available `{metric}` values:
 
 | Model | Key Fields | Notes |
 |-------|-----------|-------|
-| `Workspace` | `id`, `name`, `slug`, `logo`, `owner` (FK→User) | ordering: -id |
-| `WorkspaceMember` | `workspace` (FK), `user` (FK), `role` (ADMIN/MEMBER/VIEWER), `invited_by` | unique: workspace+user; index: workspace+role |
+| `Workspace` | `id` (UUIDv7), `name`, `logo`, `owner` (FK→User) | No slug — routes use UUID `id`. ordering: -id |
+| `WorkspaceMember` | `workspace` (FK), `user` (FK), `role` (ADMIN/MEMBER/VIEWER), `invited_by`, `joined_at` | unique: workspace+user; index: workspace+role |
 | `WorkspaceInvite` | `workspace` (FK), `email`, `role`, `token` (UUID4), `status` (PENDING/ACCEPTED/DECLINED) | unique: workspace+email; index: workspace+status |
-| `Notification` | `recipient` (FK), `actor` (FK), `verb`, `workspace` (FK), `meta` (JSON), `read` | indexes: recipient+read, recipient+created_at |
-| `InboxItem` | `user` (FK), `workspace` (FK), `notification` (O2O), `actor_id`, `actor_name` (denorm), `verb`, `event_type`, `status` (UNREAD/READ/ARCHIVED/SNOOZED) | indexes: user+status, user+workspace+status |
-| `WorkspaceAPIKey` | `workspace` (FK), `name`, `key_prefix`, `key_hash`, `scopes` (JSON), `is_active` | Raw key shown once; soft-delete via is_active |
-| `Webhook` | `workspace` (FK), `url`, `events` (JSON), `secret`, `is_active` | HMAC-SHA256 signing |
-| `WebhookDelivery` | `webhook` (FK), `event`, `response_code`, `success`, `attempt` | indexes: webhook+created_at, webhook+success |
-| `ImportJob` | `workspace` (FK), `source`, `status`, `parsed_rows`, `field_mapping`, `progress_pct`, `imported_task_ids` | index: workspace+status |
-| `OnboardingState` | `workspace` (O2O), `wizard_completed`, `team_type`, `dismissed_by_users` (JSON) | |
+| `InboxItem` | `user` (FK), `workspace` (FK), `actor_id` (str, denorm), `actor_name` (str, denorm), `verb`, `event_type`, `resource_name`, `board_id`, `project_name`, `meta` (JSON), `status` (UNREAD/READ/ARCHIVED/SNOOZED), `snoozed_until` | indexes: user+status, user+workspace+status; ordering: -id |
+| `WorkspaceAPIKey` | `workspace` (FK), `name`, `key_prefix`, `key_hash`, `scopes` (JSON), `is_active`, `expires_at`, `last_used_at`, `created_by` (FK) | Raw key shown once; soft-delete via is_active. `generate()` classmethod returns (instance, raw_key) |
+| `Webhook` | `workspace` (FK), `name`, `url`, `events` (JSON), `secret`, `is_active` | HMAC-SHA256 signing. `create_with_secret()` classmethod |
+| `WebhookDelivery` | `webhook` (FK), `event`, `request_body`, `response_code`, `response_body`, `duration_ms`, `success`, `attempt` | indexes: webhook+created_at, webhook+success |
+| `ImportJob` | `workspace` (FK), `source`, `status`, `file_name`, `parsed_rows`, `field_mapping`, `preview_rows`, `progress_pct`, `total_count`, `imported_count`, `skipped_count`, `error_log`, `imported_task_ids`, `created_by`, `completed_at` | index: workspace+status. Sources: jira, clickup, monday, notion, github, asana, csv |
+| `OnboardingState` | `workspace` (O2O), `wizard_completed`, `team_type`, `checklist_dismissed`, `dismissed_by_users` (JSON) | |
 
 ### projects
 
 | Model | Key Fields / Indexes | Notes |
 |-------|---------------------|-------|
-| `Board` | `workspace` (FK), `name`, `board_type`, `status`, `is_private` | ordering: -id |
+| `Board` | `workspace` (FK), `name`, `board_type`, `status`, `is_private` | Custom manager `for_user()` filters private boards. ordering: -id |
 | `TaskStatus` | `board` (FK), `name`, `color`, `order`, `is_done` | unique: board+name; ordering: order |
-| `Task` | `board` (FK), `parent` (FK self), `title`, `status` (FK), `priority`, `assignee` (FK), `labels` (M2M), `sprint` (FK), `due_date`, `estimate_points`, `order` | 6 indexes: board+status, board+assignee, board+priority, board+sprint, assignee+status, board+due_date |
+| `Task` | `board` (FK), `parent` (FK self), `title`, `status` (FK), `priority`, `assignee` (FK), `labels` (M2M), `sprint` (FK), `due_date`, `estimate_points`, `task_type`, `order` | 6 indexes: board+status, board+assignee, board+priority, board+sprint, assignee+status, board+due_date |
 | `SubTask` | `task` (FK), `title`, `is_done`, `order` | ordering: order |
 | `TaskComment` | `task` (FK), `author` (FK), `body` | index: task+created_at |
 | `Label` | `board` (FK), `name`, `color` | unique: board+name |
@@ -415,7 +414,7 @@ Available `{metric}` values:
 | `TaskAttachment` | `task` (FK), `file`, `original_name`, `file_size`, `mime_type`, `uploaded_by` (FK) | |
 | `TaskDependency` | `blocker` (FK→Task), `blocked` (FK→Task), `relation_type` | unique: blocker+blocked |
 | `TaskActivity` | `task` (FK), `actor` (FK), `verb`, `meta` (JSON) | index: task+created_at |
-| `BoardMember` | `board` (FK), `user` (FK), `role` (ADMIN/EDITOR/VIEWER) | unique: board+user |
+| `BoardMember` | `board` (FK), `user` (FK), `role` (admin/editor/viewer) | unique: board+user |
 | `TaskTemplate` | `board` (FK), `name`, `default_subtasks` (JSON) | unique: board+name |
 | `WikiPage` | `board` (FK), `parent` (FK self), `title`, `slug`, `content`, `order` | unique: board+slug |
 | `WikiRevision` | `page` (FK), `content`, `title`, `author` (FK) | |
@@ -465,14 +464,14 @@ Available `{metric}` values:
 ## Cross-App Event Flow
 
 ```
-Task mutated in projects/views.py
+Task mutated in projects/views/
+  → broadcast()               → WebSocket group "workspace_{id}" + _fire_webhooks()
   → _fire_webhooks()          → workspaces.tasks.deliver_webhook.delay()
-  → fanout_notification()     → integrations.services (Teams / Google Chat)
-  → Notification.create()     → in-app bell
-  → InboxItem.create()        → inbox row (actor fields denormalized)
+  → notify()                  → InboxItem.create() + WebSocket group "user_{id}"
+  → integrations.services     → Teams / Google Chat (fanout_notification)
 
 File uploaded → ImportJob created → run_import.delay()
-  → Channels group_send("workspace_{slug}") → frontend progress bar
+  → Channels group_send("workspace_{id}") → frontend progress bar
 
 User created → post_save → UserProfile auto-created
 ```
@@ -483,16 +482,61 @@ User created → post_save → UserProfile auto-created
 
 ```
 WorkspaceMember.role:  ADMIN > MEMBER > VIEWER
-BoardMember.role:      ADMIN > EDITOR > VIEWER
+BoardMember.role:      admin > editor > viewer > guest
 
-Effective role = max(workspace_role, board_override_role)
-get_effective_role(user, board)  — in projects/permissions.py
-has_project_permission(user, board, action)  — weight-based check
+Role weights (_PROJ_WEIGHT): admin=4, editor=3, viewer=2, guest=1
+Action thresholds (_ACTION_MIN): view≥2, edit≥3, delete≥4, admin≥4
+
+Resolution:
+  workspace ADMIN  → always "admin"   (no board override can restrict this)
+  workspace MEMBER → min(editor=3, board_override_weight)
+  workspace VIEWER → always "viewer"  (cannot be promoted)
+
+get_effective_role(user, board)         → role string or None
+has_project_permission(user, board, action) → bool
+log_audit(actor, workspace, action, resource_type, resource_id, before, after)  → AuditEvent
+bulk_log_audit(actor, workspace, action, resource_type, entries)                → bulk AuditEvent
 ```
 
 Admin-only operations: API keys, webhooks, member role changes, invite cancellation.
 Board admin: status management, board deletion, member management.
 Viewer: read-only on boards.
+
+---
+
+## Helper Utilities (`projects/views/helpers.py`)
+
+| Helper | Purpose |
+|--------|---------|
+| `get_workspace_for_user(workspace_id, user)` | 404 if user not a member |
+| `_get_board(workspace_id, board_id, user)` | Scoped board lookup |
+| `_get_task(workspace_id, board_id, task_id, user, qs=)` | Scoped task lookup; pass custom queryset |
+| `_task_list_qs()` | Annotated queryset for task list (5 count annotations, no N+1) |
+| `_task_detail_qs()` | Full prefetch queryset for single-task views |
+| `_apply_task_filters(qs, params, user)` | Apply FilterBar params to a Task queryset |
+| `_require_board_perm(user, board, role)` | Raise 403 if insufficient role |
+| `_require_board_admin(request, workspace_id, board_id)` | Return (workspace, board) or raise 403/404 |
+| `broadcast(workspace_id, event_type, data)` | WebSocket push + webhook fan-out |
+| `broadcast_to_user(user_id, event_type, data)` | Push to a single user's WS group |
+| `notify(recipient, actor, verb, workspace, task)` | InboxItem + WS push; no-op if actor==recipient |
+| `log_activity(task, actor, verb, meta)` | Write TaskActivity row |
+
+### Webhook event mapping (internal → public)
+
+| Internal event | Public webhook event |
+|---------------|---------------------|
+| `task.created` | `task.created` |
+| `task.updated` | `task.updated` |
+| `task.moved` | `task.updated` |
+| `task.deleted` | `task.deleted` |
+| `task.commented` | `task.commented` |
+| `tasks.bulk_updated` | `task.updated` |
+| `tasks.bulk_deleted` | `task.deleted` |
+| `status.updated` | `status.updated` |
+| `sprint.started` | `sprint.started` |
+| `sprint.completed` | `sprint.completed` |
+
+All other events (presence, reactions, etc.) are internal-only and never forwarded.
 
 ---
 
@@ -534,8 +578,9 @@ Viewer: read-only on boards.
 
 | Item | Scope | Priority |
 |------|-------|---------|
-| RBAC is simple (3 roles) — fine for v1 | `WorkspaceMember.Role` | v2+ |
+| RBAC is simple (3 ws roles + 4 board roles) — no custom role builder | `WorkspaceMember.Role` | v2 RBAC system |
 | `InboxItem` actor fields are denormalized strings | `workspaces/models.py` | Acceptable v1 perf trade-off |
 | Workspace templates are static in `constants.py` | `workspaces/constants.py` | Future: `WorkspaceTemplate` model |
 | Automation runs synchronously in signals | `projects/signals.py` | Future: queue to Celery for large boards |
 | Analytics computed on-the-fly | `analytics/views.py` | Future: materialized views or caching |
+| `TaskTemplate` / `apply-template` included but template features deprioritized | `projects/views/tasks.py` | To be revisited in v2 |

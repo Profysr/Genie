@@ -22,15 +22,15 @@ from .helpers import (
 class FormListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, workspace_id, project_id):
+    def get(self, request, workspace_id, board_id):
         workspace = get_workspace_for_user(workspace_id, request.user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         forms = board.forms.prefetch_related("fields")
         return Response(FormSerializer(forms, many=True).data)
 
-    def post(self, request, workspace_id, project_id):
+    def post(self, request, workspace_id, board_id):
         workspace = get_workspace_for_user(workspace_id, request.user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         _require_board_perm(request.user, board, "edit")
         serializer = FormSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -41,25 +41,25 @@ class FormListCreateView(APIView):
 class FormDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def _get_form(self, workspace_id, project_id, form_id, user):
+    def _get_form(self, workspace_id, board_id, form_id, user):
         workspace = get_workspace_for_user(workspace_id, user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         return get_object_or_404(Form, id=form_id, board=board), board
 
-    def get(self, request, workspace_id, project_id, form_id):
-        form, _ = self._get_form(workspace_id, project_id, form_id, request.user)
+    def get(self, request, workspace_id, board_id, form_id):
+        form, _ = self._get_form(workspace_id, board_id, form_id, request.user)
         return Response(FormSerializer(form).data)
 
-    def patch(self, request, workspace_id, project_id, form_id):
-        form, board = self._get_form(workspace_id, project_id, form_id, request.user)
+    def patch(self, request, workspace_id, board_id, form_id):
+        form, board = self._get_form(workspace_id, board_id, form_id, request.user)
         _require_board_perm(request.user, board, "edit")
         serializer = FormSerializer(form, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
 
-    def delete(self, request, workspace_id, project_id, form_id):
-        form, board = self._get_form(workspace_id, project_id, form_id, request.user)
+    def delete(self, request, workspace_id, board_id, form_id):
+        form, board = self._get_form(workspace_id, board_id, form_id, request.user)
         _require_board_perm(request.user, board, "admin")
         form.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -70,9 +70,9 @@ class FormFieldsBulkUpdateView(APIView):
 
     permission_classes = [permissions.IsAuthenticated]
 
-    def put(self, request, workspace_id, project_id, form_id):
+    def put(self, request, workspace_id, board_id, form_id):
         workspace = get_workspace_for_user(workspace_id, request.user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         _require_board_perm(request.user, board, "edit")
         form = get_object_or_404(Form, id=form_id, board=board)
         form.fields.all().delete()
@@ -161,17 +161,17 @@ class FormSubmissionListView(APIView):
 
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, workspace_id, project_id, form_id):
+    def get(self, request, workspace_id, board_id, form_id):
         workspace = get_workspace_for_user(workspace_id, request.user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         form = get_object_or_404(Form, id=form_id, board=board)
         subs = form.submissions.select_related("task").order_by("-submitted_at")
         return Response(FormSubmissionSerializer(subs, many=True).data)
 
-    def patch(self, request, workspace_id, project_id, form_id):
+    def patch(self, request, workspace_id, board_id, form_id):
         """Update a submission status."""
         workspace = get_workspace_for_user(workspace_id, request.user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         form = get_object_or_404(Form, id=form_id, board=board)
         sub_id = request.data.get("id")
         sub = get_object_or_404(FormSubmission, id=sub_id, form=form)

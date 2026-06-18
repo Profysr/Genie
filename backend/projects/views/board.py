@@ -5,16 +5,17 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Count, Q, Prefetch
 from django.utils import timezone
 import datetime
-from ..models import Board, Sprint, UserPresence, Task
+from ..models import Board, BoardMember, Sprint, UserPresence, Task
 from ..serializers import (
     BoardSerializer,
     BoardMiniSerializer,
     PortfolioBoardSerializer,
     BoardMemberSerializer,
+    BoardMemberBulkSerializer,
     UserPresenceSerializer,
     MyWorkTaskSerializer,
 )
-from ..permissions import has_project_permission, log_audit
+from ..permissions import has_project_permission, log_audit, bulk_log_audit
 from workspaces.models import WorkspaceMember
 from .helpers import (
     _parse_pk,
@@ -54,18 +55,18 @@ class BoardListCreateView(APIView):
 class BoardDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_board(self, workspace_id, project_id, user):
+    def get_board(self, workspace_id, board_id, user):
         workspace = get_workspace_for_user(workspace_id, user)
         return get_object_or_404(
-            Board.objects.for_user(workspace, user), id=_parse_pk(project_id)
+            Board.objects.for_user(workspace, user), id=_parse_pk(board_id)
         )
 
-    def get(self, request, workspace_id, project_id):
-        board = self.get_board(workspace_id, project_id, request.user)
+    def get(self, request, workspace_id, board_id):
+        board = self.get_board(workspace_id, board_id, request.user)
         return Response(BoardSerializer(board, context={"request": request}).data)
 
-    def patch(self, request, workspace_id, project_id):
-        board = self.get_board(workspace_id, project_id, request.user)
+    def patch(self, request, workspace_id, board_id):
+        board = self.get_board(workspace_id, board_id, request.user)
         serializer = BoardSerializer(
             board,
             data=request.data,
@@ -76,8 +77,8 @@ class BoardDetailView(APIView):
         serializer.save()
         return Response(serializer.data)
 
-    def delete(self, request, workspace_id, project_id):
-        board = self.get_board(workspace_id, project_id, request.user)
+    def delete(self, request, workspace_id, board_id):
+        board = self.get_board(workspace_id, board_id, request.user)
         if not _is_workspace_admin(board.workspace, request.user):
             return Response(
                 {"detail": "Only workspace admins can archive boards."},
@@ -122,9 +123,9 @@ class PortfolioView(APIView):
 class BoardMemberListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, workspace_id, project_id):
+    def get(self, request, workspace_id, board_id):
         workspace = get_workspace_for_user(workspace_id, request.user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
 
         if not has_project_permission(request.user, board, "view"):
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
@@ -132,8 +133,8 @@ class BoardMemberListCreateView(APIView):
         members = board.board_members.select_related("user")
         return Response(BoardMemberSerializer(members, many=True).data)
 
-    def post(self, request, workspace_id, project_id):
-        workspace, board = _require_board_admin(request, workspace_id, project_id)
+    def post(self, request, workspace_id, board_id):
+        workspace, board = _require_board_admin(request, workspace_id, board_id)
         serializer = BoardMemberSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         member = serializer.save(board=board, added_by=request.user)
@@ -154,16 +155,16 @@ class BoardMemberListCreateView(APIView):
 class BoardMemberDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def _get_member(self, workspace_id, project_id, member_id, request):
-        workspace, board = _require_board_admin(request, workspace_id, project_id)
+    def _get_member(self, workspace_id, board_id, member_id, request):
+        workspace, board = _require_board_admin(request, workspace_id, board_id)
         from ..models import BoardMember
 
         member = get_object_or_404(BoardMember, id=member_id, board=board)
         return workspace, board, member
 
-    def patch(self, request, workspace_id, project_id, member_id):
+    def patch(self, request, workspace_id, board_id, member_id):
         workspace, board, member = self._get_member(
-            workspace_id, project_id, member_id, request
+            workspace_id, board_id, member_id, request
         )
         before_role = member.role
         serializer = BoardMemberSerializer(member, data=request.data, partial=True)
@@ -180,9 +181,9 @@ class BoardMemberDetailView(APIView):
         )
         return Response(BoardMemberSerializer(member).data)
 
-    def delete(self, request, workspace_id, project_id, member_id):
+    def delete(self, request, workspace_id, board_id, member_id):
         workspace, _board, member = self._get_member(
-            workspace_id, project_id, member_id, request
+            workspace_id, board_id, member_id, request
         )
         log_audit(
             actor=request.user,
@@ -194,6 +195,42 @@ class BoardMemberDetailView(APIView):
         )
         member.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class BoardMemberBulkCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, workspace_id, board_id):
+        workspace, board = _require_board_admin(request, workspace_id, board_id)
+
+        serializer = BoardMemberBulkSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        existing_user_ids = set(board.board_members.values_list("user_id", flat=True))
+
+        to_create, skipped = [], []
+        for item in serializer.validated_data["members"]:
+            user = item["user_id"]
+            if user.id in existing_user_ids:
+                skipped.append(str(user.id))
+                continue
+            to_create.append(BoardMember(board=board, user=user, role=item["role"], added_by=request.user))
+
+        created = BoardMember.objects.bulk_create(to_create)
+
+        bulk_log_audit(
+            actor=request.user,
+            workspace=workspace,
+            action="project_member.added",
+            resource_type="project_member",
+            entries=[{"resource_id": m.id, "after": {"user": str(m.user_id), "role": m.role}} for m in created],
+        )
+
+        qs = BoardMember.objects.filter(id__in=[m.id for m in created]).select_related("user")
+        return Response(
+            {"created": BoardMemberSerializer(qs, many=True).data, "skipped": skipped},
+            status=status.HTTP_201_CREATED,
+        )
 
 
 # ── v3.4.0 — My Work ─────────────────────────────────────────────────────────

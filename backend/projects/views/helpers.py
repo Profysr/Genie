@@ -1,4 +1,4 @@
-from rest_framework import permissions, status
+﻿from rest_framework import permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -370,7 +370,7 @@ def notify(recipient, actor, verb, workspace, task):
         verb=verb,
         event_type=_VERB_TO_EVENT_TYPE.get(verb, "assigned"),
         resource_name=task.title,
-        project_id=str(task.board_id),
+        board_id=str(task.board_id),
         project_name=task.board.name if task.board_id else "",
         meta=meta,
     )
@@ -385,7 +385,7 @@ def notify(recipient, actor, verb, workspace, task):
             "verb": verb,
             "event_type": _VERB_TO_EVENT_TYPE.get(verb, "assigned"),
             "resource_name": task.title,
-            "project_id": str(task.board_id),
+            "board_id": str(task.board_id),
             "project_name": task.board.name if task.board_id else "",
             "meta": meta,
             "status": "unread",

@@ -4,6 +4,7 @@ from .views import (
     BoardDetailView,
     BoardMemberListCreateView,
     BoardMemberDetailView,
+    BoardMemberBulkCreateView,
     UserPresenceView,
     CommentReactionToggleView,
     ApprovalListCreateView,
@@ -69,7 +70,7 @@ from .views import (
 )
 
 _ws = "workspaces/<str:workspace_id>"
-_pr = f"{_ws}/boards/<str:project_id>"
+_pr = f"{_ws}/boards/<str:board_id>"
 _tk = f"{_pr}/tasks/<str:task_id>"
 
 urlpatterns = [
@@ -78,6 +79,7 @@ urlpatterns = [
     path(f"{_pr}/", BoardDetailView.as_view()),
     # Board members & permissions
     path(f"{_pr}/members/", BoardMemberListCreateView.as_view()),
+    path(f"{_pr}/members/bulk/", BoardMemberBulkCreateView.as_view()),
     path(f"{_pr}/members/<str:member_id>/", BoardMemberDetailView.as_view()),
     # Kanban columns
     path(f"{_pr}/statuses/", TaskStatusListCreateView.as_view()),

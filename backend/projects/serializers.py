@@ -777,6 +777,29 @@ class BoardMemberSerializer(serializers.ModelSerializer):
         return BoardMember.objects.create(user=user, **validated_data)
 
 
+class BoardMemberBulkItemSerializer(serializers.Serializer):
+    user_id = serializers.UUIDField()
+    role = serializers.ChoiceField(choices=BoardMember.Role.choices, default=BoardMember.Role.EDITOR)
+
+    def validate_user_id(self, value):
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        try:
+            return User.objects.get(pk=value)
+        except User.DoesNotExist:
+            raise serializers.ValidationError("User not found.")
+
+
+class BoardMemberBulkSerializer(serializers.Serializer):
+    members = BoardMemberBulkItemSerializer(many=True)
+
+    def validate_members(self, value):
+        if not value:
+            raise serializers.ValidationError("At least one member is required.")
+        return value
+
+
 # ── v2.5.0 — Wiki & Documents ─────────────────────────────────────────────────
 
 

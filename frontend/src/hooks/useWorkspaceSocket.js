@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+﻿import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { presenceKey } from "@/hooks/usePresence";
 import { BACKEND_WS_URL } from "@/lib/env";
@@ -23,11 +23,11 @@ export function useWorkspaceSocket(workspaceId) {
       // All use setQueriesData (prefix match) because useTasks stores data under a 4-element key ["tasks", workspaceId, boardId, filters]. setQueryData (exact match) would miss it and write to a ghost entry nobody reads.
       if (type === "task.created") {
         // Invalidate so the refetch respects active filters — we can't know if the new task matches whatever filters are currently applied.
-        qc.invalidateQueries({ queryKey: ["tasks", workspaceId, payload.project_id] });
+        qc.invalidateQueries({ queryKey: ["tasks", workspaceId, payload.board_id] });
       }
 
       if (type === "task.updated") {
-        qc.setQueriesData({ queryKey: ["tasks", workspaceId, payload.project_id] }, (old) => {
+        qc.setQueriesData({ queryKey: ["tasks", workspaceId, payload.board_id] }, (old) => {
           if (!old) return old;
           return old.map((t) => (t.id === payload.id ? payload : t));
         });
@@ -35,7 +35,7 @@ export function useWorkspaceSocket(workspaceId) {
 
       // ! Needs rework
       if (type === "task.moved") {
-        qc.setQueriesData({ queryKey: ["tasks", workspaceId, payload.project_id] }, (old) => {
+        qc.setQueriesData({ queryKey: ["tasks", workspaceId, payload.board_id] }, (old) => {
           if (!old) return old;
           return old.map((t) =>
             t.id === payload.id
@@ -46,14 +46,14 @@ export function useWorkspaceSocket(workspaceId) {
       }
 
       if (type === "task.deleted") {
-        qc.setQueriesData({ queryKey: ["tasks", workspaceId, payload.project_id] }, (old) =>
+        qc.setQueriesData({ queryKey: ["tasks", workspaceId, payload.board_id] }, (old) =>
           old?.filter((t) => t.id !== payload.id)
         );
       }
 
       // ── Comment events — update the task detail cache ──────────
       if (type === "comment.created") {
-        qc.setQueryData(["task-detail", workspaceId, payload.project_id, payload.task_id], (old) => {
+        qc.setQueryData(["task-detail", workspaceId, payload.board_id, payload.task_id], (old) => {
           if (!old) return old;
           const exists = old.comments?.find((c) => c.id === payload.comment.id);
           if (exists) return old;
@@ -66,7 +66,7 @@ export function useWorkspaceSocket(workspaceId) {
       }
 
       if (type === "comment.deleted") {
-        qc.setQueryData(["task-detail", workspaceId, payload.project_id, payload.task_id], (old) => {
+        qc.setQueryData(["task-detail", workspaceId, payload.board_id, payload.task_id], (old) => {
           if (!old) return old;
           return {
             ...old,
@@ -85,9 +85,9 @@ export function useWorkspaceSocket(workspaceId) {
       // ── Approval events ────────────────────────────────────────
       if (type === "approval.created" || type === "approval.updated") {
         qc.invalidateQueries({
-          queryKey: ["approvals", workspaceId, payload.project_id, payload.task_id],
+          queryKey: ["approvals", workspaceId, payload.board_id, payload.task_id],
         });
-        qc.invalidateQueries({ queryKey: ["tasks", workspaceId, payload.project_id] });
+        qc.invalidateQueries({ queryKey: ["tasks", workspaceId, payload.board_id] });
       }
 
       // ── Typing indicators — forwarded to a custom event for TaskDetailPanel ──
@@ -107,7 +107,7 @@ export function useWorkspaceSocket(workspaceId) {
       // ── Comment reaction events ────────────────────────────────
       if (type === "reaction.updated") {
         qc.setQueryData(
-          ["task-detail", workspaceId, payload.project_id, payload.task_id],
+          ["task-detail", workspaceId, payload.board_id, payload.task_id],
           (old) => {
             if (!old) return old;
             return {

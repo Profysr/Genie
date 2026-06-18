@@ -6,6 +6,7 @@ from .board import (
     PortfolioView,
     BoardMemberListCreateView,
     BoardMemberDetailView,
+    BoardMemberBulkCreateView,
     UserPresenceView,
     MyWorkView,
 )
@@ -87,6 +88,7 @@ __all__ = [
     "PortfolioView",
     "BoardMemberListCreateView",
     "BoardMemberDetailView",
+    "BoardMemberBulkCreateView",
     "UserPresenceView",
     "MyWorkView",
     # tasks

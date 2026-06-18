@@ -86,3 +86,23 @@ def log_audit(actor, workspace, action, resource_type, resource_id, before=None,
         before=before or {},
         after=after or {},
     )
+
+
+def bulk_log_audit(actor, workspace, action, resource_type, entries):
+    """Write multiple AuditEvent rows in one query.
+
+    entries: iterable of dicts with keys resource_id, before (opt), after (opt).
+    """
+    from .models import AuditEvent
+    AuditEvent.objects.bulk_create([
+        AuditEvent(
+            workspace=workspace,
+            actor=actor,
+            action=action,
+            resource_type=resource_type,
+            resource_id=str(entry["resource_id"]),
+            before=entry.get("before") or {},
+            after=entry.get("after") or {},
+        )
+        for entry in entries
+    ])

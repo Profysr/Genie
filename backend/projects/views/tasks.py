@@ -1,4 +1,4 @@
-from rest_framework import permissions, status
+﻿from rest_framework import permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -74,12 +74,12 @@ from .helpers import (
 class TaskStatusListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, workspace_id, project_id):
-        board = _get_board(workspace_id, project_id, request.user)
+    def get(self, request, workspace_id, board_id):
+        board = _get_board(workspace_id, board_id, request.user)
         return Response(TaskStatusSerializer(board.statuses.all(), many=True).data)
 
-    def post(self, request, workspace_id, project_id):
-        board = _get_board(workspace_id, project_id, request.user)
+    def post(self, request, workspace_id, board_id):
+        board = _get_board(workspace_id, board_id, request.user)
         serializer = TaskStatusSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         # 1. Sort columns from highest order to lowest (e.g., 3, 2, 1)
@@ -144,8 +144,8 @@ def _apply_status_items(board, existing, items):
 class TaskStatusBulkUpdateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def put(self, request, workspace_id, project_id):
-        board = _get_board(workspace_id, project_id, request.user)
+    def put(self, request, workspace_id, board_id):
+        board = _get_board(workspace_id, board_id, request.user)
         serializer = BulkStatusUpdateSerializer(data={"statuses": request.data})
         serializer.is_valid(raise_exception=True)
         items = serializer.validated_data["statuses"]
@@ -195,14 +195,14 @@ def _broadcast_task_card(workspace_id, task_pk, event="task.updated"):
 class TaskListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, workspace_id, project_id):
-        board = _get_board(workspace_id, project_id, request.user)
+    def get(self, request, workspace_id, board_id):
+        board = _get_board(workspace_id, board_id, request.user)
         tasks = _task_list_qs().filter(board=board)
         tasks = _apply_task_filters(tasks, request.query_params, user=request.user)
         return Response(TaskCardSerializer(tasks, many=True).data)
 
-    def post(self, request, workspace_id, project_id):
-        board = _get_board(workspace_id, project_id, request.user)
+    def post(self, request, workspace_id, board_id):
+        board = _get_board(workspace_id, board_id, request.user)
         serializer = TaskSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         task = serializer.save(board=board)
@@ -227,15 +227,15 @@ class TaskListCreateView(APIView):
 class TaskDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, workspace_id, project_id, task_id):
+    def get(self, request, workspace_id, board_id, task_id):
         task = _get_task(
-            workspace_id, project_id, task_id, request.user, qs=_task_detail_qs()
+            workspace_id, board_id, task_id, request.user, qs=_task_detail_qs()
         )
         return Response(TaskDetailSerializer(task, context={"request": request}).data)
 
-    def patch(self, request, workspace_id, project_id, task_id):
+    def patch(self, request, workspace_id, board_id, task_id):
         task = _get_task(
-            workspace_id, project_id, task_id, request.user, qs=_task_list_qs()
+            workspace_id, board_id, task_id, request.user, qs=_task_list_qs()
         )
 
         conflict = _check_version_conflict(task, request.data.get("version"))
@@ -261,15 +261,15 @@ class TaskDetailView(APIView):
         detail_task = _task_detail_qs().get(pk=task.pk)
         return Response(TaskDetailSerializer(detail_task, context={"request": request}).data)
 
-    def delete(self, request, workspace_id, project_id, task_id):
-        task = _get_task(workspace_id, project_id, task_id, request.user)
+    def delete(self, request, workspace_id, board_id, task_id):
+        task = _get_task(workspace_id, board_id, task_id, request.user)
         _require_board_perm(request.user, task.board, "delete")
         task_id_str = str(task.id)
         task.delete()
         broadcast(
             workspace_id,
             "task.deleted",
-            {"id": task_id_str, "board_id": str(project_id)},
+            {"id": task_id_str, "board_id": str(board_id)},
         )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -293,8 +293,8 @@ class TaskMoveView(APIView):
 
     permission_classes = [permissions.IsAuthenticated]
 
-    def patch(self, request, workspace_id, project_id, task_id):
-        board = _get_board(workspace_id, project_id, request.user)
+    def patch(self, request, workspace_id, board_id, task_id):
+        board = _get_board(workspace_id, board_id, request.user)
         task = get_object_or_404(Task, id=_parse_pk(task_id), board=board)
         # Snapshot the current status so we can detect a column change below.
         old_status = task.status
@@ -338,19 +338,19 @@ class TaskMoveView(APIView):
 
 
 # ── Bulk Actions (v1.1.0) ─────────────────────────────────────────────────────
-def _bulk_delete(tasks, workspace_id, project_id):
+def _bulk_delete(tasks, workspace_id, board_id):
     """Delete the task queryset and broadcast the tombstone list to kanban clients."""
     task_ids = list(tasks.values_list("id", flat=True))
     count, _ = tasks.delete()
     broadcast(
         workspace_id,
         "tasks.bulk_deleted",
-        {"task_ids": [str(i) for i in task_ids], "project_id": str(project_id)},
+        {"task_ids": [str(i) for i in task_ids], "board_id": str(board_id)},
     )
     return Response({"deleted": count})
 
 
-def _bulk_update(tasks, updates, workspace_id, project_id):
+def _bulk_update(tasks, updates, workspace_id, board_id):
     """Apply field overrides to the task queryset and broadcast updated cards."""
     update_kwargs = {}
     if updates.get("status_id"):
@@ -374,7 +374,7 @@ def _bulk_update(tasks, updates, workspace_id, project_id):
     broadcast(
         workspace_id,
         "tasks.bulk_updated",
-        {"tasks": updated, "project_id": str(project_id)},
+        {"tasks": updated, "board_id": str(board_id)},
     )
     return Response({"updated": len(updated), "tasks": updated})
 
@@ -382,32 +382,32 @@ def _bulk_update(tasks, updates, workspace_id, project_id):
 class TaskBulkUpdateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def post(self, request, workspace_id, project_id):
+    def post(self, request, workspace_id, board_id):
         serializer = TaskBulkActionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        board = _get_board(workspace_id, project_id, request.user)
+        board = _get_board(workspace_id, board_id, request.user)
         tasks = Task.objects.filter(id__in=data["task_ids"], board=board)
 
         if data["action"] == "delete":
             _require_board_perm(request.user, board, "delete")
-            return _bulk_delete(tasks, workspace_id, project_id)
+            return _bulk_delete(tasks, workspace_id, board_id)
 
         if data["action"] == "update":
-            return _bulk_update(tasks, data["updates"], workspace_id, project_id)
+            return _bulk_update(tasks, data["updates"], workspace_id, board_id)
 
 
 # ── Subtasks ──────────────────────────────────────────────────────────────────
 class SubTaskListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, workspace_id, project_id, task_id):
-        task = _get_task(workspace_id, project_id, task_id, request.user)
+    def get(self, request, workspace_id, board_id, task_id):
+        task = _get_task(workspace_id, board_id, task_id, request.user)
         return Response(SubTaskSerializer(task.subtasks.all(), many=True).data)
 
-    def post(self, request, workspace_id, project_id, task_id):
-        task = _get_task(workspace_id, project_id, task_id, request.user)
+    def post(self, request, workspace_id, board_id, task_id):
+        task = _get_task(workspace_id, board_id, task_id, request.user)
         serializer = SubTaskSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         subtask = serializer.save(task=task)
@@ -420,18 +420,18 @@ class SubTaskListCreateView(APIView):
 class SubTaskDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def patch(self, request, workspace_id, project_id, task_id, subtask_id):
+    def patch(self, request, workspace_id, board_id, task_id, subtask_id):
         subtask = _get_subtask(
-            workspace_id, project_id, task_id, subtask_id, request.user
+            workspace_id, board_id, task_id, subtask_id, request.user
         )
         serializer = SubTaskSerializer(subtask, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
 
-    def delete(self, request, workspace_id, project_id, task_id, subtask_id):
+    def delete(self, request, workspace_id, board_id, task_id, subtask_id):
         subtask = _get_subtask(
-            workspace_id, project_id, task_id, subtask_id, request.user
+            workspace_id, board_id, task_id, subtask_id, request.user
         )
         subtask.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -441,8 +441,8 @@ class SubTaskDetailView(APIView):
 class TaskActivityListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, workspace_id, project_id, task_id):
-        task = _get_task(workspace_id, project_id, task_id, request.user)
+    def get(self, request, workspace_id, board_id, task_id):
+        task = _get_task(workspace_id, board_id, task_id, request.user)
         activities = task.activities.select_related("actor").all()
         return Response(TaskActivitySerializer(activities, many=True).data)
 
@@ -451,8 +451,8 @@ class TaskActivityListView(APIView):
 class TaskCommentListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, workspace_id, project_id, task_id):
-        task = _get_task(workspace_id, project_id, task_id, request.user)
+    def get(self, request, workspace_id, board_id, task_id):
+        task = _get_task(workspace_id, board_id, task_id, request.user)
         return Response(
             TaskCommentSerializer(
                 task.comments.select_related("author").all(),
@@ -461,9 +461,9 @@ class TaskCommentListCreateView(APIView):
             ).data
         )
 
-    def post(self, request, workspace_id, project_id, task_id):
+    def post(self, request, workspace_id, board_id, task_id):
         workspace = get_workspace_for_user(workspace_id, request.user)
-        task = _get_task(workspace_id, project_id, task_id, request.user)
+        task = _get_task(workspace_id, board_id, task_id, request.user)
         serializer = TaskCommentSerializer(
             data=request.data, context={"request": request}
         )
@@ -510,7 +510,7 @@ class TaskCommentListCreateView(APIView):
             "comment.created",
             {
                 "task_id": str(task.id),
-                "project_id": str(task.board_id),
+                "board_id": str(task.board_id),
                 "comment": data,
             },
         )
@@ -520,13 +520,13 @@ class TaskCommentListCreateView(APIView):
 class TaskCommentDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_comment(self, workspace_id, project_id, task_id, comment_id, user):
-        task = _get_task(workspace_id, project_id, task_id, user)
+    def get_comment(self, workspace_id, board_id, task_id, comment_id, user):
+        task = _get_task(workspace_id, board_id, task_id, user)
         return get_object_or_404(TaskComment, id=comment_id, task=task)
 
-    def patch(self, request, workspace_id, project_id, task_id, comment_id):
+    def patch(self, request, workspace_id, board_id, task_id, comment_id):
         comment = self.get_comment(
-            workspace_id, project_id, task_id, comment_id, request.user
+            workspace_id, board_id, task_id, comment_id, request.user
         )
         if comment.author != request.user:
             return Response(
@@ -540,9 +540,9 @@ class TaskCommentDetailView(APIView):
         serializer.save()
         return Response(serializer.data)
 
-    def delete(self, request, workspace_id, project_id, task_id, comment_id):
+    def delete(self, request, workspace_id, board_id, task_id, comment_id):
         comment = self.get_comment(
-            workspace_id, project_id, task_id, comment_id, request.user
+            workspace_id, board_id, task_id, comment_id, request.user
         )
         if comment.author != request.user:
             return Response(
@@ -556,7 +556,7 @@ class TaskCommentDetailView(APIView):
             "comment.deleted",
             {
                 "task_id": str(task_id),
-                "project_id": str(project_id),
+                "board_id": str(board_id),
                 "comment_id": comment_id_str,
             },
         )
@@ -572,15 +572,15 @@ class CommentReactionToggleView(APIView):
 
     permission_classes = [permissions.IsAuthenticated]
 
-    def _get_comment(self, workspace_id, project_id, task_id, comment_id, user):
+    def _get_comment(self, workspace_id, board_id, task_id, comment_id, user):
         workspace = get_workspace_for_user(workspace_id, user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         task = get_object_or_404(Task, id=_parse_pk(task_id), board=board)
         return get_object_or_404(TaskComment, id=comment_id, task=task)
 
-    def post(self, request, workspace_id, project_id, task_id, comment_id):
+    def post(self, request, workspace_id, board_id, task_id, comment_id):
         comment = self._get_comment(
-            workspace_id, project_id, task_id, comment_id, request.user
+            workspace_id, board_id, task_id, comment_id, request.user
         )
         emoji = request.data.get("emoji", "").strip()
         if not emoji:
@@ -616,7 +616,7 @@ class CommentReactionToggleView(APIView):
             {
                 "comment_id": str(comment.id),
                 "task_id": str(task_id),
-                "project_id": str(project_id),
+                "board_id": str(board_id),
                 "reactions": grouped,
                 "action": action,
                 "emoji": emoji,
@@ -629,12 +629,12 @@ class CommentReactionToggleView(APIView):
 class LabelListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, workspace_id, project_id):
-        board = _get_board(workspace_id, project_id, request.user)
+    def get(self, request, workspace_id, board_id):
+        board = _get_board(workspace_id, board_id, request.user)
         return Response(LabelSerializer(board.labels.all(), many=True).data)
 
-    def post(self, request, workspace_id, project_id):
-        board = _get_board(workspace_id, project_id, request.user)
+    def post(self, request, workspace_id, board_id):
+        board = _get_board(workspace_id, board_id, request.user)
         serializer = LabelSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         label = serializer.save(board=board)
@@ -644,19 +644,19 @@ class LabelListCreateView(APIView):
 class LabelDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_label(self, workspace_id, project_id, label_id, user):
-        board = _get_board(workspace_id, project_id, user)
+    def get_label(self, workspace_id, board_id, label_id, user):
+        board = _get_board(workspace_id, board_id, user)
         return get_object_or_404(Label, id=label_id, board=board)
 
-    def patch(self, request, workspace_id, project_id, label_id):
-        label = self.get_label(workspace_id, project_id, label_id, request.user)
+    def patch(self, request, workspace_id, board_id, label_id):
+        label = self.get_label(workspace_id, board_id, label_id, request.user)
         serializer = LabelSerializer(label, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
 
-    def delete(self, request, workspace_id, project_id, label_id):
-        label = self.get_label(workspace_id, project_id, label_id, request.user)
+    def delete(self, request, workspace_id, board_id, label_id):
+        label = self.get_label(workspace_id, board_id, label_id, request.user)
         label.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -665,12 +665,12 @@ class LabelDetailView(APIView):
 class BoardFieldListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, workspace_id, project_id):
-        board = _get_board(workspace_id, project_id, request.user)
+    def get(self, request, workspace_id, board_id):
+        board = _get_board(workspace_id, board_id, request.user)
         return Response(BoardFieldSerializer(board.fields.all(), many=True).data)
 
-    def post(self, request, workspace_id, project_id):
-        board = _get_board(workspace_id, project_id, request.user)
+    def post(self, request, workspace_id, board_id):
+        board = _get_board(workspace_id, board_id, request.user)
         serializer = BoardFieldSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         field = serializer.save(board=board, order=board.fields.count())
@@ -682,19 +682,19 @@ class BoardFieldListCreateView(APIView):
 class BoardFieldDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_field(self, workspace_id, project_id, field_id, user):
-        board = _get_board(workspace_id, project_id, user)
+    def get_field(self, workspace_id, board_id, field_id, user):
+        board = _get_board(workspace_id, board_id, user)
         return get_object_or_404(BoardField, id=field_id, board=board)
 
-    def patch(self, request, workspace_id, project_id, field_id):
-        field = self.get_field(workspace_id, project_id, field_id, request.user)
+    def patch(self, request, workspace_id, board_id, field_id):
+        field = self.get_field(workspace_id, board_id, field_id, request.user)
         serializer = BoardFieldSerializer(field, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
 
-    def delete(self, request, workspace_id, project_id, field_id):
-        field = self.get_field(workspace_id, project_id, field_id, request.user)
+    def delete(self, request, workspace_id, board_id, field_id):
+        field = self.get_field(workspace_id, board_id, field_id, request.user)
         field.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -704,8 +704,8 @@ class TaskFieldValueView(APIView):
 
     permission_classes = [permissions.IsAuthenticated]
 
-    def post(self, request, workspace_id, project_id, task_id):
-        task = _get_task(workspace_id, project_id, task_id, request.user)
+    def post(self, request, workspace_id, board_id, task_id):
+        task = _get_task(workspace_id, board_id, task_id, request.user)
         serializer = TaskFieldValueSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         field_value = serializer.save(task=task)
@@ -717,13 +717,13 @@ class SavedViewListCreateView(APIView):
     """Helps to store the filter views so that user can choose from existing filtered views"""
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, workspace_id, project_id):
-        board = _get_board(workspace_id, project_id, request.user)
+    def get(self, request, workspace_id, board_id):
+        board = _get_board(workspace_id, board_id, request.user)
         views = board.saved_views.filter(user=request.user)
         return Response(SavedViewSerializer(views, many=True).data)
 
-    def post(self, request, workspace_id, project_id):
-        board = _get_board(workspace_id, project_id, request.user)
+    def post(self, request, workspace_id, board_id):
+        board = _get_board(workspace_id, board_id, request.user)
         serializer = SavedViewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         view = serializer.save(board=board, user=request.user)
@@ -733,12 +733,12 @@ class SavedViewListCreateView(APIView):
 class SavedViewDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_view(self, workspace_id, project_id, view_id, user):
-        board = _get_board(workspace_id, project_id, user)
+    def get_view(self, workspace_id, board_id, view_id, user):
+        board = _get_board(workspace_id, board_id, user)
         return get_object_or_404(SavedView, id=view_id, board=board, user=user)
 
-    def delete(self, request, workspace_id, project_id, view_id):
-        view = self.get_view(workspace_id, project_id, view_id, request.user)
+    def delete(self, request, workspace_id, board_id, view_id):
+        view = self.get_view(workspace_id, board_id, view_id, request.user)
         view.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -755,21 +755,21 @@ def _sprint_qs(board=None):
     return qs
 
 
-def _get_sprint(workspace_id, project_id, sprint_id, user):
+def _get_sprint(workspace_id, board_id, sprint_id, user):
     """Return an annotated Sprint scoped to the board, or 404."""
-    board = _get_board(workspace_id, project_id, user)
+    board = _get_board(workspace_id, board_id, user)
     return get_object_or_404(_sprint_qs(board), id=sprint_id)
 
 
 class SprintListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, workspace_id, project_id):
-        board = _get_board(workspace_id, project_id, request.user)
+    def get(self, request, workspace_id, board_id):
+        board = _get_board(workspace_id, board_id, request.user)
         return Response(SprintListSerializer(_sprint_qs(board), many=True).data)
 
-    def post(self, request, workspace_id, project_id):
-        board = _get_board(workspace_id, project_id, request.user)
+    def post(self, request, workspace_id, board_id):
+        board = _get_board(workspace_id, board_id, request.user)
         serializer = SprintSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         sprint = serializer.save(board=board)
@@ -779,21 +779,21 @@ class SprintListCreateView(APIView):
 class SprintDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, workspace_id, project_id, sprint_id):
-        sprint = _get_sprint(workspace_id, project_id, sprint_id, request.user)
+    def get(self, request, workspace_id, board_id, sprint_id):
+        sprint = _get_sprint(workspace_id, board_id, sprint_id, request.user)
         return Response(SprintSerializer(sprint).data)
 
-    def patch(self, request, workspace_id, project_id, sprint_id):
-        sprint = _get_sprint(workspace_id, project_id, sprint_id, request.user)
+    def patch(self, request, workspace_id, board_id, sprint_id):
+        sprint = _get_sprint(workspace_id, board_id, sprint_id, request.user)
         serializer = SprintSerializer(sprint, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         # Re-fetch with annotations so response counts reflect the saved state.
-        board = _get_board(workspace_id, project_id, request.user)
+        board = _get_board(workspace_id, board_id, request.user)
         return Response(SprintSerializer(_sprint_qs(board).get(pk=sprint.pk)).data)
 
-    def delete(self, request, workspace_id, project_id, sprint_id):
-        sprint = _get_sprint(workspace_id, project_id, sprint_id, request.user)
+    def delete(self, request, workspace_id, board_id, sprint_id):
+        sprint = _get_sprint(workspace_id, board_id, sprint_id, request.user)
         sprint.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -802,13 +802,13 @@ class TaskAttachmentListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
 
-    def _get_task(self, workspace_id, project_id, task_id, user):
+    def _get_task(self, workspace_id, board_id, task_id, user):
         workspace = get_workspace_for_user(workspace_id, user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         return get_object_or_404(Task, id=_parse_pk(task_id), board=board)
 
-    def get(self, request, workspace_id, project_id, task_id):
-        task = self._get_task(workspace_id, project_id, task_id, request.user)
+    def get(self, request, workspace_id, board_id, task_id):
+        task = self._get_task(workspace_id, board_id, task_id, request.user)
         return Response(
             TaskAttachmentSerializer(
                 task.attachments.select_related("uploaded_by").all(),
@@ -817,8 +817,8 @@ class TaskAttachmentListCreateView(APIView):
             ).data
         )
 
-    def post(self, request, workspace_id, project_id, task_id):
-        task = self._get_task(workspace_id, project_id, task_id, request.user)
+    def post(self, request, workspace_id, board_id, task_id):
+        task = self._get_task(workspace_id, board_id, task_id, request.user)
         file = request.FILES.get("file")
         if not file:
             return Response(
@@ -846,9 +846,9 @@ class TaskAttachmentListCreateView(APIView):
 class TaskAttachmentDeleteView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def delete(self, request, workspace_id, project_id, task_id, attachment_id):
+    def delete(self, request, workspace_id, board_id, task_id, attachment_id):
         workspace = get_workspace_for_user(workspace_id, request.user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         task = get_object_or_404(Task, id=_parse_pk(task_id), board=board)
         attachment = get_object_or_404(TaskAttachment, id=attachment_id, task=task)
         attachment.file.delete(save=False)
@@ -860,13 +860,13 @@ class TaskAttachmentDeleteView(APIView):
 class TaskDependencyListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def _get_task(self, workspace_id, project_id, task_id, user):
+    def _get_task(self, workspace_id, board_id, task_id, user):
         workspace = get_workspace_for_user(workspace_id, user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         return get_object_or_404(Task, id=_parse_pk(task_id), board=board), board
 
-    def get(self, request, workspace_id, project_id, task_id):
-        task, _ = self._get_task(workspace_id, project_id, task_id, request.user)
+    def get(self, request, workspace_id, board_id, task_id):
+        task, _ = self._get_task(workspace_id, board_id, task_id, request.user)
         blocked_by = [
             {"id": str(d.id), "task": MinimalTaskSerializer(d.blocker).data}
             for d in task.blocked_by_deps.select_related("blocker__status").all()
@@ -877,8 +877,8 @@ class TaskDependencyListCreateView(APIView):
         ]
         return Response({"blocked_by": blocked_by, "blocking": blocking})
 
-    def post(self, request, workspace_id, project_id, task_id):
-        task, board = self._get_task(workspace_id, project_id, task_id, request.user)
+    def post(self, request, workspace_id, board_id, task_id):
+        task, board = self._get_task(workspace_id, board_id, task_id, request.user)
         dep_task_id = request.data.get("task_id")
         dep_type = request.data.get("type", "blocked_by")  # "blocked_by" | "blocks"
 
@@ -910,9 +910,9 @@ class TaskDependencyListCreateView(APIView):
 class TaskDependencyDeleteView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def delete(self, request, workspace_id, project_id, task_id, dep_id):
+    def delete(self, request, workspace_id, board_id, task_id, dep_id):
         workspace = get_workspace_for_user(workspace_id, request.user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         task = get_object_or_404(Task, id=_parse_pk(task_id), board=board)
         dep = get_object_or_404(TaskDependency, id=dep_id)
         if dep.blocker.board_id != board.id and dep.blocked.board_id != board.id:
@@ -925,9 +925,9 @@ class TaskDependencyDeleteView(APIView):
 class TaskExportView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, workspace_id, project_id):
+    def get(self, request, workspace_id, board_id):
         workspace = get_workspace_for_user(workspace_id, request.user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         tasks = (
             Task.objects.filter(board=board)
             .select_related("status", "assignee", "sprint", "created_by")
@@ -977,9 +977,9 @@ class TaskCloneView(APIView):
 
     permission_classes = [permissions.IsAuthenticated]
 
-    def post(self, request, workspace_id, project_id, task_id):
+    def post(self, request, workspace_id, board_id, task_id):
         workspace = get_workspace_for_user(workspace_id, request.user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         _require_board_perm(request.user, board, "edit")
         task = get_object_or_404(Task, id=_parse_pk(task_id), board=board)
         new_task = task.clone(created_by=request.user)
@@ -1005,19 +1005,19 @@ class TaskChildrenView(APIView):
 
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, workspace_id, project_id, task_id):
+    def get(self, request, workspace_id, board_id, task_id):
         workspace = get_workspace_for_user(workspace_id, request.user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         task = get_object_or_404(Task, id=_parse_pk(task_id), board=board)
         children = task.children.select_related("status", "assignee").all()
         return Response(
             TaskSerializer(children, many=True, context={"request": request}).data
         )
 
-    def post(self, request, workspace_id, project_id, task_id):
+    def post(self, request, workspace_id, board_id, task_id):
         """Create a child task under this parent."""
         workspace = get_workspace_for_user(workspace_id, request.user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         _require_board_perm(request.user, board, "edit")
         parent = get_object_or_404(Task, id=_parse_pk(task_id), board=board)
         data = request.data.copy()
@@ -1033,15 +1033,15 @@ class TaskChildrenView(APIView):
 class TaskTemplateListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, workspace_id, project_id):
+    def get(self, request, workspace_id, board_id):
         workspace = get_workspace_for_user(workspace_id, request.user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         templates = board.task_templates.all()
         return Response(TaskTemplateSerializer(templates, many=True).data)
 
-    def post(self, request, workspace_id, project_id):
+    def post(self, request, workspace_id, board_id):
         workspace = get_workspace_for_user(workspace_id, request.user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         _require_board_perm(request.user, board, "edit")
         serializer = TaskTemplateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -1052,18 +1052,18 @@ class TaskTemplateListCreateView(APIView):
 class TaskTemplateDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def patch(self, request, workspace_id, project_id, template_id):
+    def patch(self, request, workspace_id, board_id, template_id):
         workspace = get_workspace_for_user(workspace_id, request.user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         template = get_object_or_404(TaskTemplate, id=template_id, board=board)
         serializer = TaskTemplateSerializer(template, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
 
-    def delete(self, request, workspace_id, project_id, template_id):
+    def delete(self, request, workspace_id, board_id, template_id):
         workspace = get_workspace_for_user(workspace_id, request.user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         template = get_object_or_404(TaskTemplate, id=template_id, board=board)
         _require_board_perm(request.user, board, "edit")
         template.delete()
@@ -1075,9 +1075,9 @@ class TaskApplyTemplateView(APIView):
 
     permission_classes = [permissions.IsAuthenticated]
 
-    def post(self, request, workspace_id, project_id, task_id):
+    def post(self, request, workspace_id, board_id, task_id):
         workspace = get_workspace_for_user(workspace_id, request.user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         task = get_object_or_404(Task, id=_parse_pk(task_id), board=board)
         template_id = request.data.get("template_id")
         template = get_object_or_404(TaskTemplate, id=template_id, board=board)
@@ -1097,20 +1097,20 @@ class ApprovalListCreateView(APIView):
 
     permission_classes = [permissions.IsAuthenticated]
 
-    def _get_task(self, workspace_id, project_id, task_id, user):
+    def _get_task(self, workspace_id, board_id, task_id, user):
         workspace = get_workspace_for_user(workspace_id, user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         return get_object_or_404(Task, id=_parse_pk(task_id), board=board)
 
-    def get(self, request, workspace_id, project_id, task_id):
-        task = self._get_task(workspace_id, project_id, task_id, request.user)
+    def get(self, request, workspace_id, board_id, task_id):
+        task = self._get_task(workspace_id, board_id, task_id, request.user)
         approvals = task.approvals.prefetch_related("reviewers__user").select_related(
             "requested_by"
         )
         return Response(ApprovalSerializer(approvals, many=True).data)
 
-    def post(self, request, workspace_id, project_id, task_id):
-        task = self._get_task(workspace_id, project_id, task_id, request.user)
+    def post(self, request, workspace_id, board_id, task_id):
+        task = self._get_task(workspace_id, board_id, task_id, request.user)
         serializer = ApprovalSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         approval = serializer.save(task=task, requested_by=request.user)
@@ -1131,7 +1131,7 @@ class ApprovalListCreateView(APIView):
             "approval.created",
             {
                 "task_id": str(task_id),
-                "project_id": str(project_id),
+                "board_id": str(board_id),
                 "approval": ApprovalSerializer(approval).data,
             },
         )
@@ -1149,9 +1149,9 @@ class ApprovalReviewView(APIView):
 
     permission_classes = [permissions.IsAuthenticated]
 
-    def _get_approval(self, workspace_id, project_id, task_id, approval_id, user):
+    def _get_approval(self, workspace_id, board_id, task_id, approval_id, user):
         workspace = get_workspace_for_user(workspace_id, user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         task = get_object_or_404(Task, id=_parse_pk(task_id), board=board)
         return get_object_or_404(
             Approval.objects.prefetch_related("reviewers__user").select_related(
@@ -1161,9 +1161,9 @@ class ApprovalReviewView(APIView):
             task=task,
         )
 
-    def post(self, request, workspace_id, project_id, task_id, approval_id):
+    def post(self, request, workspace_id, board_id, task_id, approval_id):
         approval = self._get_approval(
-            workspace_id, project_id, task_id, approval_id, request.user
+            workspace_id, board_id, task_id, approval_id, request.user
         )
 
         reviewer = approval.reviewers.filter(user=request.user).first()
@@ -1200,7 +1200,7 @@ class ApprovalReviewView(APIView):
             "approval.updated",
             {
                 "task_id": str(task_id),
-                "project_id": str(project_id),
+                "board_id": str(board_id),
                 "approval": data,
             },
         )
@@ -1235,9 +1235,9 @@ class ApprovalResubmitView(APIView):
 
     permission_classes = [permissions.IsAuthenticated]
 
-    def post(self, request, workspace_id, project_id, task_id, approval_id):
+    def post(self, request, workspace_id, board_id, task_id, approval_id):
         workspace = get_workspace_for_user(workspace_id, request.user)
-        board = get_object_or_404(Board, id=_parse_pk(project_id), workspace=workspace)
+        board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         task = get_object_or_404(Task, id=_parse_pk(task_id), board=board)
         approval = get_object_or_404(Approval, id=approval_id, task=task)
 
@@ -1275,7 +1275,7 @@ class ApprovalResubmitView(APIView):
             "approval.updated",
             {
                 "task_id": str(task_id),
-                "project_id": str(project_id),
+                "board_id": str(board_id),
                 "approval": ApprovalSerializer(approval).data,
             },
         )

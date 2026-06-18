@@ -98,12 +98,12 @@ class InboxItemSerializer(serializers.ModelSerializer):
         model = InboxItem
         fields = [
             "id", "actor_id", "actor_name", "verb", "event_type",
-            "resource_name", "project_id", "project_name",
+            "resource_name", "board_id", "project_name",
             "meta", "status", "snoozed_until", "created_at",
         ]
         read_only_fields = [
             "actor_id", "actor_name", "verb", "event_type",
-            "resource_name", "project_id", "project_name",
+            "resource_name", "board_id", "project_name",
             "meta", "created_at",
         ]
 

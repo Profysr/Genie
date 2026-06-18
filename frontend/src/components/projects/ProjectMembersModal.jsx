@@ -1,19 +1,22 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import {
   Users,
   Lock,
   Unlock,
   Trash2,
-  Plus,
+  UserPlus,
   Check,
   ChevronDown,
+  Search,
+  X,
 } from "lucide-react";
 import {
   useBoardMembers,
   useAddBoardMember,
   useUpdateBoardMember,
   useRemoveBoardMember,
+  useBulkAddBoardMembers,
 } from "@/hooks/useProjectMembers";
 import { useMembers } from "@/hooks/useMembers";
 import { useUpdateBoard } from "@/hooks/useProjects";
@@ -41,37 +44,78 @@ export default function ProjectMembersModal({
   canAdmin,
 }) {
   const [tab, setTab] = useState("members");
-  const [addOpen, setAddOpen] = useState(false);
-  const [selectedUserId, setSelectedUserId] = useState("");
-  const [addRole, setAddRole] = useState("editor");
+  // bulk picker state
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState(new Set());
+  const [bulkRole, setBulkRole] = useState("editor");
 
   const toast = useToast();
 
   const { data: projectMembers = [] } = useBoardMembers(workspaceId, boardId, { enabled: open });
   const { data: wsMembers = [] } = useMembers(workspaceId);
 
-  const addMember = useAddBoardMember(workspaceId, boardId);
   const updateMember = useUpdateBoardMember(workspaceId, boardId);
   const removeMember = useRemoveBoardMember(workspaceId, boardId);
   const updateProject = useUpdateBoard(workspaceId, boardId);
+  const bulkAdd = useBulkAddBoardMembers(workspaceId, boardId);
 
-  const alreadyAdded = new Set(projectMembers.map((m) => m.user.id));
-  const addableMembers = wsMembers.filter((m) => !alreadyAdded.has(m.user.id));
+  const alreadyAdded = useMemo(
+    () => new Set(projectMembers.map((m) => m.user.id)),
+    [projectMembers],
+  );
 
-  const handleAddMember = () => {
-    if (!selectedUserId) return;
-    addMember.mutate(
-      { user_id: selectedUserId, role: addRole },
-      {
-        onSuccess: () => {
-          setSelectedUserId("");
-          setAddRole("editor");
-          setAddOpen(false);
-          toast.success("Member added");
-        },
-        onError: () => toast.error("Failed to add member"),
-      },
+  const addableMembers = useMemo(
+    () => wsMembers.filter((m) => !alreadyAdded.has(m.user.id)),
+    [wsMembers, alreadyAdded],
+  );
+
+  const filteredAddable = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return addableMembers;
+    return addableMembers.filter(
+      (m) =>
+        (m.user.display_name || m.user.full_name || "").toLowerCase().includes(q) ||
+        m.user.email.toLowerCase().includes(q),
     );
+  }, [addableMembers, search]);
+
+  const toggleMember = (id) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  const toggleAll = () => {
+    if (selected.size === filteredAddable.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filteredAddable.map((m) => m.user.id)));
+    }
+  };
+
+  const openPicker = () => {
+    setSearch("");
+    setSelected(new Set());
+    setBulkRole("editor");
+    setPickerOpen(true);
+  };
+
+  const handleBulkAdd = () => {
+    if (!selected.size) return;
+    const members = [...selected].map((user_id) => ({ user_id, role: bulkRole }));
+    bulkAdd.mutate(members, {
+      onSuccess: ({ created, skipped }) => {
+        const msg =
+          created.length === 1
+            ? "1 member added"
+            : `${created.length} members added`;
+        toast.success(skipped.length ? `${msg} (${skipped.length} already in board)` : msg);
+        setPickerOpen(false);
+      },
+      onError: () => toast.error("Failed to add members"),
+    });
   };
 
   return (
@@ -126,11 +170,7 @@ export default function ProjectMembersModal({
                   </div>
                 </div>
                 <button
-                  onClick={() =>
-                    updateProject.mutate({
-                      is_private: !project?.is_private,
-                    })
-                  }
+                  onClick={() => updateProject.mutate({ is_private: !project?.is_private })}
                   className={cn(
                     "relative w-10 h-5 rounded-full transition-colors focus:outline-none",
                     project?.is_private ? "bg-primary" : "bg-muted",
@@ -192,54 +232,156 @@ export default function ProjectMembersModal({
                 </div>
               ))}
 
-              {projectMembers.length === 0 && (
+              {projectMembers.length === 0 && !pickerOpen && (
                 <p className="text-sm text-muted-foreground text-center py-6">
-                  No project-specific members set — all workspace members
-                  inherit their workspace role.
+                  No project-specific members set — all workspace members inherit
+                  their workspace role.
                 </p>
               )}
             </div>
 
-            {/* Add member */}
+            {/* ── Bulk member picker ── */}
             {canAdmin && (
-              <div>
-                {addOpen ? (
-                  <div className="flex items-center gap-2 pt-2 border-t mt-2">
-                    <select
-                      className="flex-1 text-sm border rounded-lg px-3 py-2 bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-                      value={selectedUserId}
-                      onChange={(e) => setSelectedUserId(e.target.value)}
-                    >
-                      <option value="">Select member…</option>
-                      {addableMembers.map((m) => (
-                        <option key={m.user.id} value={m.user.id}>
-                          {m.user.display_name || m.user.email}
-                        </option>
-                      ))}
-                    </select>
-                    <RoleDropdown value={addRole} onChange={setAddRole} />
-                    <Button
-                      size="sm"
-                      onClick={handleAddMember}
-                      disabled={!selectedUserId || addMember.isPending}
-                    >
-                      {addMember.isPending ? "Adding…" : "Add"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setAddOpen(false)}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                ) : (
+              <div className="border-t pt-3 mt-1">
+                {!pickerOpen ? (
                   <button
-                    onClick={() => setAddOpen(true)}
-                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground pt-2 border-t mt-2 transition-colors"
+                    onClick={openPicker}
+                    disabled={addableMembers.length === 0}
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    <Plus className="w-4 h-4" /> Add member override
+                    <UserPlus className="w-4 h-4" />
+                    {addableMembers.length === 0
+                      ? "All workspace members already added"
+                      : "Add members"}
                   </button>
+                ) : (
+                  <div className="space-y-3">
+                    {/* Picker header */}
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium">
+                        {selected.size > 0
+                          ? `${selected.size} selected`
+                          : "Select members to add"}
+                      </p>
+                      <button
+                        onClick={() => setPickerOpen(false)}
+                        className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Search */}
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                      <input
+                        autoFocus
+                        type="text"
+                        placeholder="Search by name or email…"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="w-full pl-8 pr-3 py-2 text-sm border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                      />
+                    </div>
+
+                    {/* Member list */}
+                    <div className="border rounded-md overflow-hidden max-h-52 overflow-y-auto">
+                      {filteredAddable.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-6">
+                          No members match your search.
+                        </p>
+                      ) : (
+                        <>
+                          {/* Select all row */}
+                          <button
+                            onClick={toggleAll}
+                            className="w-full flex items-center gap-3 px-3 py-2 text-xs text-muted-foreground hover:bg-accent/40 border-b bg-muted/30 transition-colors"
+                          >
+                            <span
+                              className={cn(
+                                "w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors",
+                                selected.size === filteredAddable.length
+                                  ? "bg-primary border-primary"
+                                  : "border-border",
+                              )}
+                            >
+                              {selected.size === filteredAddable.length && (
+                                <Check className="w-2.5 h-2.5 text-primary-foreground" />
+                              )}
+                            </span>
+                            <span className="font-medium">
+                              {selected.size === filteredAddable.length
+                                ? "Deselect all"
+                                : `Select all (${filteredAddable.length})`}
+                            </span>
+                          </button>
+
+                          {filteredAddable.map((m) => {
+                            const isChecked = selected.has(m.user.id);
+                            return (
+                              <button
+                                key={m.user.id}
+                                onClick={() => toggleMember(m.user.id)}
+                                className={cn(
+                                  "w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-accent/40 transition-colors",
+                                  isChecked && "bg-primary/5",
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    "w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors",
+                                    isChecked ? "bg-primary border-primary" : "border-border",
+                                  )}
+                                >
+                                  {isChecked && (
+                                    <Check className="w-2.5 h-2.5 text-primary-foreground" />
+                                  )}
+                                </span>
+                                <Avatar
+                                  name={m.user.display_name || m.user.email}
+                                  src={m.user.avatar}
+                                  size="sm"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">
+                                    {m.user.display_name || m.user.full_name}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    {m.user.email}
+                                  </p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </>
+                      )}
+                    </div>
+
+                    {/* Role + confirm row */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Assign as</span>
+                      <RoleDropdown value={bulkRole} onChange={setBulkRole} />
+                      <div className="flex-1" />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setPickerOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleBulkAdd}
+                        disabled={selected.size === 0 || bulkAdd.isPending}
+                      >
+                        {bulkAdd.isPending
+                          ? "Adding…"
+                          : selected.size > 0
+                            ? `Add ${selected.size} member${selected.size > 1 ? "s" : ""}`
+                            : "Add members"}
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </div>
             )}
@@ -250,8 +392,8 @@ export default function ProjectMembersModal({
         {tab === "permissions" && (
           <div>
             <p className="text-xs text-muted-foreground mb-4">
-              Effective permissions per role. The workspace role always caps
-              the project role — the most restrictive wins.
+              Effective permissions per role. The workspace role always caps the
+              project role — the most restrictive wins.
             </p>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -299,16 +441,15 @@ export default function ProjectMembersModal({
             </div>
             <div className="mt-4 p-3 rounded-lg bg-muted/40 text-xs text-muted-foreground space-y-1">
               <p>
-                <strong>Workspace Admin</strong> → always Admin on all
-                projects.
+                <strong>Workspace Admin</strong> → always Admin on all projects.
               </p>
               <p>
-                <strong>Workspace Member</strong> → defaults to Editor; can
-                be restricted per project.
+                <strong>Workspace Member</strong> → defaults to Editor; can be
+                restricted per project.
               </p>
               <p>
-                <strong>Workspace Viewer</strong> → capped at Viewer
-                regardless of project role.
+                <strong>Workspace Viewer</strong> → capped at Viewer regardless
+                of project role.
               </p>
             </div>
           </div>

@@ -41,3 +41,13 @@ export function useRemoveBoardMember(workspaceId, boardId) {
   });
 }
 
+export function useBulkAddBoardMembers(workspaceId, boardId) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (members) =>
+      api.post(`${base(workspaceId, boardId)}bulk/`, { members }).then((r) => r.data),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["project-members", workspaceId, boardId] }),
+  });
+}
+
