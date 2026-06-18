@@ -1,5 +1,6 @@
 import { lazy, Suspense, useState, useMemo, useEffect, useRef } from "react";
 import { Loader } from "@/components/ui/Loader";
+import { ModalSkeleton } from "@/components/ui/Modal";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { DragDropContext } from "@hello-pangea/dnd";
 import { useBoard } from "@/hooks/useProjects";
@@ -316,7 +317,6 @@ export default function KanbanPage() {
       .filter((t) => t.status_id === statusId)
       .sort((a, b) => a.order - b.order);
 
-
   if (boardError) {
     const is403 = boardErrorDetail?.response?.status === 403;
     const is404 = boardErrorDetail?.response?.status === 404;
@@ -374,7 +374,7 @@ export default function KanbanPage() {
                     {perms.role}
                   </Badge>
                 )}
-                
+
                 <OnlineUsersIndicator users={boardPresence} />
               </div>
               {board?.description && (
@@ -612,12 +612,9 @@ export default function KanbanPage() {
         <Suspense
           fallback={
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-              <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-              <div
-                className="relative w-full max-w-2xl bg-card border border-border rounded-md shadow-2xl flex items-center justify-center"
-                style={{ height: "60vh" }}
-              >
-                <Loader size="lg" />
+              <div className="absolute inset-0 bg-background/60 backdrop-blur-md" />
+              <div className="relative w-full max-w-2xl bg-background rounded-md shadow-xl p-5">
+                <ModalSkeleton />
               </div>
             </div>
           }
