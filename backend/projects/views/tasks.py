@@ -3,7 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
-from core.pagination import StandardResultsSetPagination
+from core.pagination import ActivityPagination
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
 from django.db import transaction
@@ -440,7 +440,7 @@ class SubTaskDetailView(APIView):
 class TaskActivityListView(ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = TaskActivitySerializer
-    pagination_class = StandardResultsSetPagination
+    pagination_class = ActivityPagination
 
     def get_queryset(self):
         task = _get_task(
@@ -449,7 +449,7 @@ class TaskActivityListView(ListAPIView):
             self.kwargs["task_id"],
             self.request.user,
         )
-        return task.activities.select_related("actor").order_by("id")
+        return task.activities.select_related("actor").order_by("-id")
 
 # ── Labels ✅──────────────────────────────────────────────────────────────────
 class LabelListCreateView(APIView):

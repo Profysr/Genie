@@ -81,6 +81,7 @@ def send_comment_notifications(
             "task_title": task.title,
             "board_id": str(task.board_id),
             "workspace_id": format_id(workspace.PREFIX, workspace.id),
+            "comment_id": str(comment.id),
         }
         actor_name = sender.full_name or sender.email
         board_id_str = str(task.board_id)

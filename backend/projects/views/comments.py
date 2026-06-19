@@ -30,6 +30,7 @@ def _comment_list_qs():
             Prefetch("reactions", queryset=CommentReaction.objects.select_related("user")),
             Prefetch("replies", queryset=reply_qs),
         )
+        .order_by("-id")
     )
 
 
