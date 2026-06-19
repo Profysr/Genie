@@ -625,7 +625,7 @@ const { data: sprints = [] } = useSprints(workspaceId, boardId);
           <TaskDetailPanel
             taskId={selectedTaskId}
             projectStatuses={statuses || []}
-            projectLabels={labels}
+            taskLabels={labels}
             onCreateLabel={(data, opts) => createLabel.mutate(data, opts)}
             onClose={closeTask}
             canEdit={perms.canEdit}
