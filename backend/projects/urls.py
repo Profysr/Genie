@@ -60,9 +60,9 @@ from .views import (
     PublicFormView,
     PublicFormSubmitView,
     # v2.7.0
-    AutomationRuleListCreateView,
-    AutomationRuleDetailView,
-    AutomationLogListView,
+    # AutomationRuleListCreateView,
+    # AutomationRuleDetailView,
+    # AutomationLogListView,
     # v3.4.0
     MyWorkView,
     PortfolioView,

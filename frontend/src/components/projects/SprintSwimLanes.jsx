@@ -47,7 +47,6 @@ export default function SprintSwimLanes({
   statuses,
   members,
   onTaskClick,
-  labelsById,
 }) {
   // Group sprint tasks by primary assignee's user id
   const { laneData, unassigned } = useMemo(() => {
@@ -93,7 +92,7 @@ export default function SprintSwimLanes({
       {/* min-w forces horizontal scroll if columns overflow */}
       <div style={{ minWidth: `${192 + statuses.length * 212}px` }}>
         {/* ── Sticky column header ── */}
-        <div className="flex sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b">
+        <div className="flex sticky top-0 bg-background/95 backdrop-blur-sm border-b">
           {/* Person column */}
           <div className="w-48 flex-shrink-0 px-4 py-3 border-r">
             <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Droppable } from "@hello-pangea/dnd";
-import { Plus, ChevronLeft, CheckCircle, Expand, Minimize2 } from "lucide-react";
+import { Plus, ChevronLeft, CheckCircle, PlayCircle, Expand, Minimize2 } from "lucide-react";
 import TaskCard from "./TaskCard";
 import { cn } from "@/lib/utils";
 import { Loader } from "@/components/ui/Loader";
@@ -75,6 +75,9 @@ export default function KanbanColumn({
           <span className="text-[11px] text-muted-foreground bg-muted rounded px-1.5 py-0.5 font-mono tabular-nums">
             {tasks.length}
           </span>
+          {column.is_started && (
+            <PlayCircle className="w-3 h-3 text-blue-500" title="Started column" />
+          )}
           {column.is_done && (
             <CheckCircle className="w-3 h-3 text-emerald-500" title="Done column" />
           )}

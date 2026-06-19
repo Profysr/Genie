@@ -8,9 +8,9 @@ import {
   useInboxUnreadCount,
 } from "@/hooks/useInbox";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Loader } from "../ui/Loader";
+import LoadMoreButton from "@/components/ui/LoadMoreButton";
 
-import { Bell, CheckCheck, ChevronDown, Activity } from "lucide-react";
+import { Bell, CheckCheck, Activity } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -169,24 +169,6 @@ export function NotificationItem({ item, onClick }) {
 /* ==========================================
    4. LOAD MORE FOOTER ACTION
    ========================================== */
-export function NotificationLoadMore({ isFetching, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={isFetching}
-      className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent border-t border-border transition-colors disabled:opacity-50"
-    >
-      {isFetching ? (
-        <Loader size="sm" />
-      ) : (
-        <>
-          <ChevronDown className="w-3 h-3" />
-          View more notifications
-        </>
-      )}
-    </button>
-  );
-}
 
 /* ==========================================
    MAIN COMPONENT
@@ -335,8 +317,10 @@ export default function NotificationBell() {
 
                 {/* Show "View More" if we are sitting at the initial 20 items */}
                 {atInitialLimit && (
-                  <NotificationLoadMore
-                    isFetching={isFetching}
+                  <LoadMoreButton
+                    variant="row"
+                    label="View more notifications"
+                    isLoading={isFetching}
                     onClick={() => setExpanded(true)}
                   />
                 )}

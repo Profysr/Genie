@@ -7,9 +7,9 @@ import {
   Loader2,
   Hash,
   Clock,
-  Plus,
   UserPlus,
 } from "lucide-react";
+import LoadMoreButton from "@/components/ui/LoadMoreButton";
 import api from "@/lib/api";
 import { NAV_ITEMS, workspaceUrl } from "@/lib/navLinks";
 import { cn } from "@/lib/utils";
@@ -51,7 +51,7 @@ function parseShortcuts(raw) {
   return { cleanQuery: rest.join(" "), filters };
 }
 
-const SEARCH_LIMIT = 75;
+const SEARCH_LIMIT = 25;
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function CommandPalette({ open, onClose, workspaceId }) {
@@ -72,13 +72,30 @@ export default function CommandPalette({ open, onClose, workspaceId }) {
 
   const [results, setResults] = useState(null);
   const [isFetching, setIsFetching] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const abortRef = useRef(null);
+
+  // Build shared filter params from the current query state (no cursor).
+  const buildParams = useCallback(() => {
+    const params = new URLSearchParams();
+    if (cleanQuery.trim()) params.set("q", cleanQuery.trim());
+    if (shortcutFilters.type) params.set("task_type", shortcutFilters.type);
+    if (shortcutFilters.assignee) params.set("assignee", shortcutFilters.assignee);
+    if (shortcutFilters.priority) params.set("priority", shortcutFilters.priority);
+    if (shortcutFilters.special === "overdue") params.set("overdue", "true");
+    if (shortcutFilters.special === "today") params.set("today", "true");
+    params.set("limit", String(SEARCH_LIMIT));
+    return params;
+  // shortcutFilters object is new each render; filterKey is the stable value-key
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cleanQuery, filterKey]);
 
   // Fire a new search whenever the parsed query or shortcut filters change.
   // Each run aborts the previous in-flight request via AbortController.
+  // Shortcut filters must have a non-empty value — bare "#" or "@" doesn't count.
   useEffect(() => {
-    const hasTextQuery = cleanQuery.trim().length >= 2;
-    const hasShortcuts = Object.keys(shortcutFilters).length > 0;
+    const hasTextQuery = cleanQuery.trim().length >= 3;
+    const hasShortcuts = Object.values(shortcutFilters).some(Boolean);
 
     if (!hasTextQuery && !hasShortcuts) {
       if (abortRef.current) abortRef.current.abort();
@@ -91,20 +108,9 @@ export default function CommandPalette({ open, onClose, workspaceId }) {
     const controller = new AbortController();
     abortRef.current = controller;
 
-    const params = new URLSearchParams();
-    if (cleanQuery.trim()) params.set("q", cleanQuery.trim());
-    if (shortcutFilters.type) params.set("task_type", shortcutFilters.type);
-    if (shortcutFilters.assignee)
-      params.set("assignee", shortcutFilters.assignee);
-    if (shortcutFilters.priority)
-      params.set("priority", shortcutFilters.priority);
-    if (shortcutFilters.special === "overdue") params.set("overdue", "true");
-    if (shortcutFilters.special === "today") params.set("today", "true");
-    params.set("limit", String(SEARCH_LIMIT));
-
     setIsFetching(true);
     api
-      .get(`/api/search/?${params.toString()}`, { signal: controller.signal })
+      .get(`/api/search/?${buildParams().toString()}`, { signal: controller.signal })
       .then((r) => {
         setResults(r.data);
         setIsFetching(false);
@@ -114,11 +120,25 @@ export default function CommandPalette({ open, onClose, workspaceId }) {
           setResults(null);
           setIsFetching(false);
         }
-        // Aborted — a newer request is already in flight, don't touch state
       });
-    // shortcutFilters is read inside but tracked via filterKey (value-based)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cleanQuery, filterKey]);
+
+  const handleLoadMore = useCallback(() => {
+    if (!results?.next_cursor || isLoadingMore) return;
+    const params = buildParams();
+    params.set("cursor", results.next_cursor);
+    setIsLoadingMore(true);
+    api
+      .get(`/api/search/?${params.toString()}`)
+      .then((r) => {
+        setResults((prev) => ({
+          ...r.data,
+          tasks: [...(prev?.tasks ?? []), ...r.data.tasks],
+        }));
+        setIsLoadingMore(false);
+      })
+      .catch(() => setIsLoadingMore(false));
+  }, [results, isLoadingMore, buildParams]);
 
   // Abort pending request when palette closes or component unmounts
   useEffect(() => {
@@ -180,8 +200,8 @@ export default function CommandPalette({ open, onClose, workspaceId }) {
 
   const sections = useMemo(() => {
     const q = query.trim();
-    const hasShortcuts = Object.keys(shortcutFilters).length > 0;
-    const hasTextQuery = cleanQuery.length >= 2;
+    const hasShortcuts = Object.values(shortcutFilters).some(Boolean);
+    const hasTextQuery = cleanQuery.length >= 3;
 
     // No input: show recently viewed + quick actions + navigation
     if (!q) {
@@ -340,8 +360,8 @@ export default function CommandPalette({ open, onClose, workspaceId }) {
         {/* Input */}
         <div className="flex items-center gap-3 px-4 py-3.5 border-b flex-shrink-0">
           {isFetching &&
-          (cleanQuery.trim().length >= 2 ||
-            Object.keys(shortcutFilters).length > 0) ? (
+          (cleanQuery.trim().length >= 3 ||
+            Object.values(shortcutFilters).some(Boolean)) ? (
             <Loader2 className="w-4 h-4 text-muted-foreground animate-spin flex-shrink-0" />
           ) : (
             <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
@@ -400,8 +420,8 @@ export default function CommandPalette({ open, onClose, workspaceId }) {
 
         {/* Results */}
         <div ref={listRef} className="flex-1 overflow-y-auto py-1.5">
-          {(cleanQuery.trim().length >= 2 ||
-            Object.keys(shortcutFilters).length > 0) &&
+          {(cleanQuery.trim().length >= 3 ||
+            Object.values(shortcutFilters).some(Boolean)) &&
           !isFetching &&
           flatItems.length === 0 ? (
             <div className="px-4 py-10 text-center">
@@ -416,61 +436,71 @@ export default function CommandPalette({ open, onClose, workspaceId }) {
               </p>
             </div>
           ) : (
-            sections.map((section) => (
-              <div key={section.title}>
-                <p className="px-4 pt-2 pb-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  {section.title}
-                </p>
-                {section.items.map((item) => {
-                  const idx = globalIdx++;
-                  const Icon = item.icon;
-                  const isSel = selectedIndex === idx;
-                  return (
-                    <button
-                      key={idx}
-                      data-index={idx}
-                      onClick={() => execute(item)}
-                      onMouseEnter={() => setSelectedIndex(idx)}
-                      className={cn(
-                        "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors",
-                        isSel ? "bg-accent" : "hover:bg-accent/50",
-                      )}
-                    >
-                      <Icon
+            <>
+              {sections.map((section) => (
+                <div key={section.title}>
+                  <p className="px-4 pt-2 pb-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    {section.title}
+                  </p>
+                  {section.items.map((item) => {
+                    const idx = globalIdx++;
+                    const Icon = item.icon;
+                    const isSel = selectedIndex === idx;
+                    return (
+                      <button
+                        key={idx}
+                        data-index={idx}
+                        onClick={() => execute(item)}
+                        onMouseEnter={() => setSelectedIndex(idx)}
                         className={cn(
-                          "w-4 h-4 flex-shrink-0",
-                          item.type === "task"
-                            ? PRIORITY_COLOR[item.priority] || "text-primary"
-                            : item.type === "project"
-                              ? "text-primary"
-                              : item.type === "action"
-                                ? "text-emerald-500"
-                                : "text-muted-foreground",
+                          "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors",
+                          isSel ? "bg-accent" : "hover:bg-accent/50",
                         )}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {item.label}
-                        </p>
-                        {(item.meta || item.desc) && (
-                          <p className="text-xs text-muted-foreground truncate mt-0.5">
-                            {item.meta || item.desc}
+                      >
+                        <Icon
+                          className={cn(
+                            "w-4 h-4 flex-shrink-0",
+                            item.type === "task"
+                              ? PRIORITY_COLOR[item.priority] || "text-primary"
+                              : item.type === "project"
+                                ? "text-primary"
+                                : item.type === "action"
+                                  ? "text-emerald-500"
+                                  : "text-muted-foreground",
+                          )}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {item.label}
                           </p>
+                          {(item.meta || item.desc) && (
+                            <p className="text-xs text-muted-foreground truncate mt-0.5">
+                              {item.meta || item.desc}
+                            </p>
+                          )}
+                        </div>
+                        {item.hotkey && (
+                          <kbd className="text-[10px] text-muted-foreground bg-muted border border-border rounded px-1 py-0.5">
+                            {item.hotkey}
+                          </kbd>
                         )}
-                      </div>
-                      {item.hotkey && (
-                        <kbd className="text-[10px] text-muted-foreground bg-muted border border-border rounded px-1 py-0.5">
-                          {item.hotkey}
-                        </kbd>
-                      )}
-                      {isSel && !item.hotkey && (
-                        <ArrowRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            ))
+                        {isSel && !item.hotkey && (
+                          <ArrowRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+              {results?.next_cursor && (
+                <LoadMoreButton
+                  variant="row"
+                  label="Load more results"
+                  isLoading={isLoadingMore}
+                  onClick={handleLoadMore}
+                />
+              )}
+            </>
           )}
         </div>
 

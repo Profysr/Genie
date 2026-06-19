@@ -99,7 +99,6 @@ export default function SprintView({
               statuses={statuses || []}
               members={members}
               onTaskClick={onTaskClick}
-              labelsById={labelsById}
             />
           )}
         </>

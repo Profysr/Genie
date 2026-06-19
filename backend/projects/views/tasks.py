@@ -357,7 +357,6 @@ def _bulk_update(tasks, updates, workspace_id, board_id):
     if updates.get("priority"):
         update_kwargs["priority"] = updates["priority"]
     if "assignee_id" in updates:
-        # None is a valid value here (unassign), so we can't skip on falsy.
         update_kwargs["assignee_id"] = updates["assignee_id"]
 
     # Exclude rows that already carry the exact same values — avoids unnecessary writes (e.g. unassigning 5 tasks when only 1 was assigned).

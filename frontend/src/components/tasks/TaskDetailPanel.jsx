@@ -28,7 +28,11 @@ import {
   useAttachChildTask,
 } from "@/hooks/useTaskHierarchy";
 import { useApprovals, useRequestApproval } from "@/hooks/useApprovals";
-import { TaskTitle, ChildTasksSection, ChecklistSection } from "./TaskDetailBody";
+import {
+  TaskTitle,
+  ChildTasksSection,
+  ChecklistSection,
+} from "./TaskDetailBody";
 import {
   PANEL_ITEMS,
   IconStrip,
@@ -44,14 +48,17 @@ import {
 } from "./TaskDetailPanels";
 
 const DESC_SIZE_CLASSES = {
-  compact:     "min-h-[80px]",
+  compact: "min-h-[80px]",
   comfortable: "min-h-[160px]",
-  expanded:    "min-h-[320px]",
+  expanded: "min-h-[320px]",
 };
 
 function getLayoutPrefs() {
-  try { return JSON.parse(localStorage.getItem("jcn:task-panel-layout") || "{}"); }
-  catch { return {}; }
+  try {
+    return JSON.parse(localStorage.getItem("jcn:task-panel-layout") || "{}");
+  } catch {
+    return {};
+  }
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────
@@ -85,8 +92,10 @@ export default function TaskDetailPanel({
   const qc = useQueryClient();
 
   const [layoutPrefs, setLayoutPrefs] = useState(getLayoutPrefs);
-  const [activePanel, setActivePanel] = useState(
-    () => focusCommentId ? "comments" : (getLayoutPrefs().defaultPanel ?? "properties"),
+  const [activePanel, setActivePanel] = useState(() =>
+    focusCommentId
+      ? "comments"
+      : (getLayoutPrefs().defaultPanel ?? "properties"),
   );
   const [approvalDropdown, setApprovalDropdown] = useState(false);
   const approvalBtnRef = useRef(null);
@@ -128,23 +137,42 @@ export default function TaskDetailPanel({
   }, [taskId, user?.id]);
 
   useEffect(() => {
-    const handler = (e) => { if (e.key === "Escape") onClose(); };
+    const handler = (e) => {
+      if (e.key === "Escape") onClose();
+    };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
   if (isLoading || !task) {
     return (
-      <Modal isOpen={true} onClose={onClose} title="Task Detail" showFooter={false} padding="py-20" maxWidth="42rem">
-        <div className="flex justify-center"><Loader /></div>
+      <Modal
+        isOpen={true}
+        onClose={onClose}
+        title="Task Detail"
+        showFooter={false}
+        padding="p-0"
+        maxWidth="80rem"
+      >
+        <div className="flex items-center justify-center min-h-[600px]">
+          <Loader />
+        </div>
       </Modal>
     );
   }
 
-  const descSizeClass = DESC_SIZE_CLASSES[layoutPrefs.descriptionSize ?? "comfortable"];
+  const descSizeClass =
+    DESC_SIZE_CLASSES[layoutPrefs.descriptionSize ?? "comfortable"];
 
   return (
-    <Modal isOpen={true} onClose={onClose} title="Task Detail" showFooter={false} padding="p-0" maxWidth="80rem">
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title="Task Detail"
+      showFooter={false}
+      padding="p-0"
+      maxWidth="80rem"
+    >
       <PanelHeader
         task={task}
         canEdit={canEdit}
@@ -167,7 +195,9 @@ export default function TaskDetailPanel({
           onDismiss={() => setConflict(null)}
           onReload={() => {
             setConflict(null);
-            qc.invalidateQueries({ queryKey: ["task-detail", workspaceId, boardId, taskId] });
+            qc.invalidateQueries({
+              queryKey: ["task-detail", workspaceId, boardId, taskId],
+            });
           }}
         />
       )}
@@ -179,7 +209,9 @@ export default function TaskDetailPanel({
             <div className="flex items-center gap-1 flex-wrap">
               {task.ancestors.map((a, i) => (
                 <span key={a.id} className="flex items-center gap-1">
-                  {i > 0 && <ChevronRight className="w-3 h-3 text-muted-foreground" />}
+                  {i > 0 && (
+                    <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                  )}
                   <button
                     onClick={() => navigate(`?task=${a.id}`, { replace: true })}
                     className="text-xs text-muted-foreground hover:text-foreground font-medium hover:underline underline-offset-2"
@@ -195,7 +227,12 @@ export default function TaskDetailPanel({
             </div>
           )}
 
-          <TaskTitle task={task} canEdit={canEdit} update={update} setConflict={setConflict} />
+          <TaskTitle
+            task={task}
+            canEdit={canEdit}
+            update={update}
+            setConflict={setConflict}
+          />
 
           <div>
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
@@ -203,7 +240,9 @@ export default function TaskDetailPanel({
             </p>
             <VoltEditor
               value={task.description || ""}
-              onBlur={(md) => { if (md !== task.description) update.mutate({ description: md }); }}
+              onBlur={(md) => {
+                if (md !== task.description) update.mutate({ description: md });
+              }}
               readOnly={!canEdit}
               placeholder="Add a description…"
               className={descSizeClass}
@@ -235,15 +274,6 @@ export default function TaskDetailPanel({
           )}
         </div>
 
-        {/* ── Icon strip ────────────────────────────────────────── */}
-        <IconStrip
-          activePanel={activePanel}
-          onSelect={handlePanelSelect}
-          commentCount={task.comment_count}
-          approvalCount={approvals.length}
-          approvalPending={approvals.some((a) => a.status === "pending")}
-        />
-
         {/* ── Side panel — only mounted when a panel is active ──── */}
         {activePanel && (
           <div className="w-72 flex-shrink-0 border-l border-border overflow-y-auto bg-muted/10 flex flex-col">
@@ -274,13 +304,25 @@ export default function TaskDetailPanel({
                 />
               )}
               {activePanel === "activity" && (
-                <ActivityPanel workspaceId={workspaceId} boardId={boardId} taskId={taskId} />
+                <ActivityPanel
+                  workspaceId={workspaceId}
+                  boardId={boardId}
+                  taskId={taskId}
+                />
               )}
               {activePanel === "attachments" && (
-                <AttachmentsPanel workspaceId={workspaceId} boardId={boardId} taskId={taskId} />
+                <AttachmentsPanel
+                  workspaceId={workspaceId}
+                  boardId={boardId}
+                  taskId={taskId}
+                />
               )}
               {activePanel === "dependencies" && (
-                <DependenciesPanel workspaceId={workspaceId} boardId={boardId} taskId={taskId} />
+                <DependenciesPanel
+                  workspaceId={workspaceId}
+                  boardId={boardId}
+                  taskId={taskId}
+                />
               )}
               {activePanel === "approvals" && (
                 <ApprovalsPanel
@@ -297,13 +339,25 @@ export default function TaskDetailPanel({
             </div>
           </div>
         )}
+
+        {/* ── Icon strip ────────────────────────────────────────── */}
+        <IconStrip
+          activePanel={activePanel}
+          onSelect={handlePanelSelect}
+          commentCount={task.comment_count}
+          approvalCount={approvals.length}
+          approvalPending={approvals.some((a) => a.status === "pending")}
+        />
       </div>
 
       {confirmState && (
         <ConfirmModal
           title="Delete task?"
           message={confirmState.message}
-          onConfirm={() => { confirmState.onConfirm(); setConfirmState(null); }}
+          onConfirm={() => {
+            confirmState.onConfirm();
+            setConfirmState(null);
+          }}
           onCancel={() => setConfirmState(null)}
         />
       )}
@@ -314,8 +368,19 @@ export default function TaskDetailPanel({
 // ── Header ────────────────────────────────────────────────────────────────────
 
 function PanelHeader({
-  task, canEdit, approvals, approvalDropdown, setApprovalDropdown,
-  approvalBtnRef, members, requestApproval, deleteTask, taskId, onClose, toast, onDeleteConfirm,
+  task,
+  canEdit,
+  approvals,
+  approvalDropdown,
+  setApprovalDropdown,
+  approvalBtnRef,
+  members,
+  requestApproval,
+  deleteTask,
+  taskId,
+  onClose,
+  toast,
+  onDeleteConfirm,
 }) {
   return (
     <div className="flex items-center justify-between px-5 py-2 border-b flex-shrink-0">
@@ -328,7 +393,10 @@ function PanelHeader({
       <div className="flex items-center gap-1">
         <Tooltip content="Copy link">
           <button
-            onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success("Link copied"); }}
+            onClick={() => {
+              navigator.clipboard.writeText(window.location.href);
+              toast.success("Link copied");
+            }}
             className="p-1.5 rounded-md bg-accent/60 text-foreground/70 hover:text-foreground hover:bg-accent transition-colors active:scale-[0.97]"
           >
             <Copy className="w-3.5 h-3.5" />
@@ -370,7 +438,8 @@ function PanelHeader({
               onClick={() =>
                 onDeleteConfirm({
                   message: "Delete this task? This cannot be undone.",
-                  onConfirm: () => deleteTask.mutate(taskId, { onSuccess: onClose }),
+                  onConfirm: () =>
+                    deleteTask.mutate(taskId, { onSuccess: onClose }),
                 })
               }
               className="p-1.5 rounded-md bg-accent/60 text-foreground/70 hover:text-destructive hover:bg-destructive/10 transition-colors active:scale-[0.97]"
@@ -388,7 +457,8 @@ function ConflictBanner({ conflict, onDismiss, onReload }) {
   return (
     <div className="flex items-center justify-between gap-3 px-5 py-2 bg-amber-500/10 border-b border-amber-500/25 flex-shrink-0">
       <span className="text-xs text-amber-700 font-medium">
-        This task was saved {formatDistanceToNow(new Date(conflict.updated_at))} ago. Your version may differ.
+        This task was saved {formatDistanceToNow(new Date(conflict.updated_at))}{" "}
+        ago. Your version may differ.
       </span>
       <div className="flex items-center gap-1.5">
         <button

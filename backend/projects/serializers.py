@@ -70,9 +70,9 @@ class BulkStatusUpdateSerializer(serializers.Serializer):
 
 class BulkTaskUpdatesSerializer(serializers.Serializer):
     """Permitted field overrides for a bulk update. All fields are optional."""
-    status_id  = serializers.UUIDField(required=False, allow_null=True)
-    priority   = serializers.CharField(required=False, allow_null=True)
-    assignee_id = serializers.UUIDField(required=False, allow_null=True)
+    status_id   = serializers.UUIDField(required=False, allow_null=True)
+    priority    = serializers.CharField(required=False, allow_null=True)
+    assignee_id = PrefixedUUIDField(required=False, allow_null=True)
 
 
 class TaskBulkActionSerializer(serializers.Serializer):
@@ -86,7 +86,7 @@ class LabelSerializer(serializers.ModelSerializer):
         model = Label
         fields = ["id", "name", "color"]
 
-
+# ‼️Not being used anywhere at the moment
 class BoardFieldSerializer(serializers.ModelSerializer):
     class Meta:
         model = BoardField
@@ -109,7 +109,7 @@ class TaskFieldValueSerializer(serializers.ModelSerializer):
         )
         return obj
 
-
+# ====================================
 class BoardMiniSerializer(serializers.ModelSerializer):
     task_count = serializers.IntegerField()
     done_task_count = serializers.IntegerField()
@@ -724,7 +724,7 @@ class BoardSearchSerializer(serializers.ModelSerializer):
 
 class BoardMemberSerializer(serializers.ModelSerializer):
     user = MiniUserSerializer(read_only=True)
-    user_id = serializers.UUIDField(write_only=True)
+    user_id = PrefixedUUIDField(write_only=True)
 
     class Meta:
         model = BoardMember
@@ -746,7 +746,7 @@ class BoardMemberSerializer(serializers.ModelSerializer):
 
 
 class BoardMemberBulkItemSerializer(serializers.Serializer):
-    user_id = serializers.UUIDField()
+    user_id = PrefixedUUIDField()
     role = serializers.ChoiceField(choices=BoardMember.Role.choices, default=BoardMember.Role.EDITOR)
 
     def validate_user_id(self, value):
@@ -951,7 +951,7 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
 
 class ApprovalReviewerSerializer(serializers.ModelSerializer):
     user = MiniUserSerializer(read_only=True)
-    user_id = serializers.UUIDField(write_only=True)
+    user_id = PrefixedUUIDField(write_only=True)
 
     class Meta:
         model = ApprovalReviewer
@@ -963,7 +963,7 @@ class ApprovalSerializer(serializers.ModelSerializer):
     requested_by = MiniUserSerializer(read_only=True)
     reviewers = ApprovalReviewerSerializer(many=True, read_only=True)
     reviewer_ids = serializers.ListField(
-        child=serializers.UUIDField(), write_only=True, required=True
+        child=PrefixedUUIDField(), write_only=True, required=True
     )
     approved_count = serializers.SerializerMethodField()
     total_count = serializers.SerializerMethodField()
@@ -1091,7 +1091,7 @@ class KeyResultSerializer(serializers.ModelSerializer):
 
 class ObjectiveSerializer(serializers.ModelSerializer):
     owner = MiniUserSerializer(read_only=True)
-    owner_id = serializers.UUIDField(write_only=True, required=False, allow_null=True)
+    owner_id = PrefixedUUIDField(write_only=True, required=False, allow_null=True)
     key_results = KeyResultSerializer(many=True, read_only=True)
     progress = serializers.SerializerMethodField()
     confidence = serializers.SerializerMethodField()

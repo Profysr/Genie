@@ -20,7 +20,7 @@ const SetupWizard = lazy(() => import("@/pages/workspace/SetupWizard"));
 // ── Project pages ─────────────────────────────────────────────────────────────
 const ProjectsPage = lazy(() => import("@/pages/projects/ProjectsPage"));
 const KanbanPage = lazy(() => import("@/pages/projects/KanbanPage"));
-const RoadmapPage = lazy(() => import("@/pages/projects/RoadmapPage"));
+// ‼️ Merged this view into Timeline view - const RoadmapPage = lazy(() => import("@/pages/projects/RoadmapPage"));
 const WikiPage = lazy(() => import("@/pages/projects/WikiPage"));
 const FormsPage = lazy(() => import("@/pages/projects/FormsPage"));
 // ‼️ Automation disabled — const AutomationsPage = lazy(() => import("@/pages/projects/AutomationsPage"));
@@ -115,7 +115,7 @@ export default function App() {
             /> */}
 
             {/* Workspace */}
-            <Route path="roadmap" element={<RoadmapPage />} />
+            {/* <Route path="roadmap" element={<RoadmapPage />} /> */}
             <Route path="dashboards" element={<DashboardsPage />} />
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="goals" element={<GoalsPage />} />

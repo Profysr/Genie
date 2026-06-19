@@ -1,3 +1,5 @@
+import uuid as uuid_lib
+
 from rest_framework import permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -8,8 +10,8 @@ from ..serializers import TaskSearchSerializer, BoardSearchSerializer
 from workspaces.models import WorkspaceMember
 from .helpers import _parse_pk
 
-_TASK_LIMIT_MAX = 50
-_TASK_LIMIT_DEFAULT = 20
+_TASK_LIMIT_MAX = 25
+_TASK_LIMIT_DEFAULT = 25
 _BOARD_LIMIT = 5
 
 
@@ -28,6 +30,13 @@ def _parse_search_params(query_params):
         limit = _TASK_LIMIT_DEFAULT
     raw_end = query_params.get("end_date", "").strip()
     end_date = raw_end or timezone.now().date().isoformat()
+    cursor_raw = query_params.get("cursor", "").strip()
+    cursor = None
+    if cursor_raw:
+        try:
+            cursor = uuid_lib.UUID(cursor_raw)
+        except ValueError:
+            pass
     return {
         "q": query_params.get("q", "").strip(),
         "task_type": query_params.get("task_type", "").strip(),
@@ -40,12 +49,13 @@ def _parse_search_params(query_params):
         "overdue": query_params.get("overdue", "").lower() == "true",
         "today_only": query_params.get("today", "").lower() == "true",
         "limit": limit,
+        "cursor": cursor,
     }
 
 
 def _has_any_filter(p):
     return bool(
-        len(p["q"]) >= 2
+        len(p["q"]) >= 3
         or p["task_type"]
         or p["assignee"]
         or p["priority"]
@@ -58,7 +68,7 @@ def _has_any_filter(p):
 
 
 def _apply_task_search_filters(qs, p):
-    if len(p["q"]) >= 2:
+    if len(p["q"]) >= 3:
         qs = qs.filter(
             Q(title__icontains=p["q"]) | Q(description__icontains=p["q"])
         )
@@ -88,7 +98,7 @@ def _apply_task_search_filters(qs, p):
 
 
 def _search_boards(workspace_ids, q):
-    if len(q) < 2:
+    if len(q) < 3:
         return []
     return (
         Board.objects.filter(workspace_id__in=workspace_ids, name__icontains=q)
@@ -105,21 +115,27 @@ class GlobalSearchView(APIView):
         p = _parse_search_params(request.query_params)
 
         if not _has_any_filter(p):
-            return Response({"tasks": [], "boards": []})
+            return Response({"tasks": [], "boards": [], "next_cursor": None})
 
         workspace_ids = _get_user_workspace_ids(request.user)
 
-        # Start with every task the user can see (scoped to their workspaces),then narrow down via the parsed filters (text, priority, assignee, etc.).
-        # The slice at the end is applied after all filters so the DB only returns the final N rows instead of fetching everything first.
-        tasks = Task.objects.filter(
+        tasks_qs = Task.objects.filter(
             board__workspace_id__in=workspace_ids,
         ).select_related("board__workspace", "status", "assignee")
 
-        tasks = _apply_task_search_filters(tasks, p)[: p["limit"]]
+        tasks_qs = _apply_task_search_filters(tasks_qs, p).order_by("-id")
+
+        # Cursor: UUIDv7 is time-sortable so id__lt gives the next older page.
+        if p["cursor"]:
+            tasks_qs = tasks_qs.filter(id__lt=p["cursor"])
+
+        task_list = list(tasks_qs[: p["limit"]])
+        next_cursor = str(task_list[-1].id) if len(task_list) == p["limit"] else None
 
         return Response(
             {
-                "tasks": TaskSearchSerializer(tasks, many=True).data,
+                "tasks": TaskSearchSerializer(task_list, many=True).data,
                 "boards": BoardSearchSerializer(_search_boards(workspace_ids, p["q"]), many=True).data,
+                "next_cursor": next_cursor,
             }
         )

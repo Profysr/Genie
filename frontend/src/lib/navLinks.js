@@ -54,13 +54,13 @@ export const NAV_ITEMS = [
     desc: "Velocity, flow & team metrics",
     path: "analytics",
   },
-  {
-    key: "roadmap",
-    icon: Map,
-    label: "Roadmap",
-    desc: "Sprint timeline",
-    path: "roadmap",
-  },
+  // {
+  //   key: "roadmap",
+  //   icon: Map,
+  //   label: "Roadmap",
+  //   desc: "Sprint timeline",
+  //   path: "roadmap",
+  // },
   {
     key: "members",
     icon: Users,
@@ -120,10 +120,10 @@ export const NAV_GROUPS = [
     label: "Insights",
     items: ["analytics"],
   },
-  {
-    label: "Views",
-    items: ["roadmap"],
-  },
+  // {
+  //   label: "Views",
+  //   items: ["roadmap"],
+  // },
   {
     label: "Workspace",
     items: [

@@ -153,6 +153,7 @@ export default function KanbanPage() {
   const { user } = useAuthStore();
   const { toast } = useToast();
 
+  const [view, setView] = useState("kanban");
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const debouncedSearch = useDebounce(filters.search, 350);
   const apiFilters = { ...filters, search: debouncedSearch };
@@ -165,7 +166,12 @@ export default function KanbanPage() {
   const { data: allTasks = [] } = useTasks(workspaceId, boardId, apiFilters);
   const { data: labels = [] } = useLabels(workspaceId, boardId);
   const { data: members = [] } = useMembers(workspaceId);
-const { data: sprints = [] } = useSprints(workspaceId, boardId);
+  // Only fetch sprints when view is sprint, list or timeline cz we won't need it in board view
+  const { data: sprints = [] } = useSprints(
+    workspaceId,
+    boardId,
+    view === "sprint" || view === "list" || view === "timeline",
+  );
   const { data: statuses = [] } = useStatuses(workspaceId, boardId);
   const perms = useBoardPermissions(workspaceId, boardId);
 
@@ -190,7 +196,6 @@ const { data: sprints = [] } = useSprints(workspaceId, boardId);
   const [focusCommentId, setFocusCommentId] = useState(
     () => searchParams.get("comment") || null,
   );
-  const [view, setView] = useState("kanban");
 
   // Automatically get the task id from param and opens up the task
   useEffect(() => {
@@ -487,8 +492,8 @@ const { data: sprints = [] } = useSprints(workspaceId, boardId);
 
         {/* Board */}
         {view === "kanban" && (
-          <div className="flex-1 overflow-x-auto p-6">
-            <DragDropContext onDragEnd={handleDragEnd}>
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <div className="flex-1 overflow-x-auto p-6">
               <div className="flex gap-5 h-full items-start">
                 {statuses?.map((col) => (
                   <KanbanColumn
@@ -508,16 +513,9 @@ const { data: sprints = [] } = useSprints(workspaceId, boardId);
                     labelsById={labelsById}
                   />
                 ))}
-                {/* Add column button */}
-                {/* {perms.canEdit && (
-                  <AddColumnButton
-                    workspaceId={workspaceId}
-                    boardId={boardId}
-                  />
-                )} */}
               </div>
-            </DragDropContext>
-          </div>
+            </div>
+          </DragDropContext>
         )}
 
         {view === "list" && (
@@ -614,7 +612,7 @@ const { data: sprints = [] } = useSprints(workspaceId, boardId);
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
               <div
                 className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-                onClick={onClose}
+                onClick={closeTask}
               />
               <div
                 className="relative w-full max-w-2xl bg-card border border-border rounded-md shadow-2xl flex items-center justify-center"

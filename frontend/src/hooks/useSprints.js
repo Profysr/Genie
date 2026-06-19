@@ -5,11 +5,11 @@ const sprintsKey     = (ws, proj)           => ["sprints", ws, proj];
 const sprintDetailKey = (ws, proj, sprintId) => ["sprint",  ws, proj, sprintId];
 const burndownKey    = (ws, proj, sprintId)  => ["burndown", ws, proj, sprintId];
 
-export const useSprints = (workspaceId, boardId) =>
+export const useSprints = (workspaceId, boardId, enabled = true) =>
   useQuery({
     queryKey: sprintsKey(workspaceId, boardId),
     queryFn: () => api.get(`/api/workspaces/${workspaceId}/boards/${boardId}/sprints/`).then(r => r.data),
-    enabled: !!workspaceId && !!boardId,
+    enabled: !!workspaceId && !!boardId && enabled,
     staleTime: Infinity,
   });
 

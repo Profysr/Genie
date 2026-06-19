@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { format } from "date-fns";
+import LoadMoreButton from "@/components/ui/LoadMoreButton";
 import { Avatar } from "@/components/ui/avatar";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ import {
 } from "@/hooks/useTasks";
 import { useToggleReaction } from "@/hooks/useCommentReactions";
 import { useSubmitReview, useResubmitApproval } from "@/hooks/useApprovals";
+import { Switch } from "@/components/ui/switch";
 import {
   Dropdown,
   DetailRow,
@@ -44,50 +46,63 @@ import {
 
 export const PANEL_ITEMS = [
   { id: "properties",   icon: SlidersHorizontal, label: "Properties"   },
-  { id: "comments",     icon: MessageSquare,      label: "Comments"     },
-  { id: "activity",     icon: Activity,           label: "Activity"     },
   { id: "attachments",  icon: Paperclip,          label: "Attachments"  },
   { id: "dependencies", icon: Link2,              label: "Dependencies" },
-  { id: "approvals",    icon: ShieldCheck,        label: "Approvals"    },
   { id: "layout",       icon: Settings,           label: "Layout"       },
+  { id: "approvals",    icon: ShieldCheck,        label: "Approvals"    },
+  { id: "comments",     icon: MessageSquare,      label: "Comments"     },
+  { id: "activity",     icon: Activity,           label: "Activity"     },
+];
+
+const PANEL_GROUPS = [
+  ["properties", "attachments", "dependencies"],
+  ["approvals", "comments", "activity"],
+  ["layout"],
 ];
 
 export function IconStrip({ activePanel, onSelect, commentCount, approvalCount, approvalPending }) {
+  const itemsById = Object.fromEntries(PANEL_ITEMS.map((p) => [p.id, p]));
   return (
-    <div className="w-12 flex-shrink-0 border-l border-border flex flex-col items-center py-3 gap-1 bg-background">
-      {PANEL_ITEMS.map(({ id, icon: Icon, label }) => {
-        const isActive = activePanel === id;
-        const badge =
-          id === "comments" && commentCount > 0 ? commentCount :
-          id === "approvals" && approvalCount > 0 ? approvalCount : null;
-        return (
-          <Tooltip key={id} content={label} side="left">
-            <button
-              onClick={() => onSelect(id)}
-              className={cn(
-                "relative w-9 h-9 flex items-center justify-center rounded-lg transition-colors",
-                isActive
-                  ? "bg-primary/15 text-primary"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent",
-              )}
-            >
-              <Icon className="w-4 h-4" />
-              {badge && (
-                <span
+    <div className="w-12 flex-shrink-0 border-l border-border flex flex-col items-center py-3 bg-background">
+      {PANEL_GROUPS.map((group, gi) => (
+        <div key={gi} className="flex flex-col items-center gap-1 w-full px-1.5">
+          {gi > 0 && <div className="w-6 border-t border-border my-1.5" />}
+          {group.map((id) => {
+            const { icon: Icon, label } = itemsById[id];
+            const isActive = activePanel === id;
+            const badge =
+              id === "comments" && commentCount > 0 ? commentCount :
+              id === "approvals" && approvalCount > 0 ? approvalCount : null;
+            return (
+              <Tooltip key={id} content={label} side="left">
+                <button
+                  onClick={() => onSelect(id)}
                   className={cn(
-                    "absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center leading-none",
-                    id === "approvals" && approvalPending
-                      ? "bg-amber-500 text-white"
-                      : "bg-primary text-primary-foreground",
+                    "relative w-9 h-9 flex items-center justify-center rounded-lg transition-colors",
+                    isActive
+                      ? "bg-primary/15 text-primary"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent",
                   )}
                 >
-                  {badge > 99 ? "99+" : badge}
-                </span>
-              )}
-            </button>
-          </Tooltip>
-        );
-      })}
+                  <Icon className="w-4 h-4" />
+                  {badge && (
+                    <span
+                      className={cn(
+                        "absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center leading-none",
+                        id === "approvals" && approvalPending
+                          ? "bg-amber-500 text-white"
+                          : "bg-primary text-primary-foreground",
+                      )}
+                    >
+                      {badge > 99 ? "99+" : badge}
+                    </span>
+                  )}
+                </button>
+              </Tooltip>
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }
@@ -400,13 +415,11 @@ export function CommentsPanel({ workspaceId, boardId, taskId, user, members, typ
       )}
 
       {hasNextPage && (
-        <button
+        <LoadMoreButton
           onClick={() => fetchNextPage()}
-          disabled={isFetchingNextPage}
-          className="w-full text-xs text-muted-foreground hover:text-foreground py-1.5 border border-dashed border-border rounded-md transition-colors"
-        >
-          {isFetchingNextPage ? "Loading…" : "Load more comments"}
-        </button>
+          isLoading={isFetchingNextPage}
+          label="Load more comments"
+        />
       )}
     </div>
   );
@@ -703,13 +716,11 @@ function ActivityTab({ workspaceId, boardId, taskId }) {
         ))}
       </div>
       {hasNextPage && (
-        <button
+        <LoadMoreButton
           onClick={() => fetchNextPage()}
-          disabled={isFetchingNextPage}
-          className="mt-3 w-full text-xs text-muted-foreground hover:text-foreground py-1.5 border border-dashed border-border rounded-md transition-colors"
-        >
-          {isFetchingNextPage ? "Loading…" : "Load more"}
-        </button>
+          isLoading={isFetchingNextPage}
+          className="mt-3"
+        />
       )}
     </div>
   );
@@ -1065,20 +1076,10 @@ export function LayoutPanel({ prefs, onChange }) {
           <p className="text-sm font-medium">Show Work Items</p>
           <p className="text-xs text-muted-foreground mt-0.5">Subtasks and child tasks in main body</p>
         </div>
-        <button
-          onClick={() => onChange({ showWorkItems: !showWorkItems })}
-          className={cn(
-            "relative w-9 h-5 rounded-full transition-colors flex-shrink-0",
-            showWorkItems ? "bg-primary" : "bg-muted-foreground/30",
-          )}
-        >
-          <span
-            className={cn(
-              "absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform",
-              showWorkItems ? "translate-x-4" : "translate-x-0.5",
-            )}
-          />
-        </button>
+        <Switch
+          checked={showWorkItems}
+          onCheckedChange={(checked) => onChange({ showWorkItems: checked })}
+        />
       </div>
     </div>
   );
