@@ -61,10 +61,10 @@ const MONTHS = [
 function buildHeader(rangeStart, rangeEnd, zoom, pxPerDay) {
   const total = daysBetween(rangeStart, rangeEnd);
   const now = new Date();
-  const nowM = now.getMonth();
-  const nowY = now.getFullYear();
   // Normalize today to midnight for reliable date comparisons
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  // Cache the timestamp so we avoid repeated .getTime() calls inside loops
+  const todayTime = today.getTime();
   const top = [],
     bottom = [];
 
@@ -72,25 +72,32 @@ function buildHeader(rangeStart, rangeEnd, zoom, pxPerDay) {
     let monthStart = 0,
       curM = -1,
       curY = -1;
+    // Mutate a single Date in-place instead of allocating a new Date per iteration
+    // via addDays(). Over large ranges (e.g. 2 years = ~730 iterations) this avoids
+    // hundreds of short-lived object allocations.
+    const d = new Date(rangeStart.getTime());
     for (let i = 0; i <= total; i++) {
-      const d = addDays(rangeStart, i);
-      if (d.getMonth() !== curM) {
+      if (i > 0) d.setDate(d.getDate() + 1);
+      const m = d.getMonth();
+      const y = d.getFullYear();
+      if (m !== curM) {
         if (curM !== -1)
           top.push({
             label: `${MONTHS[curM]} ${curY}`,
             x: monthStart * pxPerDay,
             w: (i - monthStart) * pxPerDay,
           });
-        curM = d.getMonth();
-        curY = d.getFullYear();
+        curM = m;
+        curY = y;
         monthStart = i;
       }
+      const dow = d.getDay();
       bottom.push({
         label: String(d.getDate()),
         x: i * pxPerDay,
         w: pxPerDay,
-        muted: d.getDay() === 0 || d.getDay() === 6,
-        current: d.getTime() === today.getTime(),
+        muted: dow === 0 || dow === 6,
+        current: d.getTime() === todayTime,
         monthBoundary: d.getDate() === 1,
       });
     }
@@ -123,7 +130,7 @@ function buildHeader(rangeStart, rangeEnd, zoom, pxPerDay) {
       const ref = ws < rangeStart ? rangeStart : ws;
       const we = addDays(ws, 6);
       // current = only the single week that contains today
-      const cur = today >= ws && today <= we;
+      const cur = todayTime >= ws.getTime() && todayTime <= we.getTime();
       bottom.push({
         label: `${MONTHS[ref.getMonth()]} ${ref.getDate()}`,
         x,
@@ -135,6 +142,10 @@ function buildHeader(rangeStart, rangeEnd, zoom, pxPerDay) {
     }
     return { top, bottom };
   }
+
+  // nowM / nowY are only needed by the month and quarter paths
+  const nowM = now.getMonth();
+  const nowY = now.getFullYear();
 
   if (zoom === "month") {
     let yearStart = -1,
@@ -167,39 +178,40 @@ function buildHeader(rangeStart, rangeEnd, zoom, pxPerDay) {
     return { top, bottom };
   }
 
-  // quarter
-  let yearStart = -1,
-    yearX = 0;
-  let q = new Date(
-    rangeStart.getFullYear(),
-    Math.floor(rangeStart.getMonth() / 3) * 3,
-    1,
-  );
-  while (q <= rangeEnd) {
-    const next = new Date(q.getFullYear(), q.getMonth() + 3, 1);
-    const sx = Math.max(0, daysBetween(rangeStart, q)) * pxPerDay;
-    const ex = Math.min(total, daysBetween(rangeStart, next)) * pxPerDay;
-    const qEnd = addDays(next, -1);
-    const cur =
-      q.getMonth() <= nowM &&
-      qEnd.getMonth() >= nowM &&
-      q.getFullYear() === nowY;
-    bottom.push({
-      label: `Q${Math.floor(q.getMonth() / 3) + 1}`,
-      x: sx,
-      w: ex - sx,
-      current: cur,
-      monthBoundary: true,
-    });
-    if (q.getFullYear() !== yearStart) {
-      if (yearStart !== -1)
-        top.push({ label: String(yearStart), x: yearX, w: sx - yearX });
-      yearStart = q.getFullYear();
-      yearX = sx;
-    }
-    q = next;
-  }
-  top.push({ label: String(yearStart), x: yearX, w: total * pxPerDay - yearX });
+  // quarter (not in use)
+  // let yearStart = -1,
+  //   yearX = 0;
+  // let q = new Date(
+  //   rangeStart.getFullYear(),
+  //   Math.floor(rangeStart.getMonth() / 3) * 3,
+  //   1,
+  // );
+  // while (q <= rangeEnd) {
+  //   const next = new Date(q.getFullYear(), q.getMonth() + 3, 1);
+  //   const sx = Math.max(0, daysBetween(rangeStart, q)) * pxPerDay;
+  //   const ex = Math.min(total, daysBetween(rangeStart, next)) * pxPerDay;
+  //   const qEnd = addDays(next, -1);
+  //   const cur =
+  //     q.getMonth() <= nowM &&
+  //     qEnd.getMonth() >= nowM &&
+  //     q.getFullYear() === nowY;
+  //   bottom.push({
+  //     label: `Q${Math.floor(q.getMonth() / 3) + 1}`,
+  //     x: sx,
+  //     w: ex - sx,
+  //     current: cur,
+  //     monthBoundary: true,
+  //   });
+  //   if (q.getFullYear() !== yearStart) {
+  //     if (yearStart !== -1)
+  //       top.push({ label: String(yearStart), x: yearX, w: sx - yearX });
+  //     yearStart = q.getFullYear();
+  //     yearX = sx;
+  //   }
+  //   q = next;
+  // }
+  // top.push({ label: String(yearStart), x: yearX, w: total * pxPerDay - yearX });
+  // return { top, bottom };
   return { top, bottom };
 }
 
@@ -207,6 +219,7 @@ function buildHeader(rangeStart, rangeEnd, zoom, pxPerDay) {
 function GroupRow({ row, onToggle }) {
   let label, dotColor, bg;
 
+  // Change the colot of the sprint when tasks get completed in it
   if (row.type === "sprint") {
     label = row.sprint?.name;
     dotColor =
@@ -412,13 +425,10 @@ export default function GanttView({
       const bwAbs = Math.max(pxPerDay, (daysBetween(sd, ed) + 1) * pxPerDay);
 
       if (contentX >= bxAbs - 4 && contentX <= bxAbs + bwAbs + 4) {
-        const isResize = canEdit && contentX >= bxAbs + bwAbs - 10;
-        return {
-          kind: "task",
-          taskId: task.id,
-          task,
-          dragType: isResize ? "resize" : "move",
-        };
+        let dragType = "move";
+        if (canEdit && contentX >= bxAbs + bwAbs - 10) dragType = "resize";
+        else if (canEdit && contentX <= bxAbs + 10)    dragType = "resize-left";
+        return { kind: "task", taskId: task.id, task, dragType };
       }
       return { kind: "empty" };
     },
@@ -492,7 +502,13 @@ export default function GanttView({
                 updates.due_date = dateKey(
                   addDays(parseDate(dragRef.current.origDue), deltaDays),
                 );
+            } else if (dragRef.current.type === "resize-left") {
+              // Left-edge resize: move start_date only, due_date stays fixed
+              const base = dragRef.current.origStart || dragRef.current.origDue;
+              if (base)
+                updates.start_date = dateKey(addDays(parseDate(base), deltaDays));
             } else {
+              // Right-edge resize: move due_date only, start_date stays fixed
               const base = dragRef.current.origDue || dragRef.current.origStart;
               if (base)
                 updates.due_date = dateKey(addDays(parseDate(base), deltaDays));
@@ -525,8 +541,8 @@ export default function GanttView({
       canvasRef.current?.setHover(hit?.kind === "task" ? hit.taskId : null);
 
       if (!hit || hit.kind === "empty") driver.style.cursor = "default";
+      else if (hit.dragType === "resize" || hit.dragType === "resize-left") driver.style.cursor = "ew-resize";
       else if (hit.kind === "group") driver.style.cursor = "pointer";
-      else if (hit.dragType === "resize") driver.style.cursor = "ew-resize";
       else driver.style.cursor = canEdit ? "grab" : "pointer";
     },
     [hitTest, canEdit],

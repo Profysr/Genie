@@ -1,16 +1,19 @@
 # JCN — Product Roadmap & Changelog
 
-> **Vision:** A project management platform built for small institutions that combines the speed of Linear, the flexibility of ClickUp, the clarity of Notion, and the depth of Jira — without the bloat, the price, or the learning curve of any of them.
+> **Vision:** A management ecosystem for growing businesses — not a single app, but a suite of purpose-built modules that share a common workspace, identity, and permission layer. Projects. People. HR. All in one place.
 >
-> **Why existing tools fail small teams:**
+> **Target:** Teams of 10–200 people who are tired of paying enterprise prices for tools that treat them like an afterthought.
+>
+> **Why existing tools fail small businesses:**
 >
 > - **Jira** — built for enterprise, feels like filing taxes
 > - **ClickUp** — so many features it becomes paralysing
 > - **Notion** — great docs, weak structured project tracking
-> - **Linear** — beautiful but too opinionated, missing key reporting
+> - **Linear** — beautiful but too opinionated, no people management
 > - **Asana/Monday** — dated UX, expensive seats, weak developer experience
+> - **BambooHR / Workday** — HR tools that assume you have a full HR department to run them
 >
-> **JCN fills the gap:** Professional-grade tooling, consumer-grade UX, priced for teams of 3–100.
+> **JCN wins by:** One workspace. Every tool your team actually uses. Fast, beautiful, and priced for real businesses.
 
 ---
 
@@ -1726,3 +1729,653 @@ The existing `DashboardPage` (workspace home, fixed stats + recent projects) and
 > - Better reporting than Asana
 > - Jira-level depth without Jira's interface tax
 > - A pricing model that makes Monday irrelevant for teams under 200 people
+
+---
+
+---
+
+# V2 — MANAGEMENT ECOSYSTEM (Next 6 Months)
+
+> **The pivot.** JCN launched as a project management tool. Five phases later, the foundation is solid — tasks, sprints, wikis, automations, real-time collaboration, analytics, and integrations are all shipped. Now we expand.
+>
+> The next six months build three major additions on top of that foundation: a public landing page to tell the story, an org structure layer so every workspace has a real company skeleton, and an HR module so small businesses can manage their people without buying BambooHR. Custom RBAC lands in Week 19 — after we have three apps running, because granular permissions only matter when there is real complexity to protect.
+>
+> **North star:** By Week 26, a 50-person company should be able to run their entire operational layer on JCN — projects, people, and HR — without a single external tool.
+
+---
+
+## ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+## PHASE A — ECOSYSTEM RELAUNCH (Weeks 1–3)
+
+## ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+> **Goal:** Tell the story. Remove signup friction. Make the first 10 minutes count.
+
+---
+
+## vA.1 — Public Landing Page (Week 1)
+
+> Status: PLANNED 📋
+> **Why it matters:** We're competing with tools that spend millions on marketing. Our landing page is our pitch, our proof, and our first impression — all in one URL.
+
+### Page structure (standalone route at `/`)
+
+- **Hero** — headline that speaks directly to the target ("One workspace for everything your team does"), animated product demo GIF, single primary CTA ("Start free — no credit card")
+- **Problem section** — honest side-by-side comparison: Jira (enterprise bloat), ClickUp (feature paralysis), Notion (weak PM), Asana/Monday (expensive + dated). Not vague — specific and confident
+- **Ecosystem showcase** — three module preview cards: Projects · Org Structure · HR — "Each app is great alone. Together, they replace your entire tool stack."
+- **How it works** — 3-step visual: Create workspace → Invite team → Start managing (under 5 minutes to first value)
+- **Social proof** — "Built for teams of 10–200" positioning, early adopter testimonials when available
+- **Pricing preview** — three tier cards (Free / Pro / Business) with feature highlights; no hidden fees language
+- **Footer** — docs, changelog, status page, Twitter/X, GitHub
+
+### Technical
+
+- Standalone React route at `/` — public, no auth required, no app sidebar
+- Built with the existing design system tokens (`theme.css`) — same fonts, colours, and components as the app
+- Mobile-first responsive; no horizontal scroll at 375px
+- `<meta>` OG tags, `sitemap.xml`, `robots.txt` for SEO baseline
+- CTA buttons route to `/register`; "Log in" link in the nav for existing users
+
+---
+
+## vA.2 — Onboarding Integrations (Weeks 2–3)
+
+> Status: PLANNED 📋
+> **Why it matters:** Every extra step in signup loses users. Google OAuth alone typically lifts registration conversion 30–40%. A polished invite flow turns a single signup into a team.
+
+### Google OAuth Signup / Login
+
+**Backend**
+- `python-social-auth` + Google OAuth2 strategy; creates `User` + `UserProfile` on first login; email from Google pre-verified — no email confirmation step
+- `/api/auth/google/` callback issues DRF JWT pair → same token flow as email auth
+- Workspace creation still happens post-OAuth (same setup wizard)
+
+**Frontend**
+- "Continue with Google" button on Login and Register pages — above the email form, with a visual divider
+- Handles "account already exists with this email" gracefully: merges OAuth identity, prompts login
+
+### Invite Flow Upgrade
+
+- Invite email template redesign: workspace logo, inviter name, 3-bullet preview of what JCN is, single CTA button — replaces the current plain-text email
+- Accept invite for non-registered users: landing screen shows workspace name + who invited them → "Create account to join" → auto-joins on register (no second accept click)
+- "Copy invite link" promoted to primary action on the Members page (was a secondary icon)
+- Setup wizard Step 3 (invite team): live "X accepted / Y pending" counter updating via polling
+
+---
+
+## ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+## PHASE B — ORG STRUCTURE (Weeks 4–10)
+
+## ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+> **Goal:** Give every workspace a real company skeleton — departments, teams, reporting lines, and job titles. This is the structural layer that HR Management (Phase C) builds on, and the team-filtering layer that makes task assignment smarter.
+>
+> **Why small businesses need this first:** A 50-person company without an org chart is 50 people in a Slack channel. Org structure gives new hires a reporting line, gives task filters a "team" concept, and gives managers a visual answer to "who does what."
+>
+> **Architecture note:** `WorkspaceMember` is NOT replaced. It remains the platform access record. Org structure models are additive — they describe the company's real-world shape on top of tool access.
+
+---
+
+## vB.1 — Departments & Teams (Weeks 4–6)
+
+> Status: PLANNED 📋
+
+**Backend — new `people` Django app**
+
+| Model | Key Fields | Notes |
+|-------|-----------|-------|
+| `Department` | `workspace` FK, `name`, `head` FK→User (nullable), `parent` FK self (nested depts), `order` | UUIDv7 PK; supports Engineering → Backend nesting |
+| `Team` | `workspace` FK, `department` FK (nullable), `name`, `description`, `lead` FK→User (nullable) | Can be cross-functional (no dept) |
+| `TeamMembership` | `team` FK, `user` FK, `job_title`, `level` (JUNIOR/MID/SENIOR/LEAD/MANAGER/DIRECTOR/C_LEVEL), `is_lead` | `unique_together: [team, user]` |
+
+**Indexes**: `dept_workspace_parent_idx`, `team_workspace_dept_idx`, `membership_team_user_idx`
+
+**API surface**
+- `GET/POST /api/workspaces/{ws}/departments/`
+- `GET/PATCH/DELETE /api/workspaces/{ws}/departments/{id}/`
+- `GET/POST /api/workspaces/{ws}/teams/`
+- `GET/PATCH/DELETE /api/workspaces/{ws}/teams/{id}/`
+- `GET/POST /api/workspaces/{ws}/teams/{id}/members/`
+- `PATCH/DELETE /api/workspaces/{ws}/teams/{id}/members/{mid}/`
+
+**Frontend — new "People" sidebar group**
+
+- **Teams page** `/w/:ws/teams`:
+  - Grid of team cards: name, department badge, lead avatar, member count chip
+  - Click team → team detail page: member list with level badges, description, lead highlight, edit controls (admin only)
+  - "Create team" modal: name, department picker, optional lead assignment
+  - Add members to team: workspace member search + level selector
+- **Departments page** `/w/:ws/departments`:
+  - Nested list with indentation showing parent/child hierarchy (collapsible)
+  - Per department: head avatar, team count, total member count
+  - Inline create, rename, re-parent (drag handle), set head
+  - Reorder within the same level (drag-and-drop, persisted to `order` field)
+
+---
+
+## vB.2 — Employee Profiles & Org Chart (Weeks 7–10)
+
+> Status: PLANNED 📋
+
+**Backend**
+
+| Model | Key Fields | Notes |
+|-------|-----------|-------|
+| `EmployeeProfile` | `workspace_member` O2O, `department` FK (nullable), `job_title`, `employment_type` (FULL_TIME/PART_TIME/CONTRACTOR/INTERN), `start_date`, `reports_to` FK→User (nullable), `employee_id` (CharField) | Auto-created on `WorkspaceMember` creation via `post_save` signal |
+
+**API surface**
+- `GET/PATCH /api/workspaces/{ws}/members/{id}/profile/`
+- `GET /api/workspaces/{ws}/org-chart/` — full tree (dept → sub-depts → teams → members) in one response; used by the org chart page
+
+**Frontend**
+
+- **Member Profile Card** (extended from existing `MembersPage`): shows job title, level badge, department, team(s), direct reports count, start date, employee ID — editable by admins inline
+- **Org Chart page** `/w/:ws/org-chart`:
+  - Tree layout: company root → departments → sub-departments → teams → members
+  - Zoom in/out (scroll wheel / pinch), drag to pan
+  - Each node: avatar, name, title — compact at low zoom, expanded at high zoom
+  - Click a node → profile card popover with quick links (send message, view tasks)
+  - Controls: "Collapse all" / "Expand all", view switcher (Hierarchy / By Department / By Team)
+  - Admin controls: drag node to re-parent (triggers `PATCH profile` for department/reports_to)
+- **Task filtering by team**: "Team" option added to `FilterBar` assignee picker in the Kanban board — selects all members of a team as a group filter
+- **Command Palette**: `@Backend Team` resolves to all team members as a compound assignee filter
+
+---
+
+## ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+## PHASE C — HR MANAGEMENT (Weeks 11–18)
+
+## ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+> **Goal:** People operations on top of the org structure. Leave management, attendance, and employee lifecycle — BambooHR-lite for businesses that can't afford BambooHR and don't want to pay Workday.
+>
+> **Why it has major daily impact:** Leave requests happen every week. "Who's off today?" gets asked in every standup. Attendance records are something every manager needs. Getting this right removes an entire category of external tooling for small businesses.
+>
+> **Depends on:** Phase B (Org Structure) — departments and teams must exist to manage people within them.
+
+---
+
+## vC.1 — Leave Management (Weeks 11–14)
+
+> Status: PLANNED 📋
+
+**Backend**
+
+| Model | Key Fields | Notes |
+|-------|-----------|-------|
+| `LeavePolicy` | `workspace` FK, `name`, `leave_type` (ANNUAL/SICK/UNPAID/PATERNITY/MATERNITY/COMPASSIONATE), `days_per_year`, `carry_over_days`, `accrual_type` (UPFRONT/MONTHLY) | Workspace-level policy config; multiple policies of the same type allowed |
+| `LeaveBalance` | `employee` FK→WorkspaceMember, `policy` FK, `year`, `total_days`, `used_days`, `pending_days` | Computed from approved requests; updated on every status change |
+| `LeaveRequest` | `employee` FK→WorkspaceMember, `policy` FK, `start_date`, `end_date`, `reason`, `status` (PENDING/APPROVED/REJECTED/CANCELLED), `approver` FK→User (nullable), `reviewed_at` | Approval notifications fire through the existing `notify()` + WebSocket system |
+
+**Indexes**: `leave_balance_employee_year_idx`, `leave_request_employee_status_idx`
+
+**API surface**
+- `GET/POST /api/workspaces/{ws}/hr/leave-policies/`
+- `PATCH/DELETE /api/workspaces/{ws}/hr/leave-policies/{id}/`
+- `GET/POST /api/workspaces/{ws}/hr/leave-requests/` — employee: own requests; admin: all requests; `?status=pending` filter
+- `PATCH /api/workspaces/{ws}/hr/leave-requests/{id}/review/` — admin/manager only; payload: `{status, comment}`
+- `GET /api/workspaces/{ws}/hr/leave-balances/` — employee: own balances; admin: all employees
+- `GET /api/workspaces/{ws}/hr/whos-off/` — returns today + next 7 days; used by dashboard widget
+
+**Frontend — HR section (new sidebar group)**
+
+- **Leave page** `/w/:ws/hr/leave`:
+  - **My Leave tab**: balance cards per policy (e.g. "Annual Leave: 12 / 25 days used"), coloured progress bar, request history list with status chips
+  - **Request form**: policy picker, date range picker (highlights existing leaves, blocks weekends, shows remaining balance live), reason textarea, submit for approval
+  - **Team calendar tab**: monthly view, approved leaves shown as coloured bars per member, colour by leave type; exportable as iCal feed
+  - **Manager queue tab** (admin/lead only): pending request cards — employee name, policy, dates, reason; Approve / Reject + comment; bulk-approve selected
+- **"Who's off today?" Dashboard widget**: avatar stack of members on approved leave today with leave type label; links to team calendar
+- **Leave balance widget** on Dashboard: compact donut or bar chart of the current user's annual leave (used/remaining)
+- **Notifications**: request submitted → manager notified (bell + email digest); request approved/rejected → employee notified
+
+---
+
+## vC.2 — Attendance Tracking (Weeks 15–17)
+
+> Status: PLANNED 📋
+> **Scope:** Manual clock-in/out + QR-code clock-in for office locations. GPS and biometric are enterprise features deferred to a later release.
+
+**Backend**
+
+| Model | Key Fields | Notes |
+|-------|-----------|-------|
+| `Attendance` | `employee` FK→WorkspaceMember, `date`, `clock_in`, `clock_out`, `source` (MANUAL/QR/API), `notes` | `clock_out` nullable = currently clocked in; one row per employee per day |
+| `AttendancePolicy` | `workspace` FK, `work_start_time`, `work_end_time`, `grace_period_minutes`, `weekly_hours` | Defines "expected" schedule for late/early detection |
+
+**API surface**
+- `POST /api/workspaces/{ws}/hr/attendance/clock-in/`
+- `POST /api/workspaces/{ws}/hr/attendance/clock-out/`
+- `GET /api/workspaces/{ws}/hr/attendance/` — admin view; `?employee=&date_range=`
+- `GET /api/workspaces/{ws}/hr/attendance/my/` — own records
+- `GET /api/workspaces/{ws}/hr/attendance/summary/` — weekly hours + late count per employee; used for the admin grid
+- `GET /api/workspaces/{ws}/hr/attendance/qr/` — generates a daily QR code (admin only); scan → auto clock-in
+
+**Frontend**
+
+- **Attendance tab** in HR section:
+  - Large clock-in/clock-out button (primary action, shows current status: "Clocked in at 9:02 AM")
+  - Daily status strip: in-time · out-time · total hours · status (On Time / Late / Absent)
+  - Personal calendar: colour-coded cells (green/amber/red/grey) with hover tooltip showing exact times
+  - Weekly hours bar chart: actual vs expected, coloured by status
+- **QR clock-in** (admin generates): daily QR code displayed on a TV or printout; employees scan with phone → auto clock-in via the mobile-optimised `/attendance/qr/{code}` page
+- **Admin attendance grid**: member × day matrix, hours per cell, weekly total column, export CSV, filter by department/team
+- **Automation trigger**: `attendance.late` → notify manager (hooks into existing automation engine)
+
+---
+
+## vC.3 — HR Dashboard & Employee Lifecycle (Week 18)
+
+> Status: PLANNED 📋
+
+**Backend**
+
+- `EmployeeDocument` model: `employee` FK, `doc_type` (CONTRACT/ID/CERTIFICATE/OTHER), `file`, `expiry_date`, `uploaded_by` — files stored in `media/employee_docs/`; admin-only access
+- `EmployeeNote` model: `employee` FK, `author` FK, `content`, `is_private` — private manager notes; never visible to the employee
+- Headcount analytics endpoint: joiners/leavers per month (derived from `EmployeeProfile.start_date`), employment type split, department headcount distribution
+
+**Frontend**
+
+- **HR Dashboard** `/w/:ws/hr`:
+  - **Headcount card**: total employees, joiners this month, leavers this month (clickable — links to employee list filtered by start date)
+  - **Leave overview**: total days taken across workspace this month; breakdown by leave type and department
+  - **Attendance overview**: avg on-time %, late count, absent count for the rolling week
+  - **Upcoming events**: birthdays, work anniversaries, contract expiry warnings — pulled from `EmployeeProfile` fields
+- **Employee detail page** `/w/:ws/members/{id}` (extends existing member detail):
+  - **Profile tab**: all `EmployeeProfile` fields editable inline by admins; employment type badge, start date, reports-to chip
+  - **Documents tab**: upload, list with expiry date, download, expiry warning badges (red if <30 days)
+  - **Leave history tab**: full request history with status timeline
+  - **Notes tab**: private manager notes; add/edit/delete; invisible to the employee themselves
+- **New employee onboarding checklist** (admin-configurable): "Complete profile" / "Upload ID" / "Sign contract" — shown as a checklist on the employee's detail page until all steps done
+
+---
+
+## ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+## PHASE D — CUSTOM RBAC (Weeks 19–22)
+
+## ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+> **Goal:** Replace the hardcoded admin/member/viewer role strings with admin-defined custom roles that carry granular permission flags — now that the ecosystem has three apps (Projects, Org Structure, HR), there is real complexity to protect.
+>
+> **Why Week 19 and not Week 1:** RBAC at Week 1 would have been premature — there was a single app. With three modules running, a business now genuinely needs to say "HR managers can approve leave but cannot delete projects" or "team leads can view the org chart but cannot edit payroll data." The complexity is now real; the solution is warranted.
+
+---
+
+## vD.1 — Role Builder Backend (Weeks 19–20)
+
+> Status: PLANNED 📋
+
+**Backend — extends `workspaces` app**
+
+| Model | Key Fields | Notes |
+|-------|-----------|-------|
+| `CustomRole` | `workspace` FK, `name`, `description`, `is_system` bool, `permissions` JSONField (`{"task.create": true, "hr.manage_leave": false, ...}`) | `is_system=True` protects built-in roles from edit/delete |
+| `RoleAssignment` | `workspace_member` O2O, `role` FK→CustomRole | Replaces the `role` text field on `WorkspaceMember` |
+
+**Permission surface (initial set)**
+
+```
+# Projects
+project.create    project.delete    project.admin
+task.create       task.delete       task.edit
+sprint.manage     automation.manage
+
+# People & HR
+member.invite     member.remove     member.view_profile
+hr.view           hr.manage_leave   hr.manage_attendance
+org.view          org.manage
+
+# Workspace
+report.view       settings.manage   api_keys.manage
+```
+
+**Migration path**
+1. Create three system roles (`Admin`, `Member`, `Viewer`) that mirror current hardcoded behaviour exactly
+2. Backfill `RoleAssignment` rows from existing `WorkspaceMember.role` text values
+3. New permission checks use `has_workspace_permission(user, workspace, action)` — checks `CustomRole.permissions` JSON
+4. `WorkspaceMember.role` text field kept for one release (backward compat), then removed
+
+**API surface**
+- `GET/POST /api/workspaces/{ws}/roles/`
+- `GET/PATCH/DELETE /api/workspaces/{ws}/roles/{id}/`
+- `POST /api/workspaces/{ws}/members/{id}/assign-role/`
+
+---
+
+## vD.2 — Role Builder UI (Weeks 21–22)
+
+> Status: PLANNED 📋
+
+**Frontend — Workspace Settings → Roles tab**
+
+- **Roles list sidebar**: system roles (lock icon, non-deletable) + custom roles; "Create role" button; "Duplicate" action on any role as a starting point
+- **Role editor** (right panel):
+  - Name + description fields
+  - Permission toggles grouped by module: **Projects** · **HR** · **Org Structure** · **Members** · **Settings**
+  - Each toggle: label + one-line plain-English description ("Can approve or reject leave requests")
+  - Dependency warnings: toggling on `hr.manage_leave` auto-enables `hr.view` with a tooltip
+- **Member assignment** (Members page): role dropdown now lists custom roles; multi-select members → assign role in bulk
+- **Permission preview card** ("What can this role do?"): collapsible read-only list of all enabled permissions written as sentences — for communicating role scope to non-technical admins
+- **Audit trail**: every role change logged to `AuditEvent` (already exists from v2.1.0)
+
+---
+
+## ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+## PHASE E — PLATFORM & LAUNCH (Weeks 23–26)
+
+## ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+> **Goal:** Polish, harden, price, and ship. A product that feels finished, performs fast, and can be paid for.
+
+---
+
+## vE.1 — Mobile PWA (Week 23)
+
+> Status: PLANNED 📋
+> **Scope:** The highest-value mobile flows only — not full feature parity. Full feature parity is a separate milestone.
+
+**What ships**
+- Full responsive redesign pass: every existing page usable at 375px without horizontal scroll
+- Mobile navigation: bottom tab bar (Home / Projects / My Work / HR / + Create)
+- Mobile Kanban: horizontal swipe-snap columns, full-width task cards
+- Mobile HR: clock in/out from a single large button; approve/reject leave from a notification tap
+- PWA manifest + service worker: installable on iOS/Android home screen, task lists readable offline (read-only cache)
+- Web Push notifications (VAPID) for key events: task assigned, leave request, approval needed
+
+---
+
+## vE.2 — Billing & Plans (Week 24)
+
+> Status: PLANNED 📋
+
+**Backend**
+
+| Plan | Price | Limits | Key Features |
+|------|-------|--------|--------------|
+| **Free** | $0 | Up to 10 members, 3 projects, no HR module | Projects, basic tasks, wiki |
+| **Pro** | $7/seat/mo | Up to 100 members, unlimited projects | Everything + HR, Org Structure, automations, custom fields |
+| **Business** | $12/seat/mo | Up to 500 members | Everything + SSO, audit log, custom RBAC, priority support |
+
+- Stripe Checkout + Customer Portal + webhook handlers (`customer.subscription.created/updated/deleted`)
+- `Subscription` + `UsageRecord` (daily snapshot: seats, storage, automation fires) models
+- Feature gates: `workspace.plan.can_use_hr`, `workspace.plan.can_use_rbac`, etc.; checked server-side on every relevant endpoint
+- 14-day Pro trial auto-start on new workspace creation; no credit card required
+
+**Frontend**
+
+- **Billing page** `/w/:ws/settings/billing`: current plan card, usage bars, upgrade CTA, invoice history with PDF download
+- Feature gate UX: locked features show "Upgrade to Pro" modal with 3 bullet reasons + CTA — never an error toast or redirect
+- Trial countdown banner in the workspace header: "9 days left in your Pro trial"
+- Plan badge in workspace switcher ("Free" / "Pro" / "Business" chip)
+
+---
+
+## vE.3 — Launch Prep (Weeks 25–26)
+
+> Status: PLANNED 📋
+
+**Performance targets**
+- API P95 < 200ms (Redis cache TTL audit + slow query log review)
+- Frontend LCP < 1.5s (route-level code splitting + prefetch on hover)
+- Initial JS bundle < 200KB (tree-shaking + dynamic imports per route)
+- Lighthouse: 95+ Performance, 100 Accessibility, 100 Best Practices
+
+**Launch**
+- Public changelog page at `/changelog` rendered from this file
+- Status page (Statuspage.io or Betterstack) with 90-day uptime history
+- Onboarding email sequence: Day 0 (welcome), Day 3 (first project tips), Day 7 (HR module intro), Day 14 (upgrade CTA)
+- Beta waitlist → first 200 users → early access program with direct founder access
+- Referral program: invite 3 teammates → get 1 month Pro free
+
+---
+
+## Ecosystem v2 — 6-Month Summary
+
+| Phase | Weeks | What Ships | Why It Matters |
+|-------|-------|-----------|----------------|
+| **A — Relaunch** | 1–3 | Landing page, Google OAuth, improved invite flow | Tell the story; remove signup friction |
+| **B — Org Structure** | 4–10 | Departments, teams, employee profiles, org chart | Company skeleton every team needs daily |
+| **C — HR Management** | 11–18 | Leave management, attendance tracking, HR dashboard | Replaces BambooHR for small businesses |
+| **D — Custom RBAC** | 19–22 | Role builder, granular permission flags, role assignment UI | Secure three apps properly with one permission layer |
+| **E — Platform & Launch** | 23–26 | Mobile PWA, billing & plans, performance, public launch | Ship it. Get paid. Scale. |
+
+> **After these 6 months JCN will be:**
+>
+> - The only tool a 10–200 person business needs for projects **and** people
+> - Cheaper than the sum of the tools it replaces (ClickUp + BambooHR + org chart tool)
+> - Fast enough and simple enough that people choose it over spreadsheets for leave tracking
+> - The management layer that grows with them from 10 to 200 people without a re-platform
+
+---
+
+---
+
+# BEYOND 6 MONTHS — ECOSYSTEM DEPTH
+
+> The phases below extend the ecosystem after the initial launch. They are sequenced — each one builds on what came before it.
+
+---
+
+## ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+## PHASE F — AUTOMATION ENGINE REBUILD
+
+## ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+> **Goal:** Replace the v1 signal-based, projects-only automation engine with a proper async workflow system that spans every app in the ecosystem.
+>
+> **Why a rebuild and not an extension:** The v1 engine (v2.7.0) has three hard limitations — it is synchronous (blocks the request thread), it is scoped to `projects` only, and it has no scheduled/time-based triggers. With HR and Org live, teams need cross-app workflows like "when a leave request is approved → post to Slack → update the team calendar → create a handover task." That flow touches three apps and requires async execution. Patching v1 to do this creates more tech debt than starting clean.
+>
+> **Depends on:** Phase C (HR) and Phase B (Org) being live — the new trigger surface is only valuable when there are multiple apps to wire together.
+
+---
+
+## vF.1 — Async Execution Engine (Backend)
+
+> Status: PLANNED 📋
+
+**New `automations` Django app** (replaces `AutomationRule` + `AutomationLog` in `projects`)
+
+| Model | Key Fields | Notes |
+|-------|-----------|-------|
+| `AutomationRule` | `workspace` FK (was project FK — now workspace-scoped), `name`, `is_active`, `trigger` JSONField, `conditions` JSONField, `actions` JSONField, `fire_count`, `last_fired_at` | Migrated from `projects` app |
+| `AutomationExecution` | `rule` FK, `celery_task_id`, `status` (QUEUED/RUNNING/SUCCESS/PARTIAL/FAILED/TIMED_OUT), `trigger_event`, `trigger_payload`, `steps` JSONField (per-step: action type, result, duration_ms, error), `started_at`, `finished_at` | Replaces `AutomationLog` |
+
+**Trigger surface**
+
+```python
+# Projects (existing triggers, now dispatched async via Celery)
+task.created         task.status_changed    task.assigned
+task.overdue         task.due_soon          task.completed
+
+# HR (new)
+leave.requested      leave.approved         leave.rejected
+attendance.clocked_in  attendance.late      attendance.absent
+
+# Org (new)
+member.joined        member.left            employee.anniversary
+employee.probation_end
+
+# Scheduled (new — Celery beat, per-rule cron)
+schedule.daily       schedule.weekly        schedule.monthly
+schedule.cron        # arbitrary cron expression
+
+# Incoming webhook (new)
+webhook.received     # external system POSTs to a signed JCN endpoint → triggers rule
+```
+
+**Condition engine** — AND/OR groups with nested conditions:
+
+```json
+{
+  "operator": "AND",
+  "conditions": [
+    { "field": "task.priority", "op": "equals", "value": "urgent" },
+    {
+      "operator": "OR",
+      "conditions": [
+        { "field": "task.assignee.department.name", "op": "equals", "value": "Engineering" },
+        { "field": "task.labels", "op": "contains", "value": "critical" }
+      ]
+    }
+  ]
+}
+```
+
+**Action surface**
+
+```python
+# Existing (now async)
+change_status      change_priority    set_assignee
+add_label          post_comment       send_notification
+
+# New
+send_email         # Resend/SendGrid — custom subject + body with template vars
+http_request       # arbitrary POST/GET with headers + body — outgoing webhook action
+create_task        # create a task in any project with pre-filled fields
+approve_leave      # programmatically approve a leave request
+assign_to_team     # add/remove a user from a team
+wait_duration      # pause execution for N minutes/hours before next action
+branch_condition   # fork: if X → path A, else → path B
+stop_execution     # early exit with optional notification
+```
+
+**Execution guarantees**
+- Each rule fire is one Celery task; actions within it run sequentially with per-step timeout (default 10s)
+- Retry: failed action → retry up to 3× with exponential backoff before marking step `FAILED`
+- Rate limit: max 500 executions/day per workspace on Pro; 2000 on Business
+- Execution stored for 30 days; older rows purged via Celery beat cleanup task
+
+**API surface**
+- `GET/POST /api/workspaces/{ws}/automations/`
+- `GET/PATCH/DELETE /api/workspaces/{ws}/automations/{id}/`
+- `GET /api/workspaces/{ws}/automations/{id}/executions/`
+- `GET /api/workspaces/{ws}/automations/{id}/executions/{eid}/` — per-execution step log
+- `POST /api/workspaces/{ws}/automations/{id}/test/` — dry run against a sample payload; returns what would happen
+- `POST /api/workspaces/{ws}/automations/incoming/{token}/` — public webhook receiver endpoint (signed)
+
+---
+
+## vF.2 — Visual Flow Builder (Frontend)
+
+> Status: PLANNED 📋
+
+**Replaces the existing `AutomationsPage.jsx` form-based builder**
+
+- **Trigger node** (always first): click to pick trigger type; grouped by app (Projects / HR / Org / Scheduled / Webhook); shows live event description ("Fires when a leave request changes to Approved")
+- **Condition block** (optional, after trigger): AND/OR condition builder — field picker (context-aware based on trigger), operator dropdown, value input; add/remove condition rows; add nested group
+- **Action nodes** (one or more, in sequence): each node is a card — action type picker, payload config (context-aware inputs per action type); drag to reorder; "+" button adds next action
+- **Branch node**: splits the flow into two parallel paths based on a condition; both paths recombine or end independently
+- **Wait node**: time delay between actions (e.g. "wait 2 hours, then send reminder")
+- **Connection lines** between nodes showing the execution flow
+- **Live variable picker**: inside any text field, type `{{` → autocomplete list of available trigger variables (`{{task.title}}`, `{{task.assignee.full_name}}`, `{{leave.start_date}}`)
+- **Test run panel**: "Run test" button → pick a sample record → shows per-step execution result inline on each node (green tick / red X / skipped)
+- **Execution history tab**: timeline of last 50 executions; click any row → step-by-step breakdown with duration and error message per action; re-run button for failed executions
+
+---
+
+## ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+## PHASE G — RECRUITMENT & ATS
+
+## ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+> **Goal:** End-to-end hiring pipeline — from job posting to signed offer — with a hired candidate automatically becoming a workspace member and employee record.
+>
+> **Why small businesses need this:** Most small teams manage hiring in a spreadsheet or Notion doc. An ATS that lives inside the same workspace as their projects and HR data means no context-switching and no duplicate data entry when someone gets hired.
+>
+> **Depends on:** Phase B (Org Structure — departments and job titles) and Phase C (HR — a hired candidate flows directly into `EmployeeProfile`).
+
+---
+
+## vG.1 — Job Postings & Candidate Pipeline (Backend)
+
+> Status: PLANNED 📋
+
+**New `recruitment` Django app**
+
+| Model | Key Fields | Notes |
+|-------|-----------|-------|
+| `JobPosting` | `workspace` FK, `title`, `department` FK (nullable), `location`, `employment_type`, `description` (markdown), `requirements` (markdown), `status` (DRAFT/OPEN/PAUSED/CLOSED), `token` (UUID4 — public apply link), `published_at` | UUIDv7 PK |
+| `PipelineStage` | `job` FK, `name`, `order`, `stage_type` (SCREENING/INTERVIEW/ASSESSMENT/OFFER/HIRED/REJECTED) | Per-job customisable; `stage_type` drives system behaviour on HIRED |
+| `Candidate` | `workspace` FK, `full_name`, `email`, `phone`, `resume_url`, `source` (MANUAL/FORM/LINKEDIN/REFERRAL/EMPLOYEE_REFERRAL), `linked_user` FK→User (nullable) | Deduped by email per workspace; `linked_user` set when a JCN user applies |
+| `Application` | `candidate` FK, `job` FK, `stage` FK→`PipelineStage`, `status` (ACTIVE/REJECTED/HIRED/WITHDRAWN), `applied_at`, `notes` | `unique_together: [candidate, job]` — one application per candidate per job |
+| `Interview` | `application` FK, `interviewer` FK→User, `scheduled_at`, `duration_minutes`, `format` (VIDEO/PHONE/IN_PERSON), `feedback` (markdown), `rating` (1–5, nullable), `status` (SCHEDULED/COMPLETED/CANCELLED) | Notification sent to interviewer on create; reminder 24h before |
+| `Offer` | `application` O2O, `salary`, `currency`, `start_date`, `expiry_date`, `status` (DRAFT/SENT/ACCEPTED/DECLINED/EXPIRED), `notes` | On status→ACCEPTED: fires `hire_candidate()` — creates `WorkspaceInvite` + pre-fills `EmployeeProfile` |
+
+**Indexes**: `application_job_stage_idx`, `candidate_workspace_email_idx`, `interview_application_scheduled_idx`
+
+**API surface**
+- `GET/POST /api/workspaces/{ws}/recruitment/jobs/`
+- `GET/PATCH/DELETE /api/workspaces/{ws}/recruitment/jobs/{id}/`
+- `GET /api/recruitment/apply/{token}/` — **public, no auth** — job description for the apply page
+- `POST /api/recruitment/apply/{token}/` — **public, no auth** — creates `Candidate` + `Application`
+- `GET/POST /api/workspaces/{ws}/recruitment/candidates/`
+- `GET /api/workspaces/{ws}/recruitment/candidates/{id}/` — candidate detail + all applications
+- `GET /api/workspaces/{ws}/recruitment/jobs/{id}/applications/`
+- `PATCH /api/workspaces/{ws}/recruitment/applications/{id}/move/` — move to stage; fires automation trigger `application.stage_changed`
+- `PATCH /api/workspaces/{ws}/recruitment/applications/{id}/reject/`
+- `GET/POST /api/workspaces/{ws}/recruitment/applications/{id}/interviews/`
+- `PATCH/DELETE /api/workspaces/{ws}/recruitment/interviews/{id}/`
+- `GET/PATCH /api/workspaces/{ws}/recruitment/applications/{id}/offer/`
+- `POST /api/workspaces/{ws}/recruitment/applications/{id}/hire/` — triggers invite + profile pre-fill
+
+**Automation triggers added** (in Phase F engine):
+- `application.received` — new application submitted
+- `application.stage_changed` — candidate moves to a new pipeline stage
+- `application.hired` — offer accepted, candidate converted to employee
+
+---
+
+## vG.2 — Recruitment Frontend
+
+> Status: PLANNED 📋
+
+**New "Recruitment" sidebar group** (visible on Pro/Business plans)
+
+- **Jobs board** `/w/:ws/recruitment/jobs`:
+  - Job cards: title, department badge, location, open applications count, status indicator (Open/Paused/Closed/Draft)
+  - "Post a job" modal: title, department, location, employment type, markdown description + requirements editor (VoltEditor), pipeline builder (default stages + add/remove/rename)
+  - Status toggle per job: Open ↔ Paused ↔ Closed
+
+- **Pipeline view** `/w/:ws/recruitment/jobs/{id}`:
+  - Kanban board — columns = pipeline stages, cards = candidates
+  - Candidate card: name, source badge, applied date, days in current stage, rating stars (if interviewed), overdue indicator (if in stage > N days without action)
+  - Drag card to move stage (calls `/move/` endpoint); viewer role cannot drag
+  - "Add candidate" button: manual entry or paste LinkedIn URL (name + email parsed)
+  - Filter bar: by source, by interviewer, by rating threshold
+
+- **Candidate profile panel** (right-side panel, same pattern as `TaskDetailPanel`):
+  - Header: name, email, phone, source badge, applied jobs list
+  - Resume tab: embedded PDF viewer or download link
+  - Interviews tab: scheduled interviews with interviewer avatar, date, format, rating chip; "Schedule interview" button opens a date/time picker + interviewer selector (workspace member search)
+  - Offer tab: offer builder — salary, currency, start date, expiry; "Send offer" marks status SENT; "Mark accepted / declined" closes the loop
+  - Notes tab: internal recruiter notes (rich text, not visible to candidate)
+  - Activity tab: stage moves, interview completions, offer events — auto-logged
+
+- **Public apply page** `/careers/{token}`:
+  - No JCN chrome — clean standalone page
+  - Job title, department, location, employment type, description, requirements
+  - Application form: name, email, phone, resume upload (PDF, max 5MB), cover letter (optional textarea)
+  - On submit: success screen with "We'll be in touch" message
+  - Reuses `PublicFormPage` component pattern
+
+- **Recruitment Dashboard** (card on main HR Dashboard):
+  - Open roles count, total applicants this month, interviews scheduled this week, offers pending
+  - Pipeline funnel: applicants → screened → interviewed → offered → hired (conversion % per stage)
+
+- **On hire flow**: clicking "Hire" on an accepted offer → confirmation modal → sends workspace invite to candidate's email → `EmployeeProfile` pre-filled with job title, department, start date from the offer → appears in HR employee list on first login
+
+---
+
+## Beyond Phase G
+
+| Phase | Name | App | Status |
+|-------|------|-----|--------|
+| F | Automation Engine Rebuild | `automations/` | 📋 Planned |
+| G | Recruitment & ATS | `recruitment/` | 📋 Planned |
+| H | Workspace Federation | `workspaces/` | 🔮 Future |
