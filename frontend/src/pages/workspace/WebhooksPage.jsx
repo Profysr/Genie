@@ -545,11 +545,11 @@ export default function WebhooksPage() {
     <div className="flex-1 overflow-auto">
       <div className="max-w-7xl p-8 space-y-4">
         <div className="flex items-center justify-between">
-          <div>
+          <div className="space-x-1 w-3/4">
             <h1 className="text-xl font-bold flex items-center gap-2">
-              <Webhook className="w-5 h-5 text-primary" /> Webhooks
+              <Webhook size={18} className="text-primary" /> Webhooks
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Receive HTTP POST payloads whenever events happen in your
               workspace.
             </p>
@@ -558,7 +558,7 @@ export default function WebhooksPage() {
             onClick={() => setShowCreate(true)}
             className="flex items-center gap-1.5 px-3 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:opacity-90"
           >
-            <Plus className="w-4 h-4" /> Add webhook
+            <Plus size={16} /> Add webhook
           </button>
         </div>
 

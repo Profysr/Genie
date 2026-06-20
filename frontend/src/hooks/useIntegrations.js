@@ -9,7 +9,7 @@ export function useIntegrationStatus(workspaceId) {
     queryFn: () =>
       api.get(`/api/workspaces/${workspaceId}/integrations/`).then((r) => r.data),
     enabled: !!workspaceId,
-    staleTime: 30_000,
+    staleTime: Infinity,
     retry: false,
   });
 }
@@ -85,7 +85,7 @@ export function useChannelMappings(workspaceId, { platform } = {}) {
         })
         .then((r) => r.data),
     enabled: !!workspaceId,
-    staleTime: 30_000,
+    staleTime: Infinity,
   });
 }
 

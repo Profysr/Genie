@@ -1095,12 +1095,11 @@ class KeyResultSerializer(serializers.ModelSerializer):
 
 
 class ObjectiveSerializer(serializers.ModelSerializer):
-    owner = MiniUserSerializer(read_only=True)
     owner_id = PrefixedUUIDField(write_only=True, required=False, allow_null=True)
+    owner = MiniUserSerializer(read_only=True)
     key_results = KeyResultSerializer(many=True, read_only=True)
     progress = serializers.SerializerMethodField()
     confidence = serializers.SerializerMethodField()
-    child_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Objective
@@ -1113,12 +1112,9 @@ class ObjectiveSerializer(serializers.ModelSerializer):
             "end_date",
             "owner",
             "owner_id",
-            "project",
-            "parent",
             "key_results",
             "progress",
             "confidence",
-            "child_count",
             "created_at",
             "updated_at",
         ]
@@ -1127,7 +1123,6 @@ class ObjectiveSerializer(serializers.ModelSerializer):
             "owner",
             "progress",
             "confidence",
-            "child_count",
             "created_at",
             "updated_at",
         ]
@@ -1137,9 +1132,6 @@ class ObjectiveSerializer(serializers.ModelSerializer):
 
     def get_confidence(self, obj):
         return obj.confidence
-
-    def get_child_count(self, obj):
-        return obj.children.count()
 
     def create(self, validated_data):
         validated_data.setdefault("owner", self.context["request"].user)

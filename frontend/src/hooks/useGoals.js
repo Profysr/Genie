@@ -18,7 +18,8 @@ export function useObjectives(workspaceId, timePeriod) {
         })
         .then((r) => r.data),
     enabled: !!workspaceId,
-    staleTime: 30_000,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 }
 

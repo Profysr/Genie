@@ -352,7 +352,7 @@ function StepBar({ current }) {
   return (
     <div className="flex items-center gap-0 mb-8">
       {STEPS.map((label, i) => (
-        <div key={i} className="flex items-center flex-1">
+        <div key={i} className={cn("flex items-center", i < STEPS.length - 1 ? "flex-1" : "flex-shrink-0")}>
           <div
             className={cn(
               "w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 border-2 transition-colors",

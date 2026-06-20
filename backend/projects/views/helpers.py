@@ -301,6 +301,9 @@ def _fire_webhooks(workspace_id, event_type, data):
             "status.updated": "status.updated",
             "sprint.started": "sprint.started",
             "sprint.completed": "sprint.completed",
+            "objective.created": "objective.created",
+            "objective.updated": "objective.updated",
+            "objective.deleted": "objective.deleted",
         }
 
         webhook_event = _EVENT_MAP.get(event_type)

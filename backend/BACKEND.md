@@ -341,6 +341,8 @@ Views live in `projects/views/comments.py` (extracted from `tasks.py`).
 | GET/PATCH/DELETE | `/api/workspaces/{ws}/objectives/{id}/key-results/{id}/` | KR CRUD |
 | GET/POST/DELETE | `/api/workspaces/{ws}/objectives/{id}/key-results/{id}/tasks/` | Link/unlink tasks to key result |
 
+**Real-time:** All mutating objective/KR endpoints call `broadcast()` — `objective.created`, `objective.updated`, or `objective.deleted` — so connected clients update instantly without polling. KR mutations (create, delete, patch, task-link changes) broadcast `objective.updated` with the full re-serialized parent objective.
+
 ### Integrations
 
 | Method | Path | Description |
@@ -440,8 +442,8 @@ Available `{metric}` values:
 | `FormSubmission` | `form` (FK), `answers` (JSON), `task` (O2O), `status` (NEW/IN_REVIEW/CLOSED) | |
 | `AutomationRule` | `board` (FK), `name`, `is_active`, `trigger` (JSON), `conditions` (JSON), `actions` (JSON) | |
 | `AutomationLog` | `rule` (FK), `task` (FK), `exec_status`, `duration_ms` | indexes: rule+exec_status, rule+created_at |
-| `Objective` | `workspace` (FK), `board` (FK, nullable), `parent` (FK self), `title`, `owner` (FK), `time_period` | |
-| `KeyResult` | `objective` (FK), `title`, `tasks` (M2M) | |
+| `Objective` | `workspace` (FK), `board` (FK, nullable), `parent` (FK self), `title`, `owner` (FK), `time_period`, `start_date`, `end_date` | `ObjectiveSerializer` exposes: id, title, description, time_period, start_date, end_date, owner, key_results, progress, confidence. Fields `project` and `child_count` were removed — they don't exist on the model. |
+| `KeyResult` | `objective` (FK), `title`, `tasks` (M2M) | No `current_value` or `record_checkin` — progress is computed from linked tasks' done status. |
 | `Approval` | `task` (FK), `requested_by` (FK), `status` (PENDING/APPROVED/REJECTED/CHANGES_REQUESTED) | |
 | `ApprovalReviewer` | `approval` (FK), `user` (FK), `status`, `comment` | unique: approval+user |
 | `UserPresence` | `user` (FK), `workspace` (FK), `resource_type`, `resource_id`, `last_seen` | unique: user+workspace+resource_type+resource_id |
@@ -578,8 +580,11 @@ Serializers use `_get_reactions_cached(obj)`: checks Redis first, falls back to 
 | `status.updated` | `status.updated` |
 | `sprint.started` | `sprint.started` |
 | `sprint.completed` | `sprint.completed` |
+| `objective.created` | `objective.created` |
+| `objective.updated` | `objective.updated` |
+| `objective.deleted` | `objective.deleted` |
 
-All other events (presence, reactions, etc.) are internal-only and never forwarded.
+All other events (presence, reactions, typing, etc.) are internal-only and never forwarded.
 
 ---
 

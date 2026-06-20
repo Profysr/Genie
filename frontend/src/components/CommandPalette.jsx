@@ -33,6 +33,13 @@ function getRecentlyViewed() {
   }
 }
 
+function addToRecentlyViewed(item) {
+  try {
+    const prev = getRecentlyViewed().filter((r) => r.url !== item.url);
+    localStorage.setItem(RV_KEY, JSON.stringify([item, ...prev].slice(0, 8)));
+  } catch {}
+}
+
 // ── Query shortcuts parser ────────────────────────────────────────────────────
 // Returns { cleanQuery, filters: { type, assignee, priority, special } }
 function parseShortcuts(raw) {
@@ -163,15 +170,15 @@ export default function CommandPalette({ open, onClose, workspaceId }) {
       //   type: "action",
       //   icon: Plus,
       //   label: "Create task",
-      //   desc: "New task in current project",
+      //   desc: "New task in current board",
       //   action: () => {},
       //   hotkey: "C",
       // },
       {
         type: "action",
         icon: Hash,
-        label: "Create project",
-        desc: "New project in workspace",
+        label: "Create board",
+        desc: "New board in workspace",
         action: () => navigate(`/w/${workspaceId}/boards`),
         hotkey: "P",
       },
@@ -201,7 +208,7 @@ export default function CommandPalette({ open, onClose, workspaceId }) {
   const sections = useMemo(() => {
     const q = query.trim();
     const hasShortcuts = Object.values(shortcutFilters).some(Boolean);
-    const hasTextQuery = cleanQuery.length >= 3;
+    const hasTextQuery = cleanQuery.trim().length >= 3;
 
     // No input: show recently viewed + quick actions + navigation
     if (!q) {
@@ -210,7 +217,7 @@ export default function CommandPalette({ open, onClose, workspaceId }) {
         icon:
           item.type === "task"
             ? CheckSquare
-            : item.type === "project"
+            : item.type === "board"
               ? Hash
               : Clock,
         label: item.title,
@@ -235,9 +242,9 @@ export default function CommandPalette({ open, onClose, workspaceId }) {
       type: "task",
       icon: CheckSquare,
       label: t.title,
-      meta: `${t.project_name} · ${t.status_name || "No status"}`,
+      meta: `${t.board_name} · ${t.status_name || "No status"}`,
       priority: t.priority,
-      // keep all raw fields for shortcut filtering
+      url: `/w/${t.workspace_id}/boards/${t.board_id}?task=${t.id}`,
       task_type: t.task_type,
       assignee_name: t.assignee_name,
       due_date: t.due_date,
@@ -247,25 +254,24 @@ export default function CommandPalette({ open, onClose, workspaceId }) {
         ),
     }));
 
-
-    const projectItems = (results?.boards || []).map((p) => ({
-      type: "project",
+    const boardItems = (results?.boards || []).map((p) => ({
+      type: "board",
       icon: Hash,
       label: p.name,
       meta: p.workspace_name,
+      url: `/w/${p.workspace_id}/boards`,
       action: () => navigate(`/w/${p.workspace_id}/boards`),
     }));
 
     return [
       taskItems.length > 0 && { title: "Tasks", items: taskItems },
-      projectItems.length > 0 && { title: "Projects", items: projectItems },
+      boardItems.length > 0 && { title: "Boards", items: boardItems },
     ].filter(Boolean);
   }, [
     query,
     cleanQuery,
     shortcutFilters,
     results,
-    isFetching,
     recentlyViewed,
     quickActions,
     navLinks,
@@ -309,6 +315,9 @@ export default function CommandPalette({ open, onClose, workspaceId }) {
 
   const execute = useCallback(
     (item) => {
+      if (item.url && (item.type === "task" || item.type === "board")) {
+        addToRecentlyViewed({ type: item.type, title: item.label, url: item.url });
+      }
       item.action();
       onClose();
     },
@@ -432,7 +441,7 @@ export default function CommandPalette({ open, onClose, workspaceId }) {
                 </span>
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Try searching by task title, description, or project name
+                Try searching by task title, description, or board name
               </p>
             </div>
           ) : (
@@ -462,7 +471,7 @@ export default function CommandPalette({ open, onClose, workspaceId }) {
                             "w-4 h-4 flex-shrink-0",
                             item.type === "task"
                               ? PRIORITY_COLOR[item.priority] || "text-primary"
-                              : item.type === "project"
+                              : item.type === "board"
                                 ? "text-primary"
                                 : item.type === "action"
                                   ? "text-emerald-500"

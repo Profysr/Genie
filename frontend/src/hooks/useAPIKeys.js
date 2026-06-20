@@ -7,7 +7,7 @@ export function useAPIKeys(workspaceId) {
     queryFn: () =>
       api.get(`/api/workspaces/${workspaceId}/api-keys/`).then((r) => r.data),
     enabled: !!workspaceId,
-    staleTime: 30_000,
+    staleTime: Infinity,
   });
 }
 

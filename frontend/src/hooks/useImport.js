@@ -17,7 +17,7 @@ export function useImportJobs(workspaceId) {
     queryFn: () =>
       api.get(`/api/workspaces/${workspaceId}/import/jobs/`).then((r) => r.data),
     enabled: !!workspaceId,
-    staleTime: 15_000,
+    staleTime: Infinity,
   });
 }
 

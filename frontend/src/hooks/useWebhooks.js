@@ -7,7 +7,7 @@ export function useWebhooks(workspaceId) {
     queryFn: () =>
       api.get(`/api/workspaces/${workspaceId}/webhooks/`).then((r) => r.data),
     enabled: !!workspaceId,
-    staleTime: 30_000,
+    staleTime: Infinity,
   });
 }
 
@@ -53,6 +53,6 @@ export function useWebhookDeliveries(workspaceId, hookId) {
         .get(`/api/workspaces/${workspaceId}/webhooks/${hookId}/deliveries/`)
         .then((r) => r.data),
     enabled: !!(workspaceId && hookId),
-    staleTime: 15_000,
+    staleTime: Infinity,
   });
 }

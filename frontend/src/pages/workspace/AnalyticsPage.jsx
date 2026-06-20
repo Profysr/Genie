@@ -140,7 +140,6 @@ function CompletionSparkline({ data }) {
 }
 
 // ── Existing sections ─────────────────────────────────────────────────────────
-
 function KpiSection({ workspaceId, boardId }) {
   const { data } = useWorkspaceOverview(workspaceId, { boardId });
   return (
@@ -456,7 +455,7 @@ function EstimationAccuracySection({ workspaceId, boardId }) {
 // To add a new section: write a Component above, then add one entry here.
 // Each Component receives: workspaceId, boardId, days
 const SECTIONS = [
-  { id: "kpis",       Component: KpiSection },
+  // { id: "kpis",       Component: KpiSection },
   { id: "tasks",      label: "Task Breakdown",          Component: TaskBreakdownSection },
   { id: "activity",   Component: ActivitySection },
   { id: "workload",   Component: WorkloadSection },

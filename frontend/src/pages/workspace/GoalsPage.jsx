@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useAuthStore } from "@/store/authStore";
 import { formatDistanceToNow } from "date-fns";
 import {
   Target,
@@ -460,31 +461,48 @@ function Sparkline({ history = [], width = 80, height = 28 }) {
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
+const CONFIDENCE_ORDER = { off_track: 0, at_risk: 1, on_track: 2 };
+
+function getCurrentQuarter() {
+  const m = new Date().getMonth();
+  if (m < 3) return "q1";
+  if (m < 6) return "q2";
+  if (m < 9) return "q3";
+  return "q4";
+}
+
 export default function GoalsPage() {
   const { workspaceId } = useParams();
-  const [timePeriod, setTimePeriod] = useState("all");
+  const currentUser = useAuthStore((s) => s.user);
+  const [timePeriod, setTimePeriod] = useState(getCurrentQuarter);
+  const [showMine, setShowMine] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState({
     title: "",
     description: "",
-    time_period: "q1",
+    time_period: getCurrentQuarter(),
   });
 
-  const { data: objectives = [], isLoading } = useObjectives(
-    workspaceId,
-    timePeriod,
-  );
+  const { data: objectives = [], isLoading } = useObjectives(workspaceId, timePeriod);
   const { data: members = [] } = useMembers(workspaceId);
   const createObjective = useCreateObjective(workspaceId);
 
-  const totalKRs = objectives.flatMap((o) => o.key_results || []).length;
-  const onTrackCount = objectives.filter(
-    (o) => o.confidence === "on_track",
+  const visibleObjectives = useMemo(() => {
+    const filtered = showMine
+      ? objectives.filter((o) => o.owner?.id === currentUser?.id)
+      : objectives;
+    return [...filtered].sort(
+      (a, b) => (CONFIDENCE_ORDER[a.confidence] ?? 2) - (CONFIDENCE_ORDER[b.confidence] ?? 2),
+    );
+  }, [objectives, showMine, currentUser]);
+
+  const totalKRs = visibleObjectives.flatMap((o) => o.key_results || []).length;
+  const onTrackCount = visibleObjectives.filter((o) => o.confidence === "on_track").length;
+  const needsAttentionCount = visibleObjectives.filter(
+    (o) => o.confidence === "off_track" || o.confidence === "at_risk",
   ).length;
-  const avgProgress = objectives.length
-    ? Math.round(
-        objectives.reduce((s, o) => s + o.progress, 0) / objectives.length,
-      )
+  const avgProgress = visibleObjectives.length
+    ? Math.round(visibleObjectives.reduce((s, o) => s + o.progress, 0) / visibleObjectives.length)
     : 0;
 
   const EmptyState = () => (
@@ -583,6 +601,24 @@ export default function GoalsPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Mine / All toggle */}
+          <div className="flex items-center gap-0.5 bg-muted/60 rounded-lg p-0.5">
+            {[{ label: "All", value: false }, { label: "Mine", value: true }].map((opt) => (
+              <button
+                key={opt.label}
+                onClick={() => setShowMine(opt.value)}
+                className={cn(
+                  "px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
+                  showMine === opt.value
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
           {/* Time period switcher */}
           <div className="flex items-center gap-0.5 bg-muted/60 rounded-lg p-0.5">
             {TIME_PERIODS.map((p) => (
@@ -608,11 +644,11 @@ export default function GoalsPage() {
       </div>
 
       {/* Stats strip */}
-      {objectives.length > 0 && (
+      {visibleObjectives.length > 0 && (
         <div className="flex items-center gap-6 px-6 py-3 border-b bg-muted/20 flex-shrink-0 text-sm">
           <div>
             <span className="text-muted-foreground">Objectives: </span>
-            <span className="font-semibold">{objectives.length}</span>
+            <span className="font-semibold">{visibleObjectives.length}</span>
           </div>
           <div>
             <span className="text-muted-foreground">Key Results: </span>
@@ -620,14 +656,19 @@ export default function GoalsPage() {
           </div>
           <div>
             <span className="text-muted-foreground">On Track: </span>
-            <span className="font-semibold text-emerald-600">
-              {onTrackCount}
-            </span>
+            <span className="font-semibold text-emerald-600">{onTrackCount}</span>
           </div>
           <div>
             <span className="text-muted-foreground">Avg Progress: </span>
             <span className="font-semibold">{avgProgress}%</span>
           </div>
+          {needsAttentionCount > 0 && (
+            <div className="ml-auto">
+              <span className="text-amber-600 font-semibold text-xs">
+                {needsAttentionCount} need{needsAttentionCount === 1 ? "s" : ""} attention
+              </span>
+            </div>
+          )}
         </div>
       )}
 
@@ -641,7 +682,7 @@ export default function GoalsPage() {
           <EmptyState />
         ) : (
           <div className="space-y-4 max-w-3xl mx-auto">
-            {objectives.map((obj) => (
+            {visibleObjectives.map((obj) => (
               <ObjectiveCard
                 key={obj.id}
                 objective={obj}

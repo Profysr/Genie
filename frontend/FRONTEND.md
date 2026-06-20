@@ -140,7 +140,7 @@ How long data is considered fresh before React Query will refetch on next mount/
 |---|---|
 | `Infinity` (never auto-stale) | `workspace`, `workspaces`, `boards`, `board`, `workspace-members`, `labels`, `statuses`, `saved-views`, `onboarding`, `import sources`, `presence` |
 | `60_000` (1 min) | `portfolio`, all `analytics` keys, `burndown` |
-| `30_000` (30 s) | `inbox`, `inbox-unread-count`, `integrations`, `api-keys`, `sprint detail`, `objectives` |
+| `30_000` (30 s) | `inbox`, `inbox-unread-count`, `integrations`, `api-keys`, `sprint detail` |
 | `15_000` (15 s) | `import jobs`, `webhook deliveries` |
 | default (`0`) | `tasks`, `task-detail`, `sprints list`, `approvals`, `attachments`, `automations`, `forms`, `wiki`, `children`, `dependencies` |
 
@@ -175,6 +175,7 @@ WebSocket URL: `ws(s)://BACKEND/ws/workspaces/{workspaceId}/?token={access_token
 | `approval.created/updated` | `invalidateQueries` | `["approvals", ws, board_id, task_id]`, `["tasks", ws, board_id]` |
 | `typing.update` | DOM custom event | `window → "jcn:typing"` |
 | `presence.updated` | `invalidateQueries` | `presenceKey(...)`, `["presence", ws, "all"]` |
+| `objective.created` / `objective.updated` / `objective.deleted` | `invalidateQueries` | `["objectives", workspaceId]` (prefix — hits all time-period variants) |
 
 **Why `setQueriesData` (not `setQueryData`):**
 `useTasks` stores data under `["tasks", ws, boardId, filters]` (4-element key). `setQueryData` requires an exact match and would miss the filtered variant. `setQueriesData` with a 3-element prefix hits every active filter combination.
@@ -559,6 +560,52 @@ Exports:
 
 ---
 
+### `GanttCanvas.jsx`
+
+Pure canvas renderer — zero React re-renders on scroll or hover. Receives all state via props/refs and redraws imperatively.
+
+#### Imperative handle (via `forwardRef`)
+
+| Method | Called by | Purpose |
+|--------|-----------|---------|
+| `redraw()` | `GanttView` on every scroll tick | Full repaint — reads `scrollTopRef` / `scrollLeftRef` |
+| `setHover(taskId \| null)` | `GanttView.onDriverMouseMove` / `onMouseLeave` / drag start | Starts or stops the hover animation loop |
+
+#### Animation system
+
+- `hoverRef = { taskId, _target, alpha }` — mutable ref, never causes re-renders.
+- `startAnimLoop()` starts a RAF tick that lerps `alpha` toward `0` or `1` (speed: 0.20 in / 0.15 out per frame). Loop stops automatically when `alpha` is stable — no idle CPU drain.
+- Crossfade: when target changes, `taskId` switches to the new target only after `alpha < 0.05` (old one fades out first).
+- Cleanup: `cancelAnimationFrame` on unmount.
+
+#### Draw pass order
+
+1. Background fill
+2. Current-period shading + accent borders
+3. Vertical grid lines
+4. Binary-search first visible row
+5. Row backgrounds + separators
+6. *(taskRowMap built here — reused in 7.5 + 8)*
+7. Today line — soft glow behind + crisp 1.5 px line + diamond marker at top
+8. **Pass 1 — bars**: sprint bars, task bars (gradient sheen, drag ghost shadow, drag delta pill)
+9. **Pass 2 — hover overlay** (always on top): glow halo (`shadowBlur=18`), white brightening overlay, grip handles, date chips
+10. Dependency arrows (dashed bezier + arrowhead)
+
+#### Visual features
+
+- **Task bars** — base color fill + `LinearGradient` sheen (rgba white top → rgba black bottom).
+- **Drag** — ghost drop-shadow behind bar; floating "+Nd / -Nd" pill above bar center while dragging.
+- **Hover glow** — `ctx.shadowBlur` isolated inside `ctx.save()/restore()` to prevent bleed onto subsequent draws.
+- **Date chips** — start chip right-anchored to bar left edge; end + duration chip left-anchored to bar right edge. Only rendered when they fit in the viewport (off-screen chips are skipped, not clamped).
+- **Grip handles** — two vertical pill pairs on each bar edge, visible at `alpha * 0.78` opacity.
+- **Sprint bars** — split-fill background: completed portion (`barColor + "d4"`, ~83 % opacity) fills from the left; remaining portion (`barColor + "28"`) fills the right. Clipped to rounded rect. Badge uses dark semi-transparent pill so it reads on both halves.
+- **Today line** — diamond marker (`ctx.rotate(π/4)` + `fillRect`) replaces old circle.
+
+#### `ctx.shadowBlur` rule
+Every section that sets `shadowBlur > 0` wraps the draw call in `ctx.save() / ctx.restore()`. Never rely on manual reset — a missed reset bleeds shadow onto all subsequent paths in the same frame.
+
+---
+
 ### `useProjectMembers.js`
 
 ```
@@ -572,10 +619,10 @@ Board-level member management. Separate from workspace members. `useBulkAddBoard
 ### `useGoals.js` (OKR)
 
 ```
-["objectives", workspaceId, timePeriod?]   staleTime: 30_000
+["objectives", workspaceId, timePeriod?]   staleTime: Infinity, refetchOnWindowFocus: false
 ```
 
-Key factory filters out falsy `timePeriod`. All mutations (objectives, key results, task links) invalidate the top-level `["objectives", ws]` prefix.
+Key factory filters out falsy `timePeriod`. All mutations (objectives, key results, task links) invalidate the top-level `["objectives", ws]` prefix. Periodic polling removed — cache is kept fresh by mutation invalidation (own changes) and WebSocket `objective.*` events (teammate changes).
 
 ---
 

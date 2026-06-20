@@ -433,6 +433,7 @@ export default function GanttView({
       if (!hit || hit.kind !== "task") return;
 
       e.preventDefault();
+      canvasRef.current?.setHover(null); // clear hover while dragging
       dragRef.current = {
         taskId: hit.taskId,
         type: hit.dragType,
@@ -519,6 +520,10 @@ export default function GanttView({
       const driver = scrollDriverRef.current;
       if (!driver) return;
       const hit = hitTest(e.clientX, e.clientY);
+
+      // Update canvas hover animation
+      canvasRef.current?.setHover(hit?.kind === "task" ? hit.taskId : null);
+
       if (!hit || hit.kind === "empty") driver.style.cursor = "default";
       else if (hit.kind === "group") driver.style.cursor = "pointer";
       else if (hit.dragType === "resize") driver.style.cursor = "ew-resize";
@@ -701,6 +706,7 @@ export default function GanttView({
               onScroll={handleScroll}
               onMouseDown={onDriverMouseDown}
               onMouseMove={onDriverMouseMove}
+              onMouseLeave={() => canvasRef.current?.setHover(null)}
               onClick={onDriverClick}
               style={{
                 position: "absolute",

@@ -319,20 +319,20 @@ export default function APIKeysPage() {
       <div className="max-w-7xl p-8 space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
+          <div className="space-x-1 w-3/4">
             <h1 className="text-xl font-bold flex items-center gap-2">
-              <Key className="w-5 h-5 text-primary" /> API Keys
+              <Key size={18} className="text-primary" /> API Keys
             </h1>
-            <p className="text-sm text-muted-foreground mt-1 w-3/4">
+            <p className="text-xs text-muted-foreground mt-1">
               API keys allow programmatic access to your workspace. Each key is
               shown only once at creation.
             </p>
           </div>
           <button
             onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
+            className="flex items-center gap-1 px-3 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
           >
-            <Plus className="w-4 h-4" /> Generate new key
+            <Plus size={16} /> Generate Key
           </button>
         </div>
 

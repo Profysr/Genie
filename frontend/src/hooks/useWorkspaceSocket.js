@@ -77,6 +77,11 @@ export function useWorkspaceSocket(workspaceId) {
         });
       }
 
+      // ── Objective events ───────────────────────────────────────
+      if (type === "objective.created" || type === "objective.updated" || type === "objective.deleted") {
+        qc.invalidateQueries({ queryKey: ["objectives", workspaceId] });
+      }
+
       // ── Inbox: invalidate on new notification ──────────────────
       if (type === "notification.created") {
         qc.invalidateQueries({ queryKey: ["inbox", workspaceId] });

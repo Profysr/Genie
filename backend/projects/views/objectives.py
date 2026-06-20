@@ -8,7 +8,7 @@ from ..serializers import (
     KeyResultSerializer,
     KeyResultLinkedTaskSerializer,
 )
-from .helpers import get_workspace_for_user
+from .helpers import get_workspace_for_user, broadcast
 
 
 # ── v3.8.0 — OKR & Goal Tracking ─────────────────────────────────────────────
@@ -22,12 +22,14 @@ class ObjectiveListCreateView(APIView):
 
     def get(self, request, workspace_id):
         workspace = self._get_workspace(workspace_id, request.user)
+        qs = Objective.objects.filter(workspace=workspace).select_related(
+            "owner"
+        ).prefetch_related("key_results__tasks")
+        # apply time period filter
         time_period = request.query_params.get("time_period")
-        qs = Objective.objects.filter(workspace=workspace).prefetch_related(
-            "key_results__tasks", "owner"
-        )
         if time_period and time_period != "all":
             qs = qs.filter(time_period=time_period)
+        
         return Response(
             ObjectiveSerializer(qs, many=True, context={"request": request}).data
         )
@@ -39,10 +41,9 @@ class ObjectiveListCreateView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         obj = serializer.save(workspace=workspace, owner=request.user)
-        return Response(
-            ObjectiveSerializer(obj, context={"request": request}).data,
-            status=status.HTTP_201_CREATED,
-        )
+        data = ObjectiveSerializer(obj, context={"request": request}).data
+        broadcast(workspace_id, "objective.created", data)
+        return Response(data, status=status.HTTP_201_CREATED)
 
 
 class ObjectiveDetailView(APIView):
@@ -71,11 +72,14 @@ class ObjectiveDetailView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        broadcast(workspace_id, "objective.updated", serializer.data)
         return Response(serializer.data)
 
     def delete(self, request, workspace_id, obj_id):
         obj = self._get_obj(workspace_id, obj_id, request.user)
+        obj_id_str = str(obj.id)
         obj.delete()
+        broadcast(workspace_id, "objective.deleted", {"id": obj_id_str})
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -103,6 +107,13 @@ class KeyResultListCreateView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         kr = serializer.save(objective=obj)
+        broadcast(
+            workspace_id, "objective.updated",
+            ObjectiveSerializer(
+                Objective.objects.prefetch_related("key_results__tasks").select_related("owner").get(pk=obj.pk),
+                context={"request": request},
+            ).data,
+        )
         return Response(KeyResultSerializer(kr).data, status=status.HTTP_201_CREATED)
 
 
@@ -124,24 +135,28 @@ class KeyResultDetailView(APIView):
 
     def patch(self, request, workspace_id, obj_id, kr_id):
         kr = self._get_kr(workspace_id, obj_id, kr_id, request.user)
-        new_value = request.data.get("current_value")
-        if new_value is not None and str(new_value) != str(kr.current_value):
-            kr.record_checkin(new_value)
-            kr.refresh_from_db()
-            other_data = {k: v for k, v in request.data.items() if k != "current_value"}
-            if other_data:
-                serializer = KeyResultSerializer(kr, data=other_data, partial=True)
-                serializer.is_valid(raise_exception=True)
-                kr = serializer.save()
-        else:
-            serializer = KeyResultSerializer(kr, data=request.data, partial=True)
-            serializer.is_valid(raise_exception=True)
-            kr = serializer.save()
-        return Response(KeyResultSerializer(kr).data)
+        serializer = KeyResultSerializer(kr, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        kr = serializer.save()
+        broadcast(
+            workspace_id, "objective.updated",
+            ObjectiveSerializer(
+                Objective.objects.prefetch_related("key_results__tasks").select_related("owner").get(pk=obj_id),
+                context={"request": request},
+            ).data,
+        )
+        return Response(serializer.data)
 
     def delete(self, request, workspace_id, obj_id, kr_id):
         kr = self._get_kr(workspace_id, obj_id, kr_id, request.user)
         kr.delete()
+        broadcast(
+            workspace_id, "objective.updated",
+            ObjectiveSerializer(
+                Objective.objects.prefetch_related("key_results__tasks").select_related("owner").get(pk=obj_id),
+                context={"request": request},
+            ).data,
+        )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -162,6 +177,18 @@ class KeyResultLinkedTasksView(APIView):
             KeyResult.objects.prefetch_related("tasks__status"), id=kr_id, objective=obj
         )
 
+    def _broadcast_objective(self, workspace_id, obj_id, request):
+        broadcast(
+            workspace_id,
+            "objective.updated",
+            ObjectiveSerializer(
+                Objective.objects.prefetch_related("key_results__tasks")
+                .select_related("owner")
+                .get(pk=obj_id),
+                context={"request": request},
+            ).data,
+        )
+
     def get(self, request, workspace_id, obj_id, kr_id):
         kr = self._get_kr(workspace_id, obj_id, kr_id, request.user)
         return Response(KeyResultLinkedTaskSerializer(kr.tasks.all(), many=True).data)
@@ -169,6 +196,7 @@ class KeyResultLinkedTasksView(APIView):
     def put(self, request, workspace_id, obj_id, kr_id):
         kr = self._get_kr(workspace_id, obj_id, kr_id, request.user)
         kr.tasks.set(request.data.get("task_ids", []))
+        self._broadcast_objective(workspace_id, obj_id, request)
         return Response(KeyResultSerializer(kr).data)
 
     def post(self, request, workspace_id, obj_id, kr_id):
@@ -176,6 +204,7 @@ class KeyResultLinkedTasksView(APIView):
         task_id = request.data.get("task_id")
         if task_id:
             kr.tasks.add(task_id)
+        self._broadcast_objective(workspace_id, obj_id, request)
         return Response(KeyResultSerializer(kr).data)
 
     def delete(self, request, workspace_id, obj_id, kr_id):
@@ -183,4 +212,5 @@ class KeyResultLinkedTasksView(APIView):
         task_id = request.data.get("task_id")
         if task_id:
             kr.tasks.remove(task_id)
+        self._broadcast_objective(workspace_id, obj_id, request)
         return Response(KeyResultSerializer(kr).data)
