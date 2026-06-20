@@ -106,36 +106,50 @@ export default function KanbanColumn({
 
       {/* Droppable task list */}
       <Droppable droppableId={column.id}>
-        {(provided, snapshot) => (
-          <div
-            ref={provided.innerRef}
-            {...provided.droppableProps}
-            className={cn(
-              "flex flex-col gap-1.5 min-h-[200px] rounded-b-md border border-t-0 border-border px-1.5 py-1.5 transition-colors",
-              snapshot.isDraggingOver ? "bg-primary/5 border-primary/30" : "bg-card/40",
-            )}
-          >
-            {tasks.map((task, index) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                index={index}
-                onClick={onTaskClick}
-                isSelected={task.id === selectedTaskId}
-                isBulkSelected={selectedIds.has(task.id)}
-                onToggleSelect={canEdit ? onToggleSelect : undefined}
-                canEdit={canEdit}
-                labelsById={labelsById}
-              />
-            ))}
-            {provided.placeholder}
-            {tasks.length === 0 && !snapshot.isDraggingOver && (
-              <div className="flex items-center justify-center h-16 text-xs text-muted-foreground/50 select-none">
-                Drop here
+        {(provided, snapshot) => {
+          // Task is leaving this column — collapse the placeholder so the column shrinks
+          const leavingColumn =
+            !!snapshot.draggingFromThisWith && !snapshot.isDraggingOver;
+
+          return (
+            <div
+              ref={provided.innerRef}
+              {...provided.droppableProps}
+              className={cn(
+                "flex flex-col gap-1.5 min-h-[200px] rounded-b-md border border-t-0 border-border px-1.5 py-1.5 transition-colors",
+                snapshot.isDraggingOver ? "bg-primary/5 border-primary/30" : "bg-card/40",
+              )}
+            >
+              {tasks.map((task, index) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  index={index}
+                  onClick={onTaskClick}
+                  isSelected={task.id === selectedTaskId}
+                  isBulkSelected={selectedIds.has(task.id)}
+                  onToggleSelect={canEdit ? onToggleSelect : undefined}
+                  canEdit={canEdit}
+                  labelsById={labelsById}
+                />
+              ))}
+
+              {/* Placeholder collapses with a smooth transition when task leaves */}
+              <div
+                className="overflow-hidden transition-all duration-250 ease-out"
+                style={{ maxHeight: leavingColumn ? 0 : undefined }}
+              >
+                {provided.placeholder}
               </div>
-            )}
-          </div>
-        )}
+
+              {tasks.length === 0 && !snapshot.isDraggingOver && (
+                <div className="flex items-center justify-center h-16 text-xs text-muted-foreground/50 select-none">
+                  Drop here
+                </div>
+              )}
+            </div>
+          );
+        }}
       </Droppable>
     </div>
   );

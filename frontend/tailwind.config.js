@@ -96,8 +96,8 @@ export default {
       },
       keyframes: {
         "column-expand": {
-          "0%":   { opacity: "0", transform: "translateX(-12px) scaleY(0.97)" },
-          "100%": { opacity: "1", transform: "translateX(0)     scaleY(1)" },
+          "0%":   { opacity: "0" },
+          "100%": { opacity: "1" },
         },
       },
       animation: {

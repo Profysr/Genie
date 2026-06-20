@@ -1,6 +1,6 @@
 import { Draggable } from "@hello-pangea/dnd";
 import { cn } from "@/lib/utils";
-import { Calendar, MessageSquare, CheckSquare, ShieldCheck } from "lucide-react";
+import { Calendar, ShieldCheck, GitBranch } from "lucide-react";
 import { getPriority, getTaskType } from "@/lib/constants";
 import { Avatar } from "@/components/ui/avatar";
 
@@ -14,15 +14,33 @@ export default function TaskCard({
   canEdit = true,
   labelsById = {},
 }) {
-  const _p = getPriority(task.priority);
-  const priority = { ..._p, dot: _p.dotCls, cls: _p.textCls }; // shape compat
+  const priority = getPriority(task.priority);
+  const PriorityIcon = priority.icon;
   const typeConfig = getTaskType(task.task_type);
   const TypeIcon = typeConfig.icon;
+
+  const labels = (task.label_ids ?? []).map((id) => labelsById[id]).filter(Boolean);
 
   const subtaskPct =
     task.subtask_count > 0
       ? Math.round((task.done_subtask_count / task.subtask_count) * 100)
       : 0;
+
+  const dueDateStr = task.due_date
+    ? new Date(task.due_date + "T00:00:00").toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      })
+    : null;
+
+  const isOverdue =
+    task.due_date && new Date(task.due_date + "T23:59:59") < new Date();
+
+  const hasMeta =
+    task.subtask_count > 0 ||
+    task.child_count > 0 ||
+    task.pending_approval_count > 0 ||
+    task.approved_approval_count > 0;
 
   return (
     <Draggable draggableId={task.id} index={index} isDragDisabled={!canEdit}>
@@ -33,164 +51,152 @@ export default function TaskCard({
           {...provided.dragHandleProps}
           onClick={() => onClick?.(task)}
           className={cn(
-            "bg-card border border-border rounded-md p-2.5 cursor-pointer select-none relative group",
-            "transition-colors duration-100",
-            "hover:border-primary/40 hover:bg-accent/40",
+            "bg-card border border-border rounded-md cursor-pointer select-none relative group overflow-hidden",
+            "transition-all duration-100",
+            "hover:border-primary/30 hover:shadow-md hover:shadow-black/10",
             snapshot.isDragging &&
-              "shadow-lg border-primary/30 rotate-[0.5deg] opacity-95",
-            isSelected && "border-primary bg-primary/5",
+              "shadow-xl border-primary/40 rotate-[0.8deg] opacity-95 scale-[1.02]",
+            isSelected && "border-primary/60 bg-primary/5 shadow-sm",
             isBulkSelected &&
               "border-primary bg-primary/10 ring-1 ring-primary/30",
           )}
         >
-          {/* Bulk-select checkbox (hover or selected) */}
-          {onToggleSelect && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleSelect(task.id);
-              }}
-              className={cn(
-                "absolute top-2 left-2 w-4 h-4 rounded border-2 flex items-center justify-center transition-all z-10",
-                isBulkSelected
-                  ? "bg-primary border-primary opacity-100 scale-100"
-                  : "bg-card/80 border-border/60 opacity-50 group-hover:opacity-100 group-hover:border-primary/60",
-              )}
-            >
-              {isBulkSelected && (
-                <svg
-                  className="w-2.5 h-2.5 text-white"
-                  viewBox="0 0 10 8"
-                  fill="none"
-                >
-                  <path
-                    d="M1 4l3 3 5-6"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              )}
-            </button>
-          )}
-
-          {/* Type badge (only for non-default types) + Priority dot + Labels */}
+          {/* Left priority accent bar */}
           <div
-            className={cn(
-              "flex items-center gap-1.5 mb-2 flex-wrap",
-              onToggleSelect && "pl-5",
-            )}
-          >
-            {task.task_type && (
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold leading-none flex-shrink-0",
-                  typeConfig.bg,
-                  typeConfig.color,
-                )}
-              >
-                <TypeIcon className="w-2.5 h-2.5" />
-                {typeConfig.label}
+            className="absolute left-0 top-0 bottom-0 w-[3px]"
+            style={{
+              backgroundColor: priority.hex,
+              opacity: task.priority === "no_priority" ? 0.2 : 0.7,
+            }}
+          />
+
+          <div className="pl-3.5 pr-2.5 pt-2 pb-2.5">
+            {/* Row 1: task type (left) | date + assignee (right) */}
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span className={cn(
+                "inline-flex items-center gap-1 text-[10px] font-semibold leading-none flex-1 min-w-0",
+                typeConfig.color,
+              )}>
+                <TypeIcon className="w-2.5 h-2.5 flex-shrink-0" />
+                <span className="truncate">{typeConfig.label}</span>
               </span>
-            )}
 
-            {task.label_ids?.map((id) => labelsById[id]).filter(Boolean).map((l) => (
-              <span
-                key={l.id}
-                className="px-1.5 py-0 rounded text-[10px] font-semibold leading-4"
-                style={{ backgroundColor: l.color + "22", color: l.color }}
-              >
-                {l.name}
-              </span>
-            ))}
-
-            {/* Priority dot — only shown when priority is set */}
-            {task.priority && (
-              <span className={cn("self-end ml-auto")}>
-                {priority.icon && (
-                  <priority.icon className={cn("w-3.5 h-3.5", priority.cls)} />
-                )}
-              </span>
-            )}
-          </div>
-
-          {/* Title */}
-          <p className="text-[13px] font-medium leading-snug text-foreground mb-2.5">
-            {task.title}
-          </p>
-
-          {/* Subtask progress */}
-          {task.subtask_count > 0 && (
-            <div className="mb-2">
-              <div className="h-0.5 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-emerald-500 rounded-full"
-                  style={{ width: `${subtaskPct}%` }}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Footer */}
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              {task.due_date && (
-                <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <Calendar className="w-3 h-3" />
-                  {new Date(task.due_date + "T00:00:00").toLocaleDateString(
-                    "en-US",
-                    {
-                      month: "short",
-                      day: "numeric",
-                    },
-                  )}
-                </span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-1.5 text-muted-foreground">
-              {task.subtask_count > 0 && (
-                <span className="flex items-center gap-0.5 text-[11px]">
-                  <CheckSquare className="w-3 h-3" />
-                  {task.done_subtask_count}/{task.subtask_count}
-                </span>
-              )}
-              {/* {task.comment_count > 0 && (
-                <span className="flex items-center gap-0.5 text-[11px]">
-                  <MessageSquare className="w-3 h-3" />
-                  {task.comment_count}
-                </span>
-              )} */}
-
-              {/* Approval badge — v3.6.0 */}
-              {(task.pending_approval_count > 0 || task.approved_approval_count > 0) && (
-                <span
-                  className={cn(
-                    "flex items-center gap-0.5 text-[11px]",
-                    task.pending_approval_count > 0
-                      ? "text-amber-600"
-                      : "text-emerald-600",
-                  )}
-                  title={task.pending_approval_count > 0 ? "Pending approval" : "Approved"}
-                >
-                  <ShieldCheck className="w-3 h-3" />
-                  {task.approved_approval_count}/{task.pending_approval_count + task.approved_approval_count}
+              {dueDateStr && (
+                <span className={cn(
+                  "flex items-center gap-0.5 text-[10px] flex-shrink-0 font-medium",
+                  isOverdue ? "text-red-500" : "text-muted-foreground/60",
+                )}>
+                  <Calendar className="w-2.5 h-2.5" />
+                  {dueDateStr}
                 </span>
               )}
 
               {task.assignee && (
                 <Avatar
-                  name={
-                    task.assignee.display_name ||
-                    task.assignee.full_name ||
-                    task.assignee.email
-                  }
+                  name={task.assignee.display_name || task.assignee.full_name || task.assignee.email}
                   src={task.assignee.avatar}
                   size="xs"
                 />
               )}
             </div>
+
+            {/* Row 2: title (with optional bulk-select checkbox) */}
+            <div className="flex items-start gap-2 mb-2">
+              {onToggleSelect && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onToggleSelect(task.id); }}
+                  className={cn(
+                    "mt-0.5 w-3.5 h-3.5 rounded border-[1.5px] flex-shrink-0 flex items-center justify-center transition-all",
+                    isBulkSelected
+                      ? "bg-primary border-primary"
+                      : "border-primary/50",
+                  )}
+                >
+                  {isBulkSelected && (
+                    <svg className="w-2 h-2 text-white" viewBox="0 0 10 8" fill="none">
+                      <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5"
+                        strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </button>
+              )}
+              <p className="text-[13px] font-semibold leading-snug text-foreground flex-1">
+                {task.title}
+              </p>
+            </div>
+
+            {/* Row 3: subtask progress bar + percentage */}
+            {task.subtask_count > 0 && (
+              <div className="flex items-center gap-0.5 mb-1.5">
+                <div className="h-1 bg-border rounded-full overflow-hidden w-8">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all duration-500",
+                      subtaskPct === 100 ? "bg-emerald-500" : "bg-primary",
+                    )}
+                    style={{ width: `${subtaskPct}%` }}
+                  />
+                </div>
+                <span className={cn(
+                  "text-[10px] font-semibold tabular-nums flex-shrink-0",
+                  subtaskPct === 100 ? "text-emerald-500" : "text-muted-foreground",
+                )}>
+                  {subtaskPct}%
+                </span>
+              </div>
+            )}
+
+            {/* Row 4: labels | right-side meta + priority icon */}
+            {(labels.length > 0 || task.priority !== "no_priority" || hasMeta) && (
+              <div className="flex items-center gap-1">
+                {labels.slice(0, 2).map((l) => (
+                  <span
+                    key={l.id}
+                    className="px-1.5 py-0 rounded-sm text-[10px] font-semibold leading-[1.4rem]"
+                    style={{ backgroundColor: l.color + "25", color: l.color }}
+                  >
+                    {l.name}
+                  </span>
+                ))}
+                {labels.length > 2 && (
+                  <span className="px-1.5 py-0 rounded-sm text-[10px] font-semibold leading-[1.4rem] bg-muted text-muted-foreground">
+                    +{labels.length - 2}
+                  </span>
+                )}
+
+                <div className="flex-1" />
+
+                {task.child_count > 0 && !task.subtask_count && (
+                  <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground/60">
+                    <GitBranch className="w-3 h-3" />
+                    {task.child_count}
+                  </span>
+                )}
+
+                {(task.pending_approval_count > 0 || task.approved_approval_count > 0) && (
+                  <span
+                    className={cn(
+                      "flex items-center gap-0.5 text-[10px] font-medium flex-shrink-0",
+                      task.pending_approval_count > 0 ? "text-amber-500" : "text-emerald-500",
+                    )}
+                    title={task.pending_approval_count > 0 ? "Pending approval" : "Approved"}
+                  >
+                    <ShieldCheck className="w-3 h-3" />
+                    {task.approved_approval_count}/{task.pending_approval_count + task.approved_approval_count}
+                  </span>
+                )}
+
+                {task.priority && task.priority !== "no_priority" && (
+                  <span
+                    className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-sm text-[10px] font-semibold leading-[1.4rem] flex-shrink-0"
+                    style={{ backgroundColor: priority.hex + "22", color: priority.hex }}
+                  >
+                    <PriorityIcon className="w-2.5 h-2.5" />
+                    {priority.label}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
