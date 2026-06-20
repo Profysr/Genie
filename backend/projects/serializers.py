@@ -836,8 +836,6 @@ class DocumentSerializer(serializers.ModelSerializer):
 
 
 # ── v2.6.0 — Forms & Intake ───────────────────────────────────────────────────
-
-
 class FormFieldSerializer(serializers.ModelSerializer):
     class Meta:
         model = FormField
@@ -910,8 +908,6 @@ class PublicFormSerializer(serializers.ModelSerializer):
 
 
 # ── v2.7.0 — Automation ───────────────────────────────────────────────────────
-
-
 class AutomationLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = AutomationLog

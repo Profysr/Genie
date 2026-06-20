@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 
 const HEARTBEAT_MS = 90_000;
@@ -42,7 +42,6 @@ export function useWorkspaceOnlineUsers(workspaceId) {
  */
 export function useAnnouncePresence(workspaceId, resourceType, resourceId) {
   const timerRef = useRef(null);
-  const qc = useQueryClient();
 
   // Create an entry onto backend saying that I'm Online
   const announce = useCallback(() => {
@@ -52,13 +51,8 @@ export function useAnnouncePresence(workspaceId, resourceType, resourceId) {
         resource_type: resourceType,
         resource_id: resourceId,
       })
-      .then(() => {
-        qc.invalidateQueries({
-          queryKey: presenceKey(workspaceId, resourceType, resourceId),
-        });
-      })
       .catch(() => {});
-  }, [workspaceId, resourceType, resourceId, qc]);
+  }, [workspaceId, resourceType, resourceId]);
 
   // Delete the presence record from the backend so the system will identify, ok the user has left
   const leave = useCallback(() => {
@@ -68,10 +62,7 @@ export function useAnnouncePresence(workspaceId, resourceType, resourceId) {
         data: { resource_type: resourceType, resource_id: resourceId },
       })
       .catch(() => {});
-    qc.invalidateQueries({
-      queryKey: presenceKey(workspaceId, resourceType, resourceId),
-    });
-  }, [workspaceId, resourceType, resourceId, qc]);
+  }, [workspaceId, resourceType, resourceId]);
 
   // Main effect that keeps updating user presence
   useEffect(() => {
@@ -82,5 +73,5 @@ export function useAnnouncePresence(workspaceId, resourceType, resourceId) {
       clearInterval(timerRef.current);
       leave();
     };
-  }, [announce, leave, workspaceId, resourceType, resourceId, qc]);
+  }, [announce, leave]);
 }
