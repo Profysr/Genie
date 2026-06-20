@@ -1,7 +1,23 @@
+from django.conf import settings
 from rest_framework import serializers
 from dj_rest_auth.registration.serializers import RegisterSerializer as BaseRegisterSerializer
+from dj_rest_auth.serializers import PasswordResetSerializer as BasePasswordResetSerializer
+from allauth.account.utils import user_pk_to_url_str
 from .models import User, UserProfile
-from core.fields import PrefixedUUIDField
+
+
+class CustomPasswordResetSerializer(BasePasswordResetSerializer):
+    """Builds the password reset URL using FRONTEND_URL + PASSWORD_RESET_CONFIRM_URL."""
+
+    def get_email_options(self):
+        def url_generator(_request, user, temp_key):
+            uid = user_pk_to_url_str(user)
+            path = settings.REST_AUTH.get(
+                "PASSWORD_RESET_CONFIRM_URL", "reset-password/{uid}/{token}"
+            ).format(uid=uid, token=temp_key)
+            return f"{settings.FRONTEND_URL}/{path}"
+
+        return {"url_generator": url_generator}
 
 
 class RegisterSerializer(BaseRegisterSerializer):
@@ -23,16 +39,13 @@ class RegisterSerializer(BaseRegisterSerializer):
 class MiniUserSerializer(serializers.ModelSerializer):
     """Minimal read-only user representation for embedding in other serializers."""
 
-    id = PrefixedUUIDField(read_only=True)
-
     class Meta:
         model = User
-        fields = ["id", "email", "full_name"]
-        read_only_fields = ["email"]
+        fields = ["id", "email", "full_name", "avatar", "avatar_type", "avatar_icon"]
+        read_only_fields = fields
 
 
 class UserSerializer(serializers.ModelSerializer):
-    id = PrefixedUUIDField(read_only=True)
     # Profile fields kept flat so the API surface stays consistent for the frontend.
     theme = serializers.CharField(source="profile.theme", required=False)
     accent_color = serializers.CharField(source="profile.accent_color", required=False)
@@ -41,11 +54,13 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            "id", "email", "full_name", "avatar",
+            "id", "email", "full_name",
+            "avatar", "avatar_type", "avatar_icon",
             "theme", "accent_color", "density_mode",
             "can_create_workspace", "created_at",
         ]
-        read_only_fields = ["email", "created_at"]
+        # avatar is set by the Google OAuth adapter only, never by user PATCH
+        read_only_fields = ["email", "created_at", "avatar"]
 
     def update(self, instance, validated_data):
         profile_data = validated_data.pop("profile", {})

@@ -192,22 +192,27 @@ REST_AUTH = {
     # Point to our custom serializers so register/login returns our User shape
     "REGISTER_SERIALIZER": "accounts.serializers.RegisterSerializer",
     "USER_DETAILS_SERIALIZER": "accounts.serializers.UserSerializer",
-    # Password reset confirm URL — frontend route that handles uid/token from the email link
+    # CustomPasswordResetSerializer builds the URL using FRONTEND_URL + PASSWORD_RESET_CONFIRM_URL
+    "PASSWORD_RESET_SERIALIZER": "accounts.serializers.CustomPasswordResetSerializer",
+    # Frontend route that handles uid/token from the password-reset email link
     "PASSWORD_RESET_CONFIRM_URL": "reset-password/{uid}/{token}",
     # Without this, dj_rest_auth ignores old_password entirely and saves any new password.
     "OLD_PASSWORD_FIELD_ENABLED": True,
 }
 
 # allauth account behaviour
+ACCOUNT_ADAPTER = "accounts.adapter.CustomAccountAdapter"
 ACCOUNT_AUTHENTICATION_METHOD = "email"  # login with email, not username
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_USERNAME_REQUIRED = False
 ACCOUNT_USER_MODEL_USERNAME_FIELD = (
     None  # our User model has no username field — stops allauth looking for one
 )
-ACCOUNT_EMAIL_VERIFICATION = (
-    "none"  # disable email verification in dev; set to "mandatory" in production
-)
+# Set to "none" to skip verification in local dev; "mandatory" enforces it in production.
+ACCOUNT_EMAIL_VERIFICATION = env("ACCOUNT_EMAIL_VERIFICATION", default="mandatory")
+
+# Required by Django's password reset machinery (dj_rest_auth reads DEFAULT_FROM_EMAIL)
+DEFAULT_FROM_EMAIL = env("FROM_EMAIL", default="onboarding@resend.dev")
 
 # Google OAuth provider — credentials come from env, no DB SocialApp record needed
 SOCIALACCOUNT_PROVIDERS = {
@@ -225,6 +230,7 @@ SOCIALACCOUNT_PROVIDERS = {
 SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
 SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
 SOCIALACCOUNT_STORE_TOKENS = False
+SOCIALACCOUNT_ADAPTER = "accounts.adapter.CustomSocialAccountAdapter"
 
 # CORS — allow the React dev server to call this API
 # In production, replace with your actual frontend domain

@@ -10,13 +10,11 @@ import {
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { APP_COLORS } from "@/lib/constants";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useBoards } from "@/hooks/useProjects";
 import { useObjectives, CONFIDENCE_CONFIG } from "@/hooks/useGoals";
 import { useVelocity, useThroughput } from "@/hooks/useAnalyticsV2";
-import GettingStartedChecklist from "@/components/dashboard/GettingStartedChecklist";
-
+ 
 // ── Stat card ────────────────────────────────────────────────────────────────
 function StatCard({ label, value, sub, icon: Icon, color }) {
   return (
@@ -283,8 +281,7 @@ export default function DashboardsPage() {
             <p className="text-sm text-muted-foreground">No boards yet.</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {boards.slice(0, 6).map((p, i) => {
-                const color = APP_COLORS[i % APP_COLORS.length];
+              {boards.slice(0, 6).map((p) => {
                 const done = p.done_task_count || 0;
                 const total = p.task_count || 0;
                 const pct = total > 0 ? Math.round((done / total) * 100) : 0;
@@ -295,12 +292,7 @@ export default function DashboardsPage() {
                     className="text-left bg-card border border-border rounded-md p-4 shadow-card hover:shadow-card-hover transition-shadow"
                   >
                     <div className="flex items-start gap-3 mb-3">
-                      <div
-                        className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
-                        style={{ backgroundColor: color }}
-                      >
-                        {p.name[0].toUpperCase()}
-                      </div>
+                      <BoardTypeIcon board_type={p.board_type} size="md" />
                       <div className="min-w-0">
                         <p className="font-semibold text-sm truncate">
                           {p.name}
@@ -312,8 +304,8 @@ export default function DashboardsPage() {
                     </div>
                     <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                       <div
-                        className="h-full rounded-full transition-all"
-                        style={{ width: `${pct}%`, backgroundColor: color }}
+                        className="h-full rounded-full transition-all bg-primary"
+                        style={{ width: `${pct}%` }}
                       />
                     </div>
                     <p className="text-[11px] text-muted-foreground mt-1.5 text-right">

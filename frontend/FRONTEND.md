@@ -32,6 +32,7 @@ BACKEND_WS_URL = http→ws / https→wss auto-derived from BACKEND_URL
 State: `user`, `accessToken`, `refreshToken`
 Methods: `login()`, `register()`, `logout()`, `fetchMe()`, `setTokens()`, `setUser()`
 - `login` / `register` / `logout` all call `queryClient.clear()` to wipe the entire React Query cache.
+- `register()` checks `data.access` before calling `setTokens` — when `ACCOUNT_EMAIL_VERIFICATION=mandatory` the response has no tokens, only `{"detail": "Verification e-mail sent."}`. Callers check `data.access` to decide whether to navigate to the app or to `/verify-email-sent`.
 
 ---
 
@@ -300,7 +301,14 @@ Despite the file name, this manages boards (the backend calls them "projects" in
 
 Board mutations also invalidate `["portfolio", ws]` since the portfolio shows board summaries.
 
-**Board icon convention:** Boards do not have a dedicated icon field. The `board_type` value (`general`, `software`, `marketing`, etc.) is used as the board's visual identifier — each type maps to a Lucide icon in `BOARD_TYPES` inside `CreateProjectModal.jsx`. When rendering a board avatar/logo anywhere in the UI, look up the icon from this map using `board.board_type`.
+**Board icon convention:** Boards do not have a dedicated icon field. The `board_type` value (`general`, `software`, `marketing`, etc.) is the board's visual identifier.
+
+- **`src/lib/boardTypes.js`** — single source of truth. Exports `BOARD_TYPES` (array with `value`, `label`, `icon`) and `getBoardIcon(board_type)` (returns the Lucide component, falls back to `LayoutGrid`).
+- **`src/components/ui/BoardTypeIcon.jsx`** — reusable display component. Renders the icon inside a `bg-primary/10` rounded container. Props: `board_type` (string), `size` (`xs` | `sm` | `md` | `lg` | `xl` | `2xl`, default `sm`), `className`.
+
+Used in 6 locations: `CreateProjectModal` (2xl, icon picker preview), `ProjectsPage` (lg, board card), `DashboardsPage` (md, recent boards), `KanbanPage` header (sm), `CommandPalette` board results (sm), `Sidebar` board nav items (xs).
+
+Never render a board avatar as a letter or generic icon — always use `<BoardTypeIcon board_type={board.board_type} size={...} />`.
 
 ---
 
@@ -679,6 +687,142 @@ KanbanPage listens for `jcn:create-task` to open CreateTaskModal.
 
 ---
 
+## Shared UI Components
+
+### `Modal` — `src/components/ui/Modal.jsx`
+
+The standard modal for all dialogs. **Do not use `@radix-ui/react-dialog` directly** — it has been replaced by this component everywhere.
+
+#### Variants (pass as `variant` prop)
+
+| `variant` | Icon | Confirm button | Use for |
+|---|---|---|---|
+| *(default)* | none | primary | general-purpose |
+| `delete` | `AlertTriangle` (red) | destructive "Delete" | destructive confirmations |
+| `info` | `Info` (blue) | primary | informational dialogs |
+| `success` | `CheckCircle` (green) | default | success confirmations |
+| `warning` | `AlertCircle` (yellow) | default | warnings |
+
+#### Key props (`BaseModal`)
+
+| Prop | Default | Notes |
+|---|---|---|
+| `isOpen` | — | controls visibility |
+| `onClose` | — | called on backdrop click or X button |
+| `title` | — | header text |
+| `description` | — | sub-text below title |
+| `icon` | — | Lucide component rendered in header |
+| `iconColor` | `"text-primary"` | Tailwind class for icon colour |
+| `onConfirm` | — | confirm button handler; omit if using custom footer |
+| `confirmLabel` | `"Confirm"` | confirm button text |
+| `confirmVariant` | `"primary"` | one of `primary`, `danger`, `secondary`, `success`, `warning`, `danger-light` |
+| `isLoading` | `false` | shows spinner on confirm, disables both buttons |
+| `isConfirmDisabled` | `false` | disables confirm button only |
+| `showFooter` | `true` | set `false` when the modal body owns its own footer/form buttons |
+| `showHeader` | `true` | set `false` for fully custom layout |
+| `flexBody` | `false` | adds `flex-1 min-h-0 overflow-hidden flex flex-col` to body — required when children need to scroll inside a constrained height |
+| `maxWidth` | `"600px"` | inline style on the content container |
+| `padding` | `"px-5 py-4"` | className on the body div; pass `"p-0"` for forms that own their own padding |
+
+#### Patterns
+
+**Standard confirm dialog** (uses built-in footer):
+```jsx
+<Modal
+  isOpen={open}
+  onClose={onClose}
+  variant="delete"
+  title="Delete board"
+  onConfirm={handleDelete}
+  isLoading={isPending}
+/>
+```
+
+**Form modal** (owns footer + needs scroll):
+```jsx
+<Modal
+  isOpen={open}
+  onClose={onClose}
+  title="Create Task"
+  showFooter={false}
+  padding="p-0"
+  flexBody
+  maxWidth="512px"
+>
+  <div className="overflow-y-auto">
+    <form className="p-5 space-y-4">
+      {/* fields */}
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button type="submit">Create</Button>
+      </div>
+    </form>
+  </div>
+</Modal>
+```
+
+**Custom footer pinned to bottom** (e.g. footer with non-standard layout):
+```jsx
+<Modal isOpen={open} onClose={onClose} title="Invite" showFooter={false} padding="px-6 py-5">
+  {/* body */}
+  <div className="-mx-6 -mb-5 mt-5 px-6 py-4 border-t border-border bg-muted/30 flex items-center justify-between">
+    {/* footer content */}
+  </div>
+</Modal>
+```
+The `-mx-6 -mb-5` negative-margin trick cancels the body padding so the footer spans full width.
+
+Also exports `ModalSkeleton` — a pulse-animated placeholder for use inside `<Suspense>` when lazy-loading modal content.
+
+---
+
+### `Avatar` — `src/components/ui/avatar.jsx`
+
+Renders a user avatar in one of three modes, resolved automatically via `avatar_type`:
+
+| `avatar_type` | Renders | Data source |
+|---|---|---|
+| `google` | `<img>` from `user.avatar` (Google picture URL) | Set by Google OAuth adapter on first login |
+| `icon` | Emoji in a coloured circle | `user.avatar_icon` (e.g. `"🦊"`) |
+| `initials` | First letter of name in a coloured circle | `user.full_name` or `user.email` |
+
+**Props:**
+
+| Prop | Type | Notes |
+|---|---|---|
+| `user` | object | Shortcut — component resolves `src`/`icon`/`name` from `avatar_type`, `avatar`, `avatar_icon`, `full_name` |
+| `name` | string | Used for initials + colour hash. Overrides `user.full_name` |
+| `src` | string | Explicit image URL — overrides `user` resolution |
+| `icon` | string | Explicit emoji — overrides `user` resolution |
+| `size` | `xxs` \| `xs` \| `sm` \| `md` \| `lg` \| `xl` \| `2xl` | Default `md` |
+| `ring` | bool | Adds `ring-2 ring-background` (used in `AvatarGroup`) |
+| `className` | string | Merged onto the root element |
+
+**Usage — preferred pattern** (pass the full user object, component resolves the mode):
+```jsx
+<Avatar user={member} size="sm" />
+```
+
+**Usage — explicit** (legacy, still works; Google avatars also resolve correctly since `user.avatar` holds the URL):
+```jsx
+<Avatar name={user.full_name} src={user.avatar} size="md" />
+```
+
+`AvatarGroup` is also exported — renders up to `max` avatars with `−space-x-1.5` overlap and a `+N` overflow pill.
+
+---
+
+### `AvatarPicker` — inside `UserSettingsModal.jsx` (Me tab)
+
+Lets the logged-in user choose their avatar mode. Three option pills:
+- **Initials** — always available; PATCH `{ avatar_type: "initials" }`.
+- **Google Profile** — shown only if `user.avatar` is set (meaning Google OAuth was used). PATCH `{ avatar_type: "google" }`.
+- **Choose Icon** — reveals a 24-emoji grid. Clicking an emoji PATCHes `{ avatar_type: "icon", avatar_icon: "🦊" }`.
+
+Auto-saves on selection (no separate Save button for avatar). Live preview updates immediately via optimistic `useAuthStore.setState`.
+
+---
+
 ## Data Flow — View Layer
 
 All views live inside `KanbanPage.jsx` as conditional renders (no unmount on view switch). `allTasks` is fetched once at the page level and passed as props.
@@ -903,6 +1047,21 @@ Query key: `["automations", workspaceId, boardId]`
 
 ---
 
+## Auth Pages
+
+All auth pages live in `src/pages/auth/` and are public routes (no `ProtectedRoute` wrapper).
+
+| Page | Route | Description |
+|------|-------|-------------|
+| `LoginPage` | `/login` | Email + password sign-in. Includes "Forgot password?" link next to the Password label. |
+| `RegisterPage` | `/register` | Email registration. After submit: if response has tokens → normal post-auth flow; if no tokens (email verification mandatory) → `/verify-email-sent?email=...`. |
+| `ForgotPasswordPage` | `/forgot-password` | Email input → `POST /api/auth/password/reset/`. Shows inline "check your inbox" confirmation after submit. Always returns success (no user enumeration). |
+| `ResetPasswordConfirmPage` | `/reset-password/:uid/:token` | New-password form. Calls `POST /api/auth/password/reset/confirm/`. Link arrives from the Resend password-reset email. |
+| `VerifyEmailSentPage` | `/verify-email-sent?email=` | "Check your inbox" landing shown after registration when email verification is mandatory. Has a resend button (`POST /api/auth/registration/resend-email/`). |
+| `EmailVerifyConfirmPage` | `/verify-email/:key` | Auto-POSTs the key to `POST /api/auth/registration/verify-email/` on mount. Shows verifying spinner → success/error state. |
+
+---
+
 ## Onboarding Flows
 
 Two completely separate paths depending on how the user enters the product.
@@ -914,7 +1073,16 @@ Two completely separate paths depending on how the user enters the product.
 **Trigger:** User registers with email or Google OAuth and has no workspaces yet.
 
 ```
-Register / Google OAuth
+Register (email)
+  → if ACCOUNT_EMAIL_VERIFICATION=mandatory:
+      response has no tokens → /verify-email-sent?email=...  (VerifyEmailSentPage)
+      User clicks link in email → /verify-email/:key  (EmailVerifyConfirmPage)
+          POST /api/auth/registration/verify-email/ { key }
+      → /login  (sign in with verified account)
+  → if ACCOUNT_EMAIL_VERIFICATION=none (dev):
+      response has tokens → normal flow below
+
+Register / Google OAuth (verified)
   → WorkspaceRedirect (/)
       GET /api/workspaces/ → empty list
   → /onboarding  (OnboardingPage)

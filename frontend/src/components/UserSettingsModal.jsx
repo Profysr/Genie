@@ -53,6 +53,121 @@ const TABS = [
   { id: "shortcuts", label: "Shortcuts", icon: Keyboard },
 ];
 
+// ── Avatar picker ─────────────────────────────────────────────────────────────
+const AVATAR_ICONS = [
+  "🦊", "🐻", "🐼", "🐨", "🐯", "🦁",
+  "🦄", "🐸", "🦋", "🐬", "🦜", "🐺",
+  "🌟", "🚀", "⚡", "🔥", "🌊", "🌈",
+  "🍀", "🎯", "🎸", "🎭", "🌺", "🐝",
+];
+
+function AvatarPicker({ user }) {
+  const [mode, setMode] = useState(user?.avatar_type || "initials");
+  const [saving, setSaving] = useState(false);
+
+  const hasGoogle = Boolean(user?.avatar);
+
+  const applyAvatar = async (payload) => {
+    setSaving(true);
+    try {
+      const { data } = await api.patch("/api/users/me/", payload);
+      useAuthStore.setState((s) => ({ ...s, user: { ...s.user, ...data } }));
+      setMode(data.avatar_type);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const selectMode = (m) => {
+    if (m === mode) return;
+    if (m === "initials") applyAvatar({ avatar_type: "initials" });
+    if (m === "google")   applyAvatar({ avatar_type: "google" });
+    if (m === "icon")     setMode("icon");
+  };
+
+  const selectIcon = (emoji) => {
+    applyAvatar({ avatar_type: "icon", avatar_icon: emoji });
+  };
+
+  // Build a preview user merging in live selections before save
+  const previewUser = { ...user, avatar_type: mode };
+
+  const optionCls = (active) =>
+    cn(
+      "flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors cursor-pointer",
+      active
+        ? "border-primary bg-primary/10 text-primary"
+        : "border-border text-muted-foreground hover:bg-accent hover:text-foreground"
+    );
+
+  return (
+    <div className="space-y-4">
+      {/* Live preview */}
+      <div className="flex items-center gap-4">
+        <Avatar user={previewUser} name={user?.full_name || user?.email} size="2xl" />
+        <div>
+          <p className="font-semibold text-sm">{user?.full_name || user?.email}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{user?.email}</p>
+          {saving && <p className="text-xs text-muted-foreground mt-1">Saving…</p>}
+        </div>
+      </div>
+
+      {/* Mode selector */}
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+          Profile picture
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button className={optionCls(mode === "initials")} onClick={() => selectMode("initials")}>
+            <span className="w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0">
+              {(user?.full_name || user?.email || "?")[0].toUpperCase()}
+            </span>
+            Initials
+          </button>
+
+          {hasGoogle && (
+            <button className={optionCls(mode === "google")} onClick={() => selectMode("google")}>
+              <img src={user.avatar} className="w-5 h-5 rounded-full object-cover flex-shrink-0" alt="" />
+              Google Profile
+            </button>
+          )}
+
+          <button className={optionCls(mode === "icon")} onClick={() => selectMode("icon")}>
+            <span className="text-base leading-none">
+              {user?.avatar_type === "icon" ? user.avatar_icon : "🎨"}
+            </span>
+            Choose Icon
+          </button>
+        </div>
+      </div>
+
+      {/* Icon grid */}
+      {mode === "icon" && (
+        <div>
+          <p className="text-xs text-muted-foreground mb-2">Pick an icon</p>
+          <div className="grid grid-cols-8 gap-1">
+            {AVATAR_ICONS.map((emoji) => (
+              <button
+                key={emoji}
+                onClick={() => selectIcon(emoji)}
+                className={cn(
+                  "w-9 h-9 rounded-lg flex items-center justify-center text-lg transition-colors hover:bg-accent",
+                  user?.avatar_type === "icon" && user?.avatar_icon === emoji
+                    ? "bg-primary/15 ring-2 ring-primary"
+                    : "bg-muted/40"
+                )}
+                title={emoji}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Me tab ────────────────────────────────────────────────────────────────────
 function MeTab() {
   const { user } = useAuthStore();
@@ -76,18 +191,10 @@ function MeTab() {
 
   return (
     <div className="space-y-6">
-      {/* Avatar strip */}
-      <div className="flex items-center gap-4 p-4 bg-muted/30 rounded-md">
-        <Avatar
-          name={user?.display_name || user?.email}
-          src={user?.avatar}
-          size="2xl"
-        />
-        <div>
-          <p className="font-semibold">{user?.display_name}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">{user?.email}</p>
-        </div>
-      </div>
+      {/* Avatar picker */}
+      <AvatarPicker user={user} />
+
+      <div className="border-t border-border" />
 
       <form
         onSubmit={(e) => {

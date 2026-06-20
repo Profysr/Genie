@@ -11,6 +11,10 @@ import WorkspaceRedirect from "@/pages/workspace/WorkspaceRedirect";
 // ── Public pages ──────────────────────────────────────────────────────────────
 const LoginPage = lazy(() => import("@/pages/auth/LoginPage"));
 const RegisterPage = lazy(() => import("@/pages/auth/RegisterPage"));
+const ForgotPasswordPage = lazy(() => import("@/pages/auth/ForgotPasswordPage"));
+const ResetPasswordConfirmPage = lazy(() => import("@/pages/auth/ResetPasswordConfirmPage"));
+const VerifyEmailSentPage = lazy(() => import("@/pages/auth/VerifyEmailSentPage"));
+const EmailVerifyConfirmPage = lazy(() => import("@/pages/auth/EmailVerifyConfirmPage"));
 const AcceptInvitePage = lazy(() => import("@/pages/invite/AcceptInvitePage"));
 const PublicFormPage = lazy(() => import("@/pages/forms/PublicFormPage"));
 
@@ -84,6 +88,10 @@ export default function App() {
       <Route element={<FullPageSuspense />}>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password/:uid/:token" element={<ResetPasswordConfirmPage />} />
+        <Route path="/verify-email-sent" element={<VerifyEmailSentPage />} />
+        <Route path="/verify-email/:key" element={<EmailVerifyConfirmPage />} />
         <Route path="/invites/:token" element={<AcceptInvitePage />} />
         <Route path="/forms/:formToken" element={<PublicFormPage />} />
       </Route>

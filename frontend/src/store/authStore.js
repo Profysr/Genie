@@ -34,8 +34,12 @@ export const useAuthStore = create(
         const { data } = await api.post("/api/auth/registration/", {
           email, password1, password2, full_name,
         });
-        get().setTokens(data.access, data.refresh);
-        set({ user: data.user });
+        // When email verification is mandatory the response has no tokens —
+        // only {"detail": "Verification e-mail sent."}. Callers check data.access.
+        if (data.access) {
+          get().setTokens(data.access, data.refresh);
+          set({ user: data.user });
+        }
         return data;
       },
 

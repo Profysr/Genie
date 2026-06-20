@@ -59,7 +59,12 @@ export default function RegisterPage() {
     }
     setLoading(true);
     try {
-      await register(form.email, form.password1, form.password2, form.full_name);
+      const data = await register(form.email, form.password1, form.password2, form.full_name);
+      // Email verification mandatory → no tokens; redirect to check-inbox page.
+      if (!data.access) {
+        navigate(`/verify-email-sent?email=${encodeURIComponent(form.email)}`, { replace: true });
+        return;
+      }
       await handlePostAuth(null);
     } catch (err) {
       setErrors(err.response?.data || {});

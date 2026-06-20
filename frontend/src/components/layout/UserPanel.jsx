@@ -294,7 +294,7 @@ export default function UserPanel({
       {/* Profile header */}
       <div className="flex items-center gap-3 px-3 py-2.5 mx-1 mt-1 mb-1 rounded-md bg-muted/40">
         <div className="relative flex-shrink-0">
-          <Avatar name={name} size="lg" />
+          <Avatar user={user} name={name} size="lg" />
           <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-popover" />
         </div>
         <div className="min-w-0">
@@ -377,7 +377,7 @@ export default function UserPanel({
           title={name}
           aria-label="Account menu"
         >
-          <Avatar name={name} size="md" />
+          <Avatar user={user} name={name} size="md" />
           <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-[hsl(var(--sidebar-bg))]" />
         </button>
 
@@ -401,7 +401,7 @@ export default function UserPanel({
           className="flex-1 flex items-center gap-2.5 min-w-0 text-left"
         >
           <div className="relative flex-shrink-0">
-            <Avatar name={name} size="md" />
+            <Avatar user={user} name={name} size="md" />
             <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-[hsl(var(--sidebar-bg))]" />
           </div>
           <div className="flex-1 min-w-0">

@@ -5,28 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Modal from "@/components/ui/Modal";
 import confetti from "canvas-confetti";
-import {
-  Loader2,
-  CheckCircle2,
-  Lock,
-  Code2,
-  Megaphone,
-  Settings2,
-  Briefcase,
-  Users,
-  Palette,
-  LayoutGrid,
-} from "lucide-react";
-
-const BOARD_TYPES = [
-  { value: "general", label: "General", icon: LayoutGrid },
-  { value: "software", label: "Software", icon: Code2 },
-  { value: "marketing", label: "Marketing", icon: Megaphone },
-  { value: "operations", label: "Operations", icon: Settings2 },
-  { value: "client", label: "Client Project", icon: Briefcase },
-  { value: "hr", label: "HR & People", icon: Users },
-  { value: "design", label: "Design", icon: Palette },
-];
+import { Loader2, CheckCircle2, Lock } from "lucide-react";
+import { BOARD_TYPES } from "@/lib/boardTypes";
+import BoardTypeIcon from "@/components/ui/BoardTypeIcon";
 
 const INITIAL_FORM = {
   name: "",
@@ -89,6 +70,28 @@ export default function CreateProjectModal({ workspaceId, open, onClose }) {
             </p>
           )}
 
+          {/* Board icon — top-center logo picker */}
+          <div className="flex flex-col items-center gap-3">
+            <BoardTypeIcon board_type={form.board_type} size="2xl" />
+            <div className="grid grid-cols-4 gap-2 w-full">
+              {BOARD_TYPES.map(({ value, label, icon: Icon }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setField("board_type", value)}
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-md border text-xs transition-colors ${
+                    form.board_type === value
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:border-muted-foreground hover:bg-accent text-muted-foreground"
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span className="text-center leading-tight">{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Name + Description */}
           <div className="space-y-1.5">
             <Label htmlFor="board-name">Board name</Label>
@@ -114,46 +117,6 @@ export default function CreateProjectModal({ workspaceId, open, onClose }) {
               onChange={(e) => setField("description", e.target.value)}
               placeholder="What is this board about?"
             />
-          </div>
-
-          {/* Board icon */}
-          <div className="space-y-2">
-            <Label>Board icon</Label>
-            <div className="flex items-center gap-3 mb-2">
-              {(() => {
-                const selected = BOARD_TYPES.find(
-                  (t) => t.value === form.board_type
-                );
-                const SelectedIcon = selected?.icon;
-                return (
-                  <div className="w-12 h-12 rounded-xl bg-primary/20 border border-primary/25 flex items-center justify-center shrink-0">
-                    {SelectedIcon && (
-                      <SelectedIcon className="w-6 h-6 text-primary" />
-                    )}
-                  </div>
-                );
-              })()}
-              <p className="text-xs text-muted-foreground leading-snug">
-                This icon will identify your board across the workspace.
-              </p>
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              {BOARD_TYPES.map(({ value, label, icon: Icon }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setField("board_type", value)}
-                  className={`flex flex-col items-center gap-1.5 p-3 rounded-md border text-xs transition-colors ${
-                    form.board_type === value
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border hover:border-muted-foreground hover:bg-accent text-muted-foreground"
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span className="text-center leading-tight">{label}</span>
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Private toggle */}

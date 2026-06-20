@@ -19,6 +19,7 @@ import { useWorkspaceSocket } from "@/hooks/useWorkspaceSocket";
 import { useBoardPermissions } from "@/hooks/useProjectPermissions";
 import { usePresence, useAnnouncePresence } from "@/hooks/usePresence";
 import { useAuthStore } from "@/store/authStore";
+import BoardTypeIcon from "@/components/ui/BoardTypeIcon";
 import { useToast } from "@/components/ui/toast";
 import KanbanColumn from "@/components/tasks/KanbanColumn";
 import CreateTaskModal from "@/components/tasks/CreateTaskModal";
@@ -373,6 +374,7 @@ export default function KanbanPage() {
             </button>
             <div>
               <div className="flex items-center gap-2">
+                {board && <BoardTypeIcon board_type={board.board_type} size="sm" />}
                 <h1 className="font-bold text-base leading-tight">
                   {board?.name}
                 </h1>

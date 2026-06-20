@@ -2,21 +2,13 @@ import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { ChevronDown, Search, ChevronsLeft } from "lucide-react";
+import BoardTypeIcon from "@/components/ui/BoardTypeIcon";
 import { resolvedNavGroups, workspaceUrl } from "@/lib/navLinks";
 import { useInboxUnreadCount } from "@/hooks/useInbox";
 import { useBoards } from "@/hooks/useProjects";
 import UserPanel from "@/components/layout/UserPanel";
 import { Tooltip } from "@/components/ui/tooltip";
 
-const BOARD_COLORS = {
-  SOFTWARE:   "bg-blue-500",
-  MARKETING:  "bg-pink-500",
-  OPERATIONS: "bg-orange-500",
-  CLIENT:     "bg-green-500",
-  HR:         "bg-purple-500",
-  DESIGN:     "bg-rose-500",
-  GENERAL:    "bg-slate-400",
-};
 
 export default function Sidebar({
   workspace,
@@ -44,7 +36,7 @@ export default function Sidebar({
       key: b.id,
       to: `/w/${workspaceId}/boards/${b.id}`,
       label: b.name,
-      colorClass: BOARD_COLORS[b.board_type?.toUpperCase()] ?? BOARD_COLORS.GENERAL,
+      board_type: b.board_type,
     })),
   };
 
@@ -207,12 +199,7 @@ export default function Sidebar({
                                     )
                                   }
                                 >
-                                  <span
-                                    className={cn(
-                                      "w-1.5 h-1.5 rounded flex-shrink-0",
-                                      item.colorClass,
-                                    )}
-                                  />
+                                  <BoardTypeIcon board_type={item.board_type} size="xs" />
                                   <span className="flex-1 truncate">{item.label}</span>
                                 </NavLink>
                               ))

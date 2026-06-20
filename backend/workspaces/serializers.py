@@ -11,11 +11,9 @@ from .models import (
     ImportJob,
 )
 from accounts.serializers import MiniUserSerializer
-from core.fields import PrefixedUUIDField
 
 
 class WorkspaceSerializer(serializers.ModelSerializer):
-    id = PrefixedUUIDField(read_only=True)
     owner = MiniUserSerializer(read_only=True)
     member_count = serializers.SerializerMethodField()
     my_role = serializers.SerializerMethodField()
@@ -58,7 +56,6 @@ class WorkspaceSerializer(serializers.ModelSerializer):
 
 
 class WorkspaceMemberSerializer(serializers.ModelSerializer):
-    id = PrefixedUUIDField(read_only=True)
     user = MiniUserSerializer(read_only=True)
 
     class Meta:
@@ -68,7 +65,6 @@ class WorkspaceMemberSerializer(serializers.ModelSerializer):
 
 
 class WorkspaceInviteSerializer(serializers.ModelSerializer):
-    id = PrefixedUUIDField(read_only=True)
     invited_by = MiniUserSerializer(read_only=True)
 
     class Meta:
@@ -92,7 +88,6 @@ class WorkspaceInviteSerializer(serializers.ModelSerializer):
 
 # ── v3.7.0 ────────────────────────────────────────────────────────────────────
 class InboxItemSerializer(serializers.ModelSerializer):
-    id = PrefixedUUIDField(read_only=True)
 
     class Meta:
         model = InboxItem
@@ -111,8 +106,6 @@ class InboxItemSerializer(serializers.ModelSerializer):
 # ── v4.5.0 — API Keys ─────────────────────────────────────────────────────────
 class WorkspaceAPIKeySerializer(serializers.ModelSerializer):
     """Read serializer — never exposes the hash or full key."""
-
-    id = PrefixedUUIDField(read_only=True)
 
     class Meta:
         model = WorkspaceAPIKey
@@ -153,7 +146,6 @@ class APIKeyCreateSerializer(serializers.Serializer):
 class WebhookSerializer(serializers.ModelSerializer):
     """Read/update serializer — exposes only the secret prefix, never the full secret."""
 
-    id = PrefixedUUIDField(read_only=True)
     secret_prefix = serializers.SerializerMethodField()
 
     class Meta:
@@ -179,7 +171,6 @@ class WebhookCreateSerializer(serializers.Serializer):
 
 
 class WebhookDeliverySerializer(serializers.ModelSerializer):
-    id = PrefixedUUIDField(read_only=True)
 
     class Meta:
         model = WebhookDelivery
@@ -197,7 +188,6 @@ class WebhookDeliverySerializer(serializers.ModelSerializer):
 class ImportJobSerializer(serializers.ModelSerializer):
     """Read serializer for list and detail views."""
 
-    id = PrefixedUUIDField(read_only=True)
     can_rollback = serializers.SerializerMethodField()
 
     class Meta:

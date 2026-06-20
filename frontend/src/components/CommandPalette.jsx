@@ -5,10 +5,10 @@ import {
   CheckSquare,
   ArrowRight,
   Loader2,
-  Hash,
   Clock,
   UserPlus,
 } from "lucide-react";
+import BoardTypeIcon from "@/components/ui/BoardTypeIcon";
 import LoadMoreButton from "@/components/ui/LoadMoreButton";
 import api from "@/lib/api";
 import { NAV_ITEMS, workspaceUrl } from "@/lib/navLinks";
@@ -256,7 +256,7 @@ export default function CommandPalette({ open, onClose, workspaceId }) {
 
     const boardItems = (results?.boards || []).map((p) => ({
       type: "board",
-      icon: Hash,
+      board_type: p.board_type,
       label: p.name,
       meta: p.workspace_name,
       url: `/w/${p.workspace_id}/boards`,
@@ -466,18 +466,20 @@ export default function CommandPalette({ open, onClose, workspaceId }) {
                           isSel ? "bg-accent" : "hover:bg-accent/50",
                         )}
                       >
-                        <Icon
-                          className={cn(
-                            "w-4 h-4 flex-shrink-0",
-                            item.type === "task"
-                              ? PRIORITY_COLOR[item.priority] || "text-primary"
-                              : item.type === "board"
-                                ? "text-primary"
+                        {item.type === "board" ? (
+                          <BoardTypeIcon board_type={item.board_type} size="sm" />
+                        ) : (
+                          <Icon
+                            className={cn(
+                              "w-4 h-4 flex-shrink-0",
+                              item.type === "task"
+                                ? PRIORITY_COLOR[item.priority] || "text-primary"
                                 : item.type === "action"
                                   ? "text-emerald-500"
                                   : "text-muted-foreground",
-                          )}
-                        />
+                            )}
+                          />
+                        )}
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">
                             {item.label}

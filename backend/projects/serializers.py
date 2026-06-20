@@ -3,7 +3,7 @@ from rest_framework.exceptions import PermissionDenied
 from django.utils import timezone
 import datetime
 from core.constants import DEFAULT_TASK_STATUSES
-from core.fields import format_id, PrefixedUUIDField
+
 from .models import (
     Board,
     TaskStatus,
@@ -72,7 +72,7 @@ class BulkTaskUpdatesSerializer(serializers.Serializer):
     """Permitted field overrides for a bulk update. All fields are optional."""
     status_id   = serializers.UUIDField(required=False, allow_null=True)
     priority    = serializers.CharField(required=False, allow_null=True)
-    assignee_id = PrefixedUUIDField(required=False, allow_null=True)
+    assignee_id = serializers.UUIDField(required=False, allow_null=True)
 
 
 class TaskBulkActionSerializer(serializers.Serializer):
@@ -382,7 +382,7 @@ class TaskActivitySerializer(serializers.ModelSerializer):
 
 class TaskSerializer(serializers.ModelSerializer):
     assignee = MiniUserSerializer(read_only=True)
-    assignee_id = PrefixedUUIDField(
+    assignee_id = serializers.UUIDField(
         write_only=True, required=False, allow_null=True
     )
     created_by = MiniUserSerializer(read_only=True)
@@ -589,7 +589,7 @@ class MyWorkTaskSerializer(TaskSerializer):
         return obj.board.name
 
     def get_workspace_id(self, obj):
-        return format_id(obj.board.workspace.PREFIX, obj.board.workspace.id)
+        return str(obj.board.workspace.id)
 
 
 class TaskAttachmentSerializer(serializers.ModelSerializer):
@@ -703,7 +703,7 @@ class TaskSearchSerializer(serializers.ModelSerializer):
         ]
 
     def get_workspace_id(self, obj):
-        return format_id(obj.board.workspace.PREFIX, obj.board.workspace.id)
+        return str(obj.board.workspace.id)
 
     def get_board_id(self, obj):
         return str(obj.board.id)
@@ -720,7 +720,7 @@ class BoardSearchSerializer(serializers.ModelSerializer):
     workspace_name = serializers.CharField(source="workspace.name", read_only=True)
 
     def get_workspace_id(self, obj):
-        return format_id(obj.workspace.PREFIX, obj.workspace.id)
+        return str(obj.workspace.id)
 
     class Meta:
         model = Board
@@ -729,7 +729,7 @@ class BoardSearchSerializer(serializers.ModelSerializer):
 
 class BoardMemberSerializer(serializers.ModelSerializer):
     user = MiniUserSerializer(read_only=True)
-    user_id = PrefixedUUIDField(write_only=True)
+    user_id = serializers.UUIDField(write_only=True)
 
     class Meta:
         model = BoardMember
@@ -751,7 +751,7 @@ class BoardMemberSerializer(serializers.ModelSerializer):
 
 
 class BoardMemberBulkItemSerializer(serializers.Serializer):
-    user_id = PrefixedUUIDField()
+    user_id = serializers.UUIDField()
     role = serializers.ChoiceField(choices=BoardMember.Role.choices, default=BoardMember.Role.EDITOR)
 
     def validate_user_id(self, value):
@@ -952,7 +952,7 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
 
 class ApprovalReviewerSerializer(serializers.ModelSerializer):
     user = MiniUserSerializer(read_only=True)
-    user_id = PrefixedUUIDField(write_only=True)
+    user_id = serializers.UUIDField(write_only=True)
 
     class Meta:
         model = ApprovalReviewer
@@ -964,7 +964,7 @@ class ApprovalSerializer(serializers.ModelSerializer):
     requested_by = MiniUserSerializer(read_only=True)
     reviewers = ApprovalReviewerSerializer(many=True, read_only=True)
     reviewer_ids = serializers.ListField(
-        child=PrefixedUUIDField(), write_only=True, required=True
+        child=serializers.UUIDField(), write_only=True, required=True
     )
     approved_count = serializers.SerializerMethodField()
     total_count = serializers.SerializerMethodField()
@@ -1091,7 +1091,7 @@ class KeyResultSerializer(serializers.ModelSerializer):
 
 
 class ObjectiveSerializer(serializers.ModelSerializer):
-    owner_id = PrefixedUUIDField(write_only=True, required=False, allow_null=True)
+    owner_id = serializers.UUIDField(write_only=True, required=False, allow_null=True)
     owner = MiniUserSerializer(read_only=True)
     key_results = KeyResultSerializer(many=True, read_only=True)
     progress = serializers.SerializerMethodField()

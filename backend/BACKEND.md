@@ -22,7 +22,7 @@
 ## App Map
 
 ```
-core/           Django settings, URLs, Celery, ASGI, custom fields (UUIDv7, PrefixedUUID)
+core/           Django settings, URLs, Celery, ASGI, custom fields (UUIDv7)
 accounts/       User auth, UserProfile prefs
 workspaces/     Workspace, members, invites, inbox, API keys, webhooks, imports, onboarding
 projects/       Boards, tasks, sprints, statuses, labels, comments, wiki, forms, automations, OKRs, approvals
@@ -36,9 +36,9 @@ analytics/      On-the-fly metrics (no models, computed from tasks/activity)
 
 All model PKs use `UUIDv7Field` from `core.fields` — time-sortable, no B-tree fragmentation.
 Opaque token fields (invite tokens, form tokens) stay UUID4.
-The DRF layer serializes PKs as prefixed strings via `PrefixedUUIDField` (e.g. `tsk_018e…`, `brd_…`, `wsp_…`).
+All serializers return plain UUIDs — `PrefixedUUIDField` has been removed from the entire DRF layer.
 
-URL route kwargs use the full UUID (prefixed or plain) — helpers parse both via `_parse_pk()`.
+URL route kwargs use plain UUIDs — `_parse_pk()` helpers in views still accept both formats for backwards compatibility.
 
 ---
 
@@ -56,7 +56,7 @@ Default permission: `IsAuthenticated`. Public endpoints (forms, invite detail) u
 ## URL Reference
 
 > Format: `METHOD /path/` — description  
-> `{ws}` = workspace UUID (e.g. `wsp_018e…`), `{pid}` = board UUID, `{tid}` = task UUID
+> `{ws}` = workspace UUID, `{pid}` = board UUID, `{tid}` = task UUID
 
 ### Auth (`/api/auth/`)
 
@@ -64,15 +64,19 @@ Default permission: `IsAuthenticated`. Public endpoints (forms, invite detail) u
 |--------|------|-------------|
 | POST | `/api/auth/login/` | Log in, returns JWT access + refresh |
 | POST | `/api/auth/logout/` | Invalidate refresh token |
-| POST | `/api/auth/registration/` | Register new user (email, full_name, password) |
+| POST | `/api/auth/registration/` | Register new user (email, full_name, password). When `ACCOUNT_EMAIL_VERIFICATION=mandatory` returns `{"detail": "Verification e-mail sent."}` with no tokens — client must redirect to check-inbox page. |
+| POST | `/api/auth/registration/verify-email/` | Confirm email address. Body: `{ key }` (from the link in the verification email). Returns `{"detail": "ok"}` on success. |
+| POST | `/api/auth/registration/resend-email/` | Resend verification email. Body: `{ email }`. |
 | POST | `/api/auth/token/refresh/` | Exchange refresh token for new access token |
-| POST | `/api/auth/google/` | Google OAuth — body: `{ access_token }` (from `@react-oauth/google` implicit flow). Returns same JWT pair + user as email login. Silently merges with existing email account if emails match (`SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True`). View: `accounts/social_views.py::GoogleLogin`. |
+| POST | `/api/auth/password/reset/` | Request password reset. Body: `{ email }`. Sends a Resend email with a link to `{FRONTEND_URL}/reset-password/{uid}/{token}`. Always returns 200 (no user enumeration). |
+| POST | `/api/auth/password/reset/confirm/` | Confirm password reset. Body: `{ uid, token, new_password1, new_password2 }`. |
+| POST | `/api/auth/google/` | Google OAuth — body: `{ access_token }` (from `@react-oauth/google` implicit flow). Returns same JWT pair + user as email login. Silently merges with existing email account if emails match (`SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True`). View: `accounts/social_views.py::GoogleLogin`. On first Google login, `CustomSocialAccountAdapter` (accounts/adapter.py) captures Google's `picture` URL into `User.avatar` and sets `avatar_type="google"` — only if the user hasn't set a custom avatar already. Google OAuth users are treated as email-verified by allauth and bypass email verification. |
 
 ### Users (`/api/users/`)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET/PATCH | `/api/users/me/` | Retrieve or update current user + profile (theme, accent, density) |
+| GET/PATCH | `/api/users/me/` | Retrieve or update current user + profile. Writable fields: `full_name`, `avatar_type` (`initials`/`google`/`icon`), `avatar_icon` (emoji), `theme`, `accent_color`, `density_mode`. `avatar` is read-only (set by Google OAuth adapter only). |
 
 ### Workspaces (`/api/workspaces/`)
 
@@ -399,8 +403,26 @@ Available `{metric}` values:
 
 | Model | Key Fields | Notes |
 |-------|-----------|-------|
-| `User` | `id` (UUIDv7), `email` (unique), `full_name`, `avatar`, `can_create_workspace` | Custom auth model; USERNAME_FIELD = email |
+| `User` | `id` (UUIDv7), `email` (unique), `full_name`, `avatar` (CharField, max 500), `avatar_type` (initials/google/icon, default initials), `avatar_icon` (emoji, nullable), `can_create_workspace` | Custom auth model; USERNAME_FIELD = email. `avatar` stores a Google picture URL when `avatar_type="google"`. No file uploads — set by `CustomSocialAccountAdapter` on Google OAuth. |
 | `UserProfile` | `user` (O2O), `theme`, `accent_color`, `density_mode` | Auto-created via post_save signal on User |
+
+**Email infrastructure (`accounts/emails/`, `accounts/adapter.py`):**
+
+- `accounts/emails/` — template module (mirrors `workspaces/emails/`). `render(template_name, context)` does `{{key}}` string substitution on HTML files. Current templates: `password_reset.html`, `email_verification.html`.
+- `CustomAccountAdapter(DefaultAccountAdapter)` — registered via `ACCOUNT_ADAPTER`. Overrides two methods:
+  - `send_mail(template_prefix, email, context)` — intercepts allauth's email sending for `account/email/password_reset_key` and `account/email/email_confirmation*`; sends via Resend directly using branded HTML templates. Other allauth emails (rare edge cases like `account_already_exists`) fall through to Django's default backend.
+  - `get_email_confirmation_url(request, emailconfirmation)` — returns `{FRONTEND_URL}/verify-email/{key}` so the link in the verification email points at the React app.
+- `CustomPasswordResetSerializer(BasePasswordResetSerializer)` — registered via `REST_AUTH["PASSWORD_RESET_SERIALIZER"]`. Overrides `get_email_options()` to inject a custom `url_generator` that builds `{FRONTEND_URL}/reset-password/{uid}/{token}` using `REST_AUTH["PASSWORD_RESET_CONFIRM_URL"]`. This avoids dj_rest_auth's default which tries to `reverse("password_reset_confirm")` — a Django built-in URL we don't register.
+
+**Key settings (`core/settings.py`):**
+
+| Setting | Value | Notes |
+|---------|-------|-------|
+| `ACCOUNT_ADAPTER` | `"accounts.adapter.CustomAccountAdapter"` | Routes allauth emails through Resend |
+| `REST_AUTH["PASSWORD_RESET_SERIALIZER"]` | `"accounts.serializers.CustomPasswordResetSerializer"` | Builds reset URL using FRONTEND_URL |
+| `REST_AUTH["PASSWORD_RESET_CONFIRM_URL"]` | `"reset-password/{uid}/{token}"` | Frontend route pattern; used by `CustomPasswordResetSerializer` |
+| `ACCOUNT_EMAIL_VERIFICATION` | env var, default `"mandatory"` | Set `ACCOUNT_EMAIL_VERIFICATION=none` in `.env` to skip in dev |
+| `DEFAULT_FROM_EMAIL` | mirrors `FROM_EMAIL` env var | Required by dj_rest_auth's `PasswordResetSerializer.save()` |
 
 ### workspaces
 
@@ -469,6 +491,14 @@ Available `{metric}` values:
 | `send_invite_email` | `workspaces.tasks` | 2 (60s delay) | Send invite email via Resend SDK. Fetches invite with `select_related(workspace, invited_by)`, builds inline HTML, sends from `settings.FROM_EMAIL`. Fired by `POST /api/workspaces/{ws}/invites/` immediately after invite row is created. |
 | `run_import` | `workspaces.tasks` | — | Parse file → create board/statuses → bulk insert tasks; push progress via WebSocket `import.progress` |
 | `send_comment_notifications` | `projects.tasks` | — | Collect all recipients (task assignee/creator, parent comment author, @mentioned users), validate workspace membership for mentions, `bulk_create` all `InboxItem` rows in one DB round-trip, then broadcast per-user via WebSocket. Called with `.delay()` immediately after `POST /comments/` returns. |
+
+---
+
+## Serializers — Avatar Fields
+
+`MiniUserSerializer` (embedded in tasks, members, comments, presence): exposes `avatar`, `avatar_type`, `avatar_icon` — all read-only. Every context that renders a user avatar receives the full avatar data without extra queries.
+
+`UserSerializer` (GET/PATCH `/api/users/me/`): same three fields; `avatar_type` and `avatar_icon` are writable; `avatar` is read-only.
 
 ---
 

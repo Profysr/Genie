@@ -24,10 +24,20 @@ class UserManager(BaseUserManager):
 
 class User(AbstractBaseUser, PermissionsMixin):
     PREFIX = "usr"
+
+    AVATAR_TYPE_CHOICES = [
+        ("initials", "Initials"),
+        ("google", "Google Profile"),
+        ("icon", "Icon"),
+    ]
+
     id = UUIDv7Field()
     email = models.EmailField(unique=True)
     full_name = models.CharField(max_length=255, blank=True)
-    avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
+    # Stores a Google picture URL (when avatar_type='google'). No file uploads.
+    avatar = models.CharField(max_length=500, null=True, blank=True)
+    avatar_type = models.CharField(max_length=8, choices=AVATAR_TYPE_CHOICES, default="initials")
+    avatar_icon = models.CharField(max_length=10, null=True, blank=True)
     # Controls whether this user can create new workspaces.
     # Workspace admins have True; users who joined via invite get False.
     can_create_workspace = models.BooleanField(default=True)

@@ -1,10 +1,8 @@
 from rest_framework import serializers
 from .models import TeamsIntegration, GoogleChatIntegration, IntegrationChannelMapping
-from core.fields import PrefixedUUIDField
 
 
 class TeamsIntegrationSerializer(serializers.ModelSerializer):
-    id = PrefixedUUIDField(read_only=True)
 
     class Meta:
         model  = TeamsIntegration
@@ -31,7 +29,6 @@ class TeamsIntegrationSerializer(serializers.ModelSerializer):
 
 
 class GoogleChatIntegrationSerializer(serializers.ModelSerializer):
-    id = PrefixedUUIDField(read_only=True)
 
     class Meta:
         model  = GoogleChatIntegration
@@ -58,7 +55,6 @@ class GoogleChatIntegrationSerializer(serializers.ModelSerializer):
 
 
 class IntegrationChannelMappingSerializer(serializers.ModelSerializer):
-    id = PrefixedUUIDField(read_only=True)
     # board_name = serializers.CharField(source="board.name", read_only=True, default=None)
 
     class Meta:

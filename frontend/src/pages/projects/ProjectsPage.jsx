@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import CreateProjectModal from "@/components/projects/CreateProjectModal";
 import { Plus, ArrowRight, AlertTriangle, Zap } from "lucide-react";
 import { APP_COLORS as PROJECT_COLORS } from "@/lib/constants";
+import BoardTypeIcon from "@/components/ui/BoardTypeIcon";
 import { cn } from "@/lib/utils";
 import { Loader } from "@/components/ui/Loader";
 
@@ -107,12 +108,7 @@ export default function ProjectsPage() {
             >
               {/* Header */}
               <div className="flex items-start justify-between gap-2 mb-3">
-                <div
-                  className="w-10 h-10 rounded-md flex items-center justify-center font-bold text-sm text-white shadow-sm flex-shrink-0"
-                  style={{ backgroundColor: color }}
-                >
-                  {itm.name[0].toUpperCase()}
-                </div>
+                <BoardTypeIcon board_type={itm.board_type} size="lg" />
                 <div className="flex items-center gap-1.5 flex-wrap justify-end">
                   {itm.health && <HealthBadge health={itm.health} />}
                   <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
