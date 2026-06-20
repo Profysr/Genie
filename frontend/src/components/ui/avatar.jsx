@@ -24,6 +24,7 @@ function getAvatarColor(name) {
 }
 
 const sizeMap = {
+  xxs:  { outer: "w-4 h-4",   text: "text-[8px]" },
   xs:  { outer: "w-5 h-5",   text: "text-[9px]" },
   sm:  { outer: "w-6 h-6",   text: "text-[10px]" },
   md:  { outer: "w-8 h-8",   text: "text-xs" },

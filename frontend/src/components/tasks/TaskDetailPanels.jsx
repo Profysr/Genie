@@ -13,6 +13,7 @@ import {
   Trash2,
   User,
   X,
+  Calendar,
 } from "lucide-react";
 import { format } from "date-fns";
 import LoadMoreButton from "@/components/ui/LoadMoreButton";
@@ -117,95 +118,184 @@ export function PanelSectionHeader({ title }) {
 
 // ── Properties ────────────────────────────────────────────────────────────────
 
+function PropCell({ label, children, className }) {
+  return (
+    <div className={cn("flex flex-col gap-0.5", className)}>
+      <span className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/40 pl-2">
+        {label}
+      </span>
+      {children}
+    </div>
+  );
+}
+
+function DateField({ value, onChange, disabled, placeholder = "Not set" }) {
+  const inputRef = useRef(null);
+
+  let display = placeholder;
+  if (value) {
+    try { display = format(new Date(value + "T12:00:00"), "MMM d, yyyy"); } catch {}
+  }
+
+  const handleClick = () => {
+    try { inputRef.current?.showPicker(); }
+    catch { inputRef.current?.click(); }
+  };
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={handleClick}
+        className={cn(
+          "flex items-center gap-1.5 px-2 py-1.5 rounded-lg transition-all text-xs w-full text-left active:scale-[0.97]",
+          disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-accent/50 cursor-pointer",
+          value ? "font-semibold text-foreground" : "text-muted-foreground/50",
+        )}
+      >
+        <Calendar className="w-3 h-3 text-muted-foreground/50 flex-shrink-0" />
+        {display}
+      </button>
+      <input
+        ref={inputRef}
+        type="date"
+        className="sr-only"
+        value={value || ""}
+        onChange={onChange}
+        disabled={disabled}
+        tabIndex={-1}
+      />
+    </div>
+  );
+}
+
 export function PropertiesPanel({
   task, canEdit, update, projectStatuses, taskLabels, members, onCreateLabel,
 }) {
   return (
-    <div className="px-4 py-4 space-y-1">
-      <DetailRow label="Status">
+    <div className="px-3 py-4 space-y-2">
+      {/* Status ── full width prominent */}
+      <PropCell label="Status">
         <Dropdown
           disabled={!canEdit}
           value={task.status_detail?.id || ""}
-          options={projectStatuses.map((s) => ({ value: s.id, label: s.name, color: s.color }))}
+          options={projectStatuses.map((s) => ({
+            value: s.id,
+            label: s.name,
+            color: s.color,
+          }))}
           onChange={(v) => update.mutate({ status_id: v })}
           renderTrigger={(opt) =>
             opt ? (
               <div
-                className="flex items-center gap-2 font-semibold text-xs px-3 py-1 rounded"
-                style={{ backgroundColor: opt.color + "75" }}
+                className="w-full text-center font-semibold text-xs py-1 rounded uppercase tracking-wide"
+                style={{ backgroundColor: opt.color + "15", color: opt.color }}
               >
                 {opt.label}
               </div>
             ) : null
           }
           renderOption={(opt) => (
-            <span
-              className="flex items-center gap-2 px-2 py-0.5 rounded text-xs"
-              style={{ backgroundColor: opt.color + "80" }}
-            >
-              {opt.label}
+            <span className="flex items-center gap-2 text-xs font-semibold uppercase">
+              {/* <span
+                className="w-2 h-2 rounded-full flex-shrink-0"
+                style={{ backgroundColor: opt.color }}
+              /> */}
+              <span
+                style={{ color: opt.color, backgroundColor: opt.color + "50" }}
+                className="px-1 py-0.5 rounded-[2px]"
+              >
+                {opt.label}
+              </span>
             </span>
           )}
         />
-      </DetailRow>
+      </PropCell>
 
-      <DetailRow label="Priority">
-        <Dropdown
-          disabled={!canEdit}
-          value={task.priority}
-          options={PRIORITY_OPTIONS}
-          onChange={(v) => update.mutate({ priority: v })}
-          renderTrigger={(opt) => {
-            if (!opt) return null;
-            const Icon = opt.icon;
-            return (
-              <span className={cn("flex items-center gap-1.5 text-sm", opt.color)}>
-                {Icon && <Icon className="w-3.5 h-3.5 flex-shrink-0" />}
-                {opt.label}
-              </span>
-            );
-          }}
-          renderOption={(opt) => {
-            const Icon = opt.icon;
-            return (
-              <span className="flex items-center gap-1.5 text-sm">
-                {Icon && <Icon className="w-3.5 h-3.5 flex-shrink-0" />}
-                {opt.label}
-              </span>
-            );
-          }}
-        />
-      </DetailRow>
+      {/* Priority + Type ── 2 col */}
+      <div className="grid grid-cols-2 gap-1.5">
+        <PropCell label="Priority">
+          <Dropdown
+            disabled={!canEdit}
+            value={task.priority}
+            options={PRIORITY_OPTIONS}
+            onChange={(v) => update.mutate({ priority: v })}
+            placement="left"
+            renderTrigger={(opt) => {
+              if (!opt) return null;
+              const Icon = opt.icon;
+              return (
+                <span
+                  className={cn(
+                    "flex items-center gap-1 text-xs font-semibold truncate",
+                    opt.color,
+                  )}
+                >
+                  {Icon && <Icon className="w-3 h-3 flex-shrink-0" />}
+                  <span className="truncate">{opt.label}</span>
+                </span>
+              );
+            }}
+            renderOption={(opt) => {
+              const Icon = opt.icon;
+              return (
+                <span
+                  className={cn(
+                    "flex items-center gap-1.5 text-xs font-semibold",
+                    opt.color,
+                  )}
+                >
+                  {Icon && <Icon className="w-3.5 h-3.5 flex-shrink-0" />}
+                  {opt.label}
+                </span>
+              );
+            }}
+          />
+        </PropCell>
 
-      <DetailRow label="Type">
-        <Dropdown
-          disabled={!canEdit}
-          value={task.task_type || "task"}
-          options={TASK_TYPES.map((t) => ({ ...t }))}
-          onChange={(v) => update.mutate({ task_type: v })}
-          renderTrigger={(opt) => {
-            if (!opt) return null;
-            const Icon = opt.icon;
-            return (
-              <span className={cn("flex items-center gap-1.5 text-sm", opt.color)}>
-                {Icon && <Icon className="w-3.5 h-3.5 flex-shrink-0" />}
-                {opt.label}
-              </span>
-            );
-          }}
-          renderOption={(opt) => {
-            const Icon = opt.icon;
-            return (
-              <span className="flex items-center gap-1.5 text-sm">
-                {Icon && <Icon className="w-3.5 h-3.5 flex-shrink-0" />}
-                {opt.label}
-              </span>
-            );
-          }}
-        />
-      </DetailRow>
+        <PropCell label="Type">
+          <Dropdown
+            disabled={!canEdit}
+            value={task.task_type || "task"}
+            options={TASK_TYPES.map((t) => ({ ...t }))}
+            onChange={(v) => update.mutate({ task_type: v })}
+            placement="right"
+            renderTrigger={(opt) => {
+              if (!opt) return null;
+              const Icon = opt.icon;
+              return (
+                <span
+                  className={cn(
+                    "flex items-center gap-1 text-xs font-semibold truncate",
+                    opt.color,
+                  )}
+                >
+                  {Icon && <Icon className="w-3 h-3 flex-shrink-0" />}
+                  <span className="truncate">{opt.label}</span>
+                </span>
+              );
+            }}
+            renderOption={(opt) => {
+              const Icon = opt.icon;
+              return (
+                <span
+                  className={cn(
+                    "flex items-center gap-1.5 text-xs font-semibold",
+                    opt.color,
+                  )}
+                >
+                  {Icon && <Icon className="w-3.5 h-3.5 flex-shrink-0" />}
+                  {opt.label}
+                </span>
+              );
+            }}
+          />
+        </PropCell>
+      </div>
 
-      <DetailRow label="Assignee">
+      {/* Assignee ── full width */}
+      <PropCell label="Assignee">
         <Dropdown
           disabled={!canEdit}
           value={task.assignee?.id || ""}
@@ -222,7 +312,9 @@ export function PropertiesPanel({
             opt && (
               <span className="flex items-center gap-2">
                 <Avatar name={opt.label} size="xs" />
-                <span className="text-sm truncate">{opt.label}</span>
+                <span className="font-semibold text-xs truncate">
+                  {opt.label}
+                </span>
               </span>
             )
           }
@@ -235,79 +327,100 @@ export function PropertiesPanel({
                   <User className="w-3 h-3 text-muted-foreground" />
                 </div>
               )}
-              <span>{opt.label}</span>
+              <span className="font-semibold text-xs">{opt.label}</span>
             </span>
           )}
         />
-      </DetailRow>
+      </PropCell>
 
-      <DetailRow label="Start Date">
-        <input
-          type="date"
-          className="w-full bg-transparent text-sm outline-none cursor-pointer disabled:opacity-70"
-          value={task.start_date || ""}
-          onChange={(e) => update.mutate({ start_date: e.target.value || null })}
-          disabled={!canEdit}
-        />
-      </DetailRow>
+      <div className="h-px bg-border/30 mx-1 my-0.5" />
 
-      <DetailRow label="Due Date">
-        <input
-          type="date"
-          className="w-full bg-transparent text-sm outline-none cursor-pointer disabled:opacity-70"
-          value={task.due_date || ""}
-          onChange={(e) => update.mutate({ due_date: e.target.value || null })}
-          disabled={!canEdit}
-        />
-      </DetailRow>
+      {/* Dates ── 2 col */}
+      <div className="grid grid-cols-2 gap-1.5">
+        <PropCell label="Start Date">
+          <DateField
+            value={task.start_date || ""}
+            onChange={(e) =>
+              update.mutate({ start_date: e.target.value || null })
+            }
+            disabled={!canEdit}
+          />
+        </PropCell>
+        <PropCell label="Due Date">
+          <DateField
+            value={task.due_date || ""}
+            onChange={(e) =>
+              update.mutate({ due_date: e.target.value || null })
+            }
+            disabled={!canEdit}
+          />
+        </PropCell>
+      </div>
 
-      <DetailRow label="Story Points">
-        <input
-          type="number"
-          min="0"
-          placeholder="—"
-          className="w-full bg-transparent text-sm outline-none disabled:opacity-70"
-          value={task.estimate_points ?? ""}
-          onChange={(e) =>
-            update.mutate({ estimate_points: e.target.value === "" ? null : parseInt(e.target.value) })
-          }
-          disabled={!canEdit}
-        />
-      </DetailRow>
+      {/* Estimates ── 2 col */}
+      <div className="grid grid-cols-2 gap-1.5">
+        <PropCell label="Story Points">
+          <div className="px-2 py-1.5 rounded-lg hover:bg-accent/50 transition-colors">
+            <input
+              type="number"
+              min="0"
+              placeholder="—"
+              className="w-full bg-transparent font-semibold text-xs outline-none disabled:opacity-50 [appearance:textfield]"
+              value={task.estimate_points ?? ""}
+              onChange={(e) =>
+                update.mutate({
+                  estimate_points:
+                    e.target.value === "" ? null : parseInt(e.target.value),
+                })
+              }
+              disabled={!canEdit}
+            />
+          </div>
+        </PropCell>
+        <PropCell label="Est. Hours">
+          <div className="px-2 py-1.5 rounded-lg hover:bg-accent/50 transition-colors">
+            <input
+              type="number"
+              min="0"
+              step="0.5"
+              placeholder="—"
+              className="w-full bg-transparent font-semibold text-xs outline-none disabled:opacity-50 [appearance:textfield]"
+              value={task.estimate_hours ?? ""}
+              onChange={(e) =>
+                update.mutate({
+                  estimate_hours:
+                    e.target.value === "" ? null : parseFloat(e.target.value),
+                })
+              }
+              disabled={!canEdit}
+            />
+          </div>
+        </PropCell>
+      </div>
 
-      <DetailRow label="Est. Hours">
-        <input
-          type="number"
-          min="0"
-          step="0.5"
-          placeholder="—"
-          className="w-full bg-transparent text-sm outline-none disabled:opacity-70"
-          value={task.estimate_hours ?? ""}
-          onChange={(e) =>
-            update.mutate({ estimate_hours: e.target.value === "" ? null : parseFloat(e.target.value) })
-          }
-          disabled={!canEdit}
-        />
-      </DetailRow>
+      <div className="h-px bg-border/30 mx-1 my-0.5" />
 
-      <div className="pt-1">
-        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+      {/* Labels */}
+      <div>
+        <p className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/40 pl-2 mb-2">
           Labels
         </p>
-        <div className="flex flex-wrap gap-1.5 items-center">
+        <div className="flex flex-wrap gap-1.5 items-center px-1">
           {task.labels?.map((l) => (
             <button
               key={l.id}
               onClick={() => {
-                const newIds = (task.labels || []).filter((x) => x.id !== l.id).map((x) => x.id);
+                const newIds = (task.labels || [])
+                  .filter((x) => x.id !== l.id)
+                  .map((x) => x.id);
                 update.mutate({ label_ids: newIds });
               }}
-              className="group relative flex items-center gap-1 px-3 py-0.5 rounded text-xs font-medium transition-all"
-              style={{ backgroundColor: l.color + "50" }}
+              className="group flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold transition-all hover:opacity-80 active:scale-95"
+              style={{ backgroundColor: l.color + "30", color: l.color }}
               title="Click to remove"
             >
               {l.name}
-              <X className="absolute -top-1 -right-1 bg-white rounded-full text-destructive p-0.5 w-3.5 h-3.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity" />
+              <X className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
             </button>
           ))}
           {canEdit && (
@@ -330,14 +443,14 @@ export function PropertiesPanel({
 
       {task.key_result_links?.length > 0 && (
         <div className="pt-1">
-          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+          <p className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/40 pl-2 mb-2">
             Contributes to
           </p>
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 px-1">
             {task.key_result_links.map((kr) => (
               <span
                 key={kr.id}
-                className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/8 text-primary text-xs font-medium"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary/8 text-primary text-xs font-medium"
                 title={kr.objective_title}
               >
                 <span className="text-[10px]">🎯</span>

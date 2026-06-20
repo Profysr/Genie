@@ -50,6 +50,8 @@ const BaseModal = ({
     isLoading = false,
     isConfirmDisabled = false,
     showFooter = true,
+    showHeader = true,
+    flexBody = false,
     maxWidth = "600px",
     padding = "px-5 py-4",
     icon: Icon,
@@ -62,40 +64,42 @@ const BaseModal = ({
         {/* Backdrop */}
         <div
           onClick={onClose}
-          className="absolute inset-0 bg-background/60 backdrop-blur-md"
+          className="absolute inset-0 bg-background/50 backdrop-blur-md"
         />
 
         {/* Modal Content */}
         <div
-          className="relative w-full bg-background rounded-md shadow-xl overflow-hidden"
+          className="relative w-full bg-background rounded-md shadow-xl overflow-hidden flex flex-col max-h-[90vh]"
           style={{ maxWidth }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between bg-muted/40 px-5 py-2.5 border-b border-border">
-            <div className="flex items-center gap-2.5">
-              {Icon && <Icon className={cn("w-4 h-4", iconColor)} />}
-              <div className="flex flex-col">
-                <h2 className="text-sm font-semibold text-foreground">
-                  {title}
-                </h2>
-                {description && (
-                  <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
-                    {description}
-                  </p>
-                )}
+          {showHeader && (
+            <div className="flex items-center justify-between bg-muted/40 px-5 py-2.5 border-b border-border flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                {Icon && <Icon className={cn("w-4 h-4", iconColor)} />}
+                <div className="flex flex-col">
+                  <h2 className="text-sm font-semibold text-foreground">
+                    {title}
+                  </h2>
+                  {description && (
+                    <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                      {description}
+                    </p>
+                  )}
+                </div>
               </div>
+              <button
+                onClick={onClose}
+                className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              >
+                <X size={15} />
+              </button>
             </div>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-            >
-              <X size={15} />
-            </button>
-          </div>
+          )}
 
           {/* Body */}
-          <div className={padding}>
+          <div className={cn(padding, flexBody && "flex-1 min-h-0 overflow-hidden flex flex-col")}>
             <Suspense fallback={<ModalSkeleton />}>{children}</Suspense>
           </div>
 

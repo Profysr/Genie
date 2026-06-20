@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
-import { Copy, CopyPlus, ShieldCheck, Trash2, ChevronRight } from "lucide-react";
+import { Copy, CopyPlus, ShieldCheck, Trash2, ChevronRight, X } from "lucide-react";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Loader } from "@/components/ui/Loader";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
@@ -160,14 +160,21 @@ export default function TaskDetailPanel({
       <Modal
         isOpen={true}
         onClose={onClose}
-        title="Task Detail"
+        showHeader={false}
         showFooter={false}
+        flexBody={true}
         padding="p-0"
         maxWidth="80rem"
       >
-        {/* <div className="flex items-center justify-center min-h-[600px]"> */}
+        <div className="flex items-center justify-center min-h-[480px]">
+          <button
+            onClick={onClose}
+            className="absolute top-3 right-3 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          >
+            <X size={15} />
+          </button>
           <Loader />
-        {/* </div> */}
+        </div>
       </Modal>
     );
   }
@@ -179,8 +186,9 @@ export default function TaskDetailPanel({
     <Modal
       isOpen={true}
       onClose={onClose}
-      title="Task Detail"
+      showHeader={false}
       showFooter={false}
+      flexBody={true}
       padding="p-0"
       maxWidth="80rem"
     >
@@ -475,6 +483,15 @@ function PanelHeader({
             </button>
           </Tooltip>
         )}
+
+        <div className="w-px h-4 bg-border mx-0.5" />
+
+        <button
+          onClick={onClose}
+          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors active:scale-[0.97]"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
   );

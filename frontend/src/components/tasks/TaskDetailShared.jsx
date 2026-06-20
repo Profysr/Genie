@@ -29,6 +29,7 @@ export function Dropdown({
   placeholder = "Select…",
   renderTrigger,
   renderOption,
+  placement = "right",
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -49,19 +50,22 @@ export function Dropdown({
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          "flex items-center justify-between gap-2 text-sm transition-colors rounded-lg w-full text-left",
-          disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
+          "flex items-center justify-between gap-1.5 text-sm w-full text-left px-2 py-1.5 rounded-lg transition-all duration-150",
+          disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer active:scale-[0.97]",
+          open ? "bg-accent/80" : "hover:bg-accent/50",
         )}
       >
-        <span className="flex-1 truncate">
+        <span className="flex-1 truncate min-w-0">
           {renderTrigger
             ? renderTrigger(selected)
-            : selected?.label || <span className="text-muted-foreground">{placeholder}</span>}
+            : selected?.label || <span className="text-muted-foreground text-xs">{placeholder}</span>}
         </span>
-        {/* inline chevron to avoid lucide import in shared — using CSS border trick */}
         <svg
-          className={cn("w-3.5 h-3.5 text-muted-foreground flex-shrink-0 transition-transform duration-200", open && "rotate-180")}
-          viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
+          className={cn(
+            "w-3 h-3 text-muted-foreground/50 flex-shrink-0 transition-transform duration-200",
+            open && "rotate-180",
+          )}
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}
         >
           <polyline points="6 9 12 15 18 9" />
         </svg>
@@ -69,26 +73,38 @@ export function Dropdown({
 
       <div
         className={cn(
-          "absolute right-0 z-[60] min-w-52 bg-popover border border-border rounded shadow-xl overflow-hidden transition-all duration-200 origin-top",
+          "absolute z-[60] min-w-[11rem] bg-popover border border-border/60 rounded-xl shadow-2xl overflow-hidden",
+          "transition-[opacity,transform] duration-[160ms] ease-[cubic-bezier(0.16,1,0.3,1)]",
+          placement === "left" ? "left-0" : "right-0",
           open
-            ? "opacity-100 scale-y-100 translate-y-0.5"
-            : "opacity-0 scale-y-95 -translate-y-1 pointer-events-none",
+            ? "opacity-100 scale-100 translate-y-1 pointer-events-auto"
+            : "opacity-0 scale-[0.96] -translate-y-1 pointer-events-none",
         )}
+        style={{ transformOrigin: placement === "left" ? "top left" : "top right" }}
       >
-        {options.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => { onChange(opt.value); setOpen(false); }}
-            className={cn(
-              "w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-accent transition-colors text-left",
-              opt.value === value && "bg-accent/70 font-semibold",
-            )}
-          >
-            {renderOption ? renderOption(opt) : opt.label}
-            {opt.value === value && <Check className="w-3.5 h-3.5 ml-auto text-primary flex-shrink-0" />}
-          </button>
-        ))}
+        <div className="py-1">
+          {options.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => { onChange(opt.value); setOpen(false); }}
+              className={cn(
+                "w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors text-left",
+                opt.value === value ? "bg-primary/8 font-semibold" : "hover:bg-accent/70",
+              )}
+            >
+              <span className="flex-1 min-w-0">
+                {renderOption ? renderOption(opt) : opt.label}
+              </span>
+              <span className={cn(
+                "w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-150",
+                opt.value === value ? "bg-primary scale-100" : "scale-0",
+              )}>
+                <Check className="w-2 h-2 text-primary-foreground" />
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -96,8 +112,8 @@ export function Dropdown({
 
 export function DetailRow({ label, children }) {
   return (
-    <div className="flex items-center gap-3 py-2 border-b border-border/40 last:border-0 group hover:bg-accent/20 -mx-2 px-2 rounded transition-colors">
-      <span className="text-xs font-medium text-muted-foreground w-24 flex-shrink-0">{label}</span>
+    <div className="flex items-center gap-3 py-1.5 group -mx-1 px-1 rounded-lg hover:bg-accent/20 transition-colors">
+      <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50 w-20 flex-shrink-0">{label}</span>
       <div className="flex-1 min-w-0 text-sm">{children}</div>
     </div>
   );

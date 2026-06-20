@@ -550,7 +550,7 @@ export default function ListView({
 
       <div className="flex-1 overflow-auto">
         <table className="w-full text-sm border-collapse">
-          <thead className="sticky top-0 z-10">
+          <thead className="sticky top-0">
             <tr className="border-b bg-secondary">
               {onToggleSelect && <th className="w-8 pl-3 py-2" />}
               {visibleColumns.map((c) => (
