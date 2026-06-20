@@ -519,6 +519,7 @@ class TaskCardSerializer(serializers.ModelSerializer):
     done_subtask_count = serializers.SerializerMethodField()
     pending_approval_count = serializers.SerializerMethodField()
     approved_approval_count = serializers.SerializerMethodField()
+    child_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Task
@@ -540,12 +541,16 @@ class TaskCardSerializer(serializers.ModelSerializer):
             "done_subtask_count",
             "pending_approval_count",
             "approved_approval_count",
+            "child_count",
             "version",
         ]
         read_only_fields = fields
 
     def get_subtask_count(self, obj):
         return getattr(obj, "_subtask_count", obj.subtasks.count())
+
+    def get_child_count(self, obj):
+        return getattr(obj, "_child_count", obj.children.count())
 
     def get_done_subtask_count(self, obj):
         return getattr(

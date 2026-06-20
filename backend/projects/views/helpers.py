@@ -141,6 +141,7 @@ def _task_list_qs():
         Task.objects.select_related("assignee", "sprint")
         .prefetch_related("labels", "blocked_by_deps")
         .annotate(
+            _child_count=Count("children", distinct=True),
             _subtask_count=Count("subtasks", distinct=True),
             _done_subtask_count=Count(
                 "subtasks", filter=DQ(subtasks__is_done=True), distinct=True
