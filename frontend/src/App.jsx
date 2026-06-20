@@ -1,7 +1,7 @@
 import { lazy, Suspense } from "react";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { Routes, Route, Navigate, Outlet } from "react-router-dom";
-import { Loader } from "@/components/ui/Loader";
+import { Loader } from "@/shared/components/ui/Loader";
 
 // ── Shell components — always needed, load eagerly ───────────────────────────
 import ProtectedRoute from "@/components/layout/ProtectedRoute";
@@ -11,10 +11,18 @@ import WorkspaceRedirect from "@/pages/workspace/WorkspaceRedirect";
 // ── Public pages ──────────────────────────────────────────────────────────────
 const LoginPage = lazy(() => import("@/pages/auth/LoginPage"));
 const RegisterPage = lazy(() => import("@/pages/auth/RegisterPage"));
-const ForgotPasswordPage = lazy(() => import("@/pages/auth/ForgotPasswordPage"));
-const ResetPasswordConfirmPage = lazy(() => import("@/pages/auth/ResetPasswordConfirmPage"));
-const VerifyEmailSentPage = lazy(() => import("@/pages/auth/VerifyEmailSentPage"));
-const EmailVerifyConfirmPage = lazy(() => import("@/pages/auth/EmailVerifyConfirmPage"));
+const ForgotPasswordPage = lazy(
+  () => import("@/pages/auth/ForgotPasswordPage"),
+);
+const ResetPasswordConfirmPage = lazy(
+  () => import("@/pages/auth/ResetPasswordConfirmPage"),
+);
+const VerifyEmailSentPage = lazy(
+  () => import("@/pages/auth/VerifyEmailSentPage"),
+);
+const EmailVerifyConfirmPage = lazy(
+  () => import("@/pages/auth/EmailVerifyConfirmPage"),
+);
 const AcceptInvitePage = lazy(() => import("@/pages/invite/AcceptInvitePage"));
 const PublicFormPage = lazy(() => import("@/pages/forms/PublicFormPage"));
 
@@ -23,11 +31,19 @@ const OnboardingPage = lazy(() => import("@/pages/onboarding/OnboardingPage"));
 const SetupWizard = lazy(() => import("@/pages/workspace/SetupWizard"));
 
 // ── Project pages ─────────────────────────────────────────────────────────────
-const ProjectsPage = lazy(() => import("@/pages/projects/ProjectsPage"));
-const KanbanPage = lazy(() => import("@/pages/projects/KanbanPage"));
+const ProjectsPage = lazy(
+  () => import("@/apps/project-management/pages/ProjectsPage"),
+);
+const KanbanPage = lazy(
+  () => import("@/apps/project-management/pages/KanbanPage"),
+);
 // ‼️ Merged this view into Timeline view - const RoadmapPage = lazy(() => import("@/pages/projects/RoadmapPage"));
-const WikiPage = lazy(() => import("@/pages/projects/WikiPage"));
-const FormsPage = lazy(() => import("@/pages/projects/FormsPage"));
+const WikiPage = lazy(
+  () => import("@/apps/project-management/pages/WikiPage"),
+);
+const FormsPage = lazy(
+  () => import("@/apps/project-management/pages/FormsPage"),
+);
 // ‼️ Automation disabled — const AutomationsPage = lazy(() => import("@/pages/projects/AutomationsPage"));
 
 // ── Workspace pages ───────────────────────────────────────────────────────────
@@ -83,70 +99,76 @@ function SuspenseOutlet() {
 export default function App() {
   return (
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
-    <Routes>
-      {/* Public — full-page suspense */}
-      <Route element={<FullPageSuspense />}>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/reset-password/:uid/:token" element={<ResetPasswordConfirmPage />} />
-        <Route path="/verify-email-sent" element={<VerifyEmailSentPage />} />
-        <Route path="/verify-email/:key" element={<EmailVerifyConfirmPage />} />
-        <Route path="/invites/:token" element={<AcceptInvitePage />} />
-        <Route path="/forms/:formToken" element={<PublicFormPage />} />
-      </Route>
-
-      {/* Protected */}
-      <Route element={<ProtectedRoute />}>
+      <Routes>
+        {/* Public — full-page suspense */}
         <Route element={<FullPageSuspense />}>
-          <Route path="/onboarding" element={<OnboardingPage />} />
-          <Route path="/w/:workspaceId/setup" element={<SetupWizard />} />
-          <Route path="/" element={<WorkspaceRedirect />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route
+            path="/reset-password/:uid/:token"
+            element={<ResetPasswordConfirmPage />}
+          />
+          <Route path="/verify-email-sent" element={<VerifyEmailSentPage />} />
+          <Route
+            path="/verify-email/:key"
+            element={<EmailVerifyConfirmPage />}
+          />
+          <Route path="/invites/:token" element={<AcceptInvitePage />} />
+          <Route path="/forms/:formToken" element={<PublicFormPage />} />
         </Route>
 
-        {/* AppLayout shell loads eagerly; page content lazy-loads inside SuspenseOutlet */}
-        <Route path="/w/:workspaceId" element={<AppLayout />}>
-          <Route element={<SuspenseOutlet />}>
-            <Route index element={<Navigate to="dashboards" replace />} />
+        {/* Protected */}
+        <Route element={<ProtectedRoute />}>
+          <Route element={<FullPageSuspense />}>
+            <Route path="/onboarding" element={<OnboardingPage />} />
+            <Route path="/w/:workspaceId/setup" element={<SetupWizard />} />
+            <Route path="/" element={<WorkspaceRedirect />} />
+          </Route>
 
-            {/* Boards */}
-            <Route path="boards" element={<ProjectsPage />} />
-            <Route path="boards/:boardId" element={<KanbanPage />} />
-            <Route path="boards/:boardId/wiki" element={<WikiPage />} />
-            <Route
-              path="boards/:boardId/wiki/:pageId"
-              element={<WikiPage />}
-            />
-            <Route path="boards/:boardId/forms" element={<FormsPage />} />
-            {/* ‼️ Automation disabled
+          {/* AppLayout shell loads eagerly; page content lazy-loads inside SuspenseOutlet */}
+          <Route path="/w/:workspaceId" element={<AppLayout />}>
+            <Route element={<SuspenseOutlet />}>
+              <Route index element={<Navigate to="dashboards" replace />} />
+
+              {/* Boards */}
+              <Route path="boards" element={<ProjectsPage />} />
+              <Route path="boards/:boardId" element={<KanbanPage />} />
+              <Route path="boards/:boardId/wiki" element={<WikiPage />} />
+              <Route
+                path="boards/:boardId/wiki/:pageId"
+                element={<WikiPage />}
+              />
+              <Route path="boards/:boardId/forms" element={<FormsPage />} />
+              {/* ‼️ Automation disabled
             <Route
               path="boards/:boardId/automations"
               element={<AutomationsPage />}
             /> */}
 
-            {/* Workspace */}
-            {/* <Route path="roadmap" element={<RoadmapPage />} /> */}
-            <Route path="dashboards" element={<DashboardsPage />} />
-            <Route path="analytics" element={<AnalyticsPage />} />
-            <Route path="goals" element={<GoalsPage />} />
-            <Route path="my-work" element={<MyWorkPage />} />
-            <Route path="members" element={<MembersPage />} />
+              {/* Workspace */}
+              {/* <Route path="roadmap" element={<RoadmapPage />} /> */}
+              <Route path="dashboards" element={<DashboardsPage />} />
+              <Route path="analytics" element={<AnalyticsPage />} />
+              <Route path="goals" element={<GoalsPage />} />
+              <Route path="my-work" element={<MyWorkPage />} />
+              <Route path="members" element={<MembersPage />} />
 
-            {/* Settings */}
-            <Route path="settings" element={<SettingsPage />} />
-            <Route
-              path="settings/integrations"
-              element={<IntegrationsPage />}
-            />
-            <Route path="settings/api" element={<APIKeysPage />} />
-            <Route path="settings/webhooks" element={<WebhooksPage />} />
-            <Route path="settings/import" element={<ImportPage />} />
+              {/* Settings */}
+              <Route path="settings" element={<SettingsPage />} />
+              <Route
+                path="settings/integrations"
+                element={<IntegrationsPage />}
+              />
+              <Route path="settings/api" element={<APIKeysPage />} />
+              <Route path="settings/webhooks" element={<WebhooksPage />} />
+              <Route path="settings/import" element={<ImportPage />} />
+            </Route>
           </Route>
         </Route>
-      </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </GoogleOAuthProvider>
   );
 }

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import api from "@/lib/api";
-import { ACCENT_COLORS, DENSITIES } from "@/lib/constants";
+import api from "@/shared/lib/api";
+import { ACCENT_COLORS, DENSITIES } from "@/shared/lib/constants";
 import { useAuthStore } from "@/store/authStore";
 
 // Patch authStore.user in place so hydrateTheme() on next refresh
@@ -18,7 +18,9 @@ function applyTheme(theme, accent, density) {
   if (theme === "dark") root.classList.add("dark");
   else if (theme === "midnight") root.classList.add("midnight");
 
-  Object.keys(ACCENT_COLORS).forEach((a) => root.classList.remove(`accent-${a}`));
+  Object.keys(ACCENT_COLORS).forEach((a) =>
+    root.classList.remove(`accent-${a}`),
+  );
   root.classList.add(`accent-${accent}`);
 
   DENSITIES.forEach((d) => root.classList.remove(`density-${d.value}`));
@@ -35,7 +37,8 @@ export const useThemeStore = create(
       setTheme: (theme) => {
         set({ theme });
         applyTheme(theme, get().accent, get().density);
-        api.patch("/api/users/me/", { theme })
+        api
+          .patch("/api/users/me/", { theme })
           .then(() => syncAuthUser({ theme }))
           .catch(() => {});
       },
@@ -43,7 +46,8 @@ export const useThemeStore = create(
       setAccent: (accent) => {
         set({ accent });
         applyTheme(get().theme, accent, get().density);
-        api.patch("/api/users/me/", { accent_color: accent })
+        api
+          .patch("/api/users/me/", { accent_color: accent })
           .then(() => syncAuthUser({ accent_color: accent }))
           .catch(() => {});
       },
@@ -51,7 +55,8 @@ export const useThemeStore = create(
       setDensity: (density) => {
         set({ density });
         applyTheme(get().theme, get().accent, density);
-        api.patch("/api/users/me/", { density_mode: density })
+        api
+          .patch("/api/users/me/", { density_mode: density })
           .then(() => syncAuthUser({ density_mode: density }))
           .catch(() => {});
       },

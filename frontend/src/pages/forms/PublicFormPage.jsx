@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Loader } from "@/components/ui/Loader";
+import { Loader } from "@/shared/components/ui/Loader";
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import api from "@/lib/api";
-import { Button } from "@/components/ui/button";
+import api from "@/shared/lib/api";
+import { Button } from "@/shared/components/ui/button";
 import { CheckCircle } from "lucide-react";
 
 export default function PublicFormPage() {
@@ -101,7 +101,7 @@ export default function PublicFormPage() {
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
-          
+
           <div className="h-0.5 w-full bg-border" />
 
           {(form.fields || []).map((field) => (

@@ -1,0 +1,119 @@
+import { useState, useMemo } from "react";
+import { DragDropContext } from "@hello-pangea/dnd";
+import KanbanColumn from "@/apps/project-management/components/tasks/KanbanColumn";
+import SprintHeader from "@/apps/project-management/components/projects/SprintPanel";
+import SprintPlanningView from "@/apps/project-management/components/projects/SprintPlanningView";
+import SprintSwimLanes from "@/apps/project-management/components/projects/SprintSwimLanes";
+import { useSprintDetail } from "@/apps/project-management/hooks/useSprints";
+
+export default function SprintView({
+  workspaceId,
+  boardId,
+  allTasks,
+  statuses,
+  members,
+  labelsById,
+  onTaskClick,
+  onAddTask,
+  selectedTaskId,
+  selectedIds,
+  onToggleSelect,
+  canEdit,
+  onDragEnd,
+}) {
+  const [activeSprintId, setActiveSprintId] = useState(null);
+  const [sprintView, setSprintView] = useState("columns");
+
+  // Always reflects the latest server state — never a stale snapshot.
+  const { data: activeSprint = null } = useSprintDetail(
+    workspaceId,
+    boardId,
+    activeSprintId,
+  );
+
+  const tasks = useMemo(() => {
+    if (!activeSprint) return allTasks;
+    return allTasks.filter((t) => t.sprint_id === activeSprint.id);
+  }, [allTasks, activeSprint]);
+
+  const backlogTasks = useMemo(
+    () => allTasks.filter((t) => !t.sprint_id),
+    [allTasks],
+  );
+
+  const tasksByStatus = (statusId) =>
+    tasks
+      .filter((t) => t.status_id === statusId)
+      .sort((a, b) => a.order - b.order);
+
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden">
+      <SprintHeader
+        workspaceId={workspaceId}
+        boardId={boardId}
+        activeSprint={activeSprint}
+        onSelectSprint={(s) => setActiveSprintId(s?.id ?? null)}
+        sprintView={sprintView}
+        onSprintViewChange={setSprintView}
+      />
+
+      {activeSprint?.status === "planning" && (
+        <SprintPlanningView
+          backlogTasks={backlogTasks}
+          stagedTasks={tasks}
+          sprint={activeSprint}
+          members={members}
+          onTaskClick={onTaskClick}
+          labelsById={labelsById}
+          workspaceId={workspaceId}
+          boardId={boardId}
+        />
+      )}
+
+      {(activeSprint?.status === "active" ||
+        activeSprint?.status === "completed") && (
+        <>
+          {sprintView === "columns" && (
+            <div className="flex-1 overflow-x-auto p-6">
+              <DragDropContext onDragEnd={onDragEnd}>
+                <div className="flex gap-5 h-full items-start">
+                  {statuses?.map((col) => (
+                    <KanbanColumn
+                      key={col.id}
+                      column={col}
+                      tasks={tasksByStatus(col.id)}
+                      onAddTask={onAddTask}
+                      onTaskClick={(task) => onTaskClick(task.id)}
+                      selectedTaskId={selectedTaskId}
+                      selectedIds={selectedIds}
+                      onToggleSelect={onToggleSelect}
+                      workspaceId={workspaceId}
+                      boardId={boardId}
+                      canEdit={canEdit}
+                      labelsById={labelsById}
+                    />
+                  ))}
+                </div>
+              </DragDropContext>
+            </div>
+          )}
+
+          {sprintView === "swimlanes" && (
+            <SprintSwimLanes
+              tasks={tasks}
+              statuses={statuses || []}
+              members={members}
+              onTaskClick={onTaskClick}
+            />
+          )}
+        </>
+      )}
+
+      {!activeSprint && (
+        <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
+          Select or create a sprint above to get started.
+        </div>
+      )}
+    </div>
+  );
+}

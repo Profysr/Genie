@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Mail, CheckCircle, AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/components/ui/button";
 import {
   Card,
   CardContent,
@@ -9,8 +9,8 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import api from "@/lib/api";
+} from "@/shared/components/ui/card";
+import api from "@/shared/lib/api";
 
 export default function VerifyEmailSentPage() {
   const [searchParams] = useSearchParams();
@@ -45,8 +45,8 @@ export default function VerifyEmailSentPage() {
           <CardTitle className="text-2xl">Check your inbox</CardTitle>
           <CardDescription>
             We sent a confirmation link to{" "}
-            <span className="font-medium text-foreground">{email}</span>.
-            Click it to activate your account.
+            <span className="font-medium text-foreground">{email}</span>. Click
+            it to activate your account.
           </CardDescription>
         </CardHeader>
 
@@ -75,7 +75,11 @@ export default function VerifyEmailSentPage() {
             onClick={handleResend}
             disabled={resending || resent}
           >
-            {resending ? "Resending…" : resent ? "Email sent!" : "Resend verification email"}
+            {resending
+              ? "Resending…"
+              : resent
+                ? "Email sent!"
+                : "Resend verification email"}
           </Button>
           <Link
             to="/login"

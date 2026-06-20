@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Loader } from "@/components/ui/Loader";
+import { Loader } from "@/shared/components/ui/Loader";
 import { useParams } from "react-router-dom";
 import { SiGooglechat } from "react-icons/si";
 import { BsMicrosoftTeams } from "react-icons/bs";
@@ -15,7 +15,7 @@ import {
   ChevronUp,
   Loader2,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/lib/utils";
 import {
   useIntegrationStatus,
   useSaveTeams,
@@ -28,9 +28,9 @@ import {
   useCreateChannelMapping,
   useUpdateChannelMapping,
   useDeleteChannelMapping,
-} from "@/hooks/useIntegrations";
-import { useBoards } from "@/hooks/useProjects";
-import { useToast } from "@/components/ui/toast";
+} from "@/shared/hooks/useIntegrations";
+import { useBoards } from "@/apps/project-management/hooks/useProjects";
+import { useToast } from "@/shared/components/ui/toast";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const ALL_EVENTS = [

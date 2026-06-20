@@ -9,9 +9,9 @@ import {
   Clock,
   X,
 } from "lucide-react";
-import { Avatar } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Avatar } from "@/shared/components/ui/avatar";
+import { Button } from "@/shared/components/ui/button";
+import { cn } from "@/shared/lib/utils";
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -19,13 +19,13 @@ import {
   useMembers,
   useUpdateMemberRole,
   useRemoveMember,
-} from "@/hooks/useMembers";
-import { useWorkspace } from "@/hooks/useWorkspace";
+} from "@/shared/hooks/useMembers";
+import { useWorkspace } from "@/shared/hooks/useWorkspace";
 import { useAuthStore } from "@/store/authStore";
-import api from "@/lib/api";
-import InviteModal from "@/components/workspace/InviteModal";
+import api from "@/shared/lib/api";
+import InviteModal from "@/shared/components/workspace/InviteModal";
 
-import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { ConfirmModal } from "@/shared/components/ui/ConfirmModal";
 
 export const ROLES = ["admin", "member", "viewer"];
 export const ROLE_CONFIG = {
@@ -204,7 +204,9 @@ export default function MembersPage() {
   const { data: pendingInvites = [] } = useQuery({
     queryKey: ["workspace-invites", workspaceId],
     queryFn: () =>
-      api.get(`/api/workspaces/${workspaceId}/invites/pending/`).then((r) => r.data),
+      api
+        .get(`/api/workspaces/${workspaceId}/invites/pending/`)
+        .then((r) => r.data),
     enabled: !!workspaceId,
   });
 

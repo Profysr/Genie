@@ -16,9 +16,9 @@ import {
   EyeOff,
   AlertTriangle,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { EmptyState } from "@/components/ui/empty-state";
-import Modal from "@/components/ui/Modal";
+import { cn } from "@/shared/lib/utils";
+import { EmptyState } from "@/shared/components/ui/empty-state";
+import Modal from "@/shared/components/ui/Modal";
 import {
   useWebhooks,
   useCreateWebhook,
@@ -26,10 +26,10 @@ import {
   useDeleteWebhook,
   useTestWebhook,
   useWebhookDeliveries,
-} from "@/hooks/useWebhooks";
+} from "@/shared/hooks/useWebhooks";
 import { formatDistanceToNow } from "date-fns";
-import { useToast } from "@/components/ui/toast";
-import { Loader } from "@/components/ui/Loader";
+import { useToast } from "@/shared/components/ui/toast";
+import { Loader } from "@/shared/components/ui/Loader";
 
 const ALL_EVENTS = [
   { id: "task.created", label: "task.created" },
@@ -259,13 +259,18 @@ function WebhookRow({ hook, workspaceId }) {
         isLoading={remove.isPending}
         onConfirm={() =>
           remove.mutate(hook.id, {
-            onSuccess: () => { toast.success("Webhook deleted"); setConfirmDelete(false); },
+            onSuccess: () => {
+              toast.success("Webhook deleted");
+              setConfirmDelete(false);
+            },
           })
         }
       >
         <p className="text-sm text-muted-foreground">
-          Delete <span className="font-medium text-foreground">{hook.name}</span>?
-          All delivery history will be permanently removed and the endpoint will stop receiving events.
+          Delete{" "}
+          <span className="font-medium text-foreground">{hook.name}</span>? All
+          delivery history will be permanently removed and the endpoint will
+          stop receiving events.
         </p>
       </Modal>
 
@@ -429,7 +434,9 @@ function CreateWebhookModal({ workspaceId, onClose, onCreated }) {
     >
       <div className="space-y-4">
         <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Name</label>
+          <label className="text-xs text-muted-foreground mb-1 block">
+            Name
+          </label>
           <input
             autoFocus
             value={form.name}
@@ -439,7 +446,9 @@ function CreateWebhookModal({ workspaceId, onClose, onCreated }) {
           />
         </div>
         <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Payload URL</label>
+          <label className="text-xs text-muted-foreground mb-1 block">
+            Payload URL
+          </label>
           <input
             value={form.url}
             onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
@@ -509,7 +518,10 @@ function SecretReveal({ secret, onClose }) {
       <div className="space-y-4">
         <div className="flex items-center gap-2 bg-muted rounded-md px-3 py-2.5">
           <code className="text-xs font-mono flex-1 break-all">{secret}</code>
-          <button onClick={copy} className="p-1.5 rounded-lg hover:bg-accent flex-shrink-0 transition-colors">
+          <button
+            onClick={copy}
+            className="p-1.5 rounded-lg hover:bg-accent flex-shrink-0 transition-colors"
+          >
             {copied ? (
               <Check className="w-4 h-4 text-emerald-500" />
             ) : (

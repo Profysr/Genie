@@ -2,12 +2,19 @@ import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
-import GoogleButton from "@/components/auth/GoogleButton";
-import api from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import GoogleButton from "@/shared/components/auth/GoogleButton";
+import api from "@/shared/lib/api";
+import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
+import { Label } from "@/shared/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/shared/components/ui/card";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -59,10 +66,17 @@ export default function RegisterPage() {
     }
     setLoading(true);
     try {
-      const data = await register(form.email, form.password1, form.password2, form.full_name);
+      const data = await register(
+        form.email,
+        form.password1,
+        form.password2,
+        form.full_name,
+      );
       // Email verification mandatory → no tokens; redirect to check-inbox page.
       if (!data.access) {
-        navigate(`/verify-email-sent?email=${encodeURIComponent(form.email)}`, { replace: true });
+        navigate(`/verify-email-sent?email=${encodeURIComponent(form.email)}`, {
+          replace: true,
+        });
         return;
       }
       await handlePostAuth(null);
@@ -100,27 +114,40 @@ export default function RegisterPage() {
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div
           className="animate-float absolute -top-32 -right-32 w-96 h-96 rounded-full opacity-20"
-          style={{ background: "radial-gradient(circle, hsl(var(--primary)) 0%, transparent 70%)" }}
+          style={{
+            background:
+              "radial-gradient(circle, hsl(var(--primary)) 0%, transparent 70%)",
+          }}
         />
         <div
           className="animate-float-reverse absolute -bottom-24 -left-24 w-80 h-80 rounded-full opacity-15"
-          style={{ background: "radial-gradient(circle, hsl(var(--primary)) 0%, transparent 70%)" }}
+          style={{
+            background:
+              "radial-gradient(circle, hsl(var(--primary)) 0%, transparent 70%)",
+          }}
         />
         <div
           className="animate-float-slow absolute top-1/3 right-1/4 w-64 h-64 rounded-full opacity-10"
-          style={{ background: "radial-gradient(circle, hsl(var(--accent)) 0%, transparent 70%)" }}
+          style={{
+            background:
+              "radial-gradient(circle, hsl(var(--accent)) 0%, transparent 70%)",
+          }}
         />
       </div>
 
       <Card className="w-full max-w-lg relative animate-scale-in shadow-xl">
         <div className="flex justify-center pt-8 pb-2">
           <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-md">
-            <span className="text-primary-foreground font-bold text-lg select-none">J</span>
+            <span className="text-primary-foreground font-bold text-lg select-none">
+              J
+            </span>
           </div>
         </div>
 
         <CardHeader className="text-center pb-2">
-          <CardTitle className="text-2xl font-bold">Create your account</CardTitle>
+          <CardTitle className="text-2xl font-bold">
+            Create your account
+          </CardTitle>
           <CardDescription>
             {inviteToken
               ? "Create an account to accept your invitation"
@@ -129,9 +156,14 @@ export default function RegisterPage() {
         </CardHeader>
 
         <div className="px-8 pb-2">
-          <GoogleButton onSuccess={handleGoogleSuccess} onError={setGoogleError} />
+          <GoogleButton
+            onSuccess={handleGoogleSuccess}
+            onError={setGoogleError}
+          />
           {googleError && (
-            <p className="text-sm text-destructive mt-2 animate-slide-up">{googleError}</p>
+            <p className="text-sm text-destructive mt-2 animate-slide-up">
+              {googleError}
+            </p>
           )}
           <div className="relative my-5">
             <div className="absolute inset-0 flex items-center">
@@ -147,17 +179,34 @@ export default function RegisterPage() {
           <CardContent className="space-y-5 px-8">
             <div className="space-y-1.5">
               <Label htmlFor="full_name">Full name</Label>
-              <Input id="full_name" type="text" placeholder="Jane Doe" className="h-11" {...field("full_name")} />
+              <Input
+                id="full_name"
+                type="text"
+                placeholder="Jane Doe"
+                className="h-11"
+                {...field("full_name")}
+              />
               {errors.full_name && (
-                <p className="text-xs text-destructive animate-slide-up">{errors.full_name}</p>
+                <p className="text-xs text-destructive animate-slide-up">
+                  {errors.full_name}
+                </p>
               )}
             </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="you@company.com" required className="h-11" {...field("email")} />
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@company.com"
+                required
+                className="h-11"
+                {...field("email")}
+              />
               {errors.email && (
-                <p className="text-xs text-destructive animate-slide-up">{errors.email}</p>
+                <p className="text-xs text-destructive animate-slide-up">
+                  {errors.email}
+                </p>
               )}
             </div>
 
@@ -179,11 +228,17 @@ export default function RegisterPage() {
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   aria-label={showPw1 ? "Hide password" : "Show password"}
                 >
-                  {showPw1 ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPw1 ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
                 </button>
               </div>
               {errors.password1 && (
-                <p className="text-xs text-destructive animate-slide-up">{errors.password1}</p>
+                <p className="text-xs text-destructive animate-slide-up">
+                  {errors.password1}
+                </p>
               )}
             </div>
 
@@ -205,27 +260,44 @@ export default function RegisterPage() {
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   aria-label={showPw2 ? "Hide password" : "Show password"}
                 >
-                  {showPw2 ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPw2 ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
                 </button>
               </div>
               {errors.password2 && (
-                <p className="text-xs text-destructive animate-slide-up">{errors.password2}</p>
+                <p className="text-xs text-destructive animate-slide-up">
+                  {errors.password2}
+                </p>
               )}
             </div>
           </CardContent>
 
           <CardFooter className="flex-col gap-4 px-8 pb-8">
-            <Button type="submit" className="w-full h-11 text-base font-medium" disabled={loading}>
+            <Button
+              type="submit"
+              className="w-full h-11 text-base font-medium"
+              disabled={loading}
+            >
               {loading ? (
                 <span className="flex items-center gap-2">
                   <span className="w-4 h-4 border-2 border-primary-foreground/40 border-t-primary-foreground rounded-full animate-spin" />
                   Creating account…
                 </span>
-              ) : inviteToken ? "Create account & join workspace" : "Create account"}
+              ) : inviteToken ? (
+                "Create account & join workspace"
+              ) : (
+                "Create account"
+              )}
             </Button>
             <p className="text-sm text-muted-foreground">
               Already have an account?{" "}
-              <Link to="/login" className="text-primary hover:underline font-medium">
+              <Link
+                to="/login"
+                className="text-primary hover:underline font-medium"
+              >
                 Sign in
               </Link>
             </p>

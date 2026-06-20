@@ -2,9 +2,9 @@ import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { BarChart2, Activity, Users, Layers } from "lucide-react";
 import { Bar as ChartBar } from "react-chartjs-2";
-import "@/components/charts/chartSetup";
-import { chartColors } from "@/components/charts/chartTheme";
-import { cn } from "@/lib/utils";
+import "@/shared/components/charts/chartSetup";
+import { chartColors } from "@/shared/components/charts/chartTheme";
+import { cn } from "@/shared/lib/utils";
 import {
   useWorkspaceOverview,
   useVelocity,
@@ -18,16 +18,16 @@ import {
   useOverdueAging,
   useCompletionRate,
   useEstimationAccuracy,
-} from "@/hooks/useAnalyticsV2";
-import { useBoards } from "@/hooks/useProjects";
-import { PRIORITIES } from "@/lib/constants";
-import VelocityChart from "@/components/charts/VelocityChart";
-import CFDChart from "@/components/charts/CFDChart";
-import CycleTimeChart from "@/components/charts/CycleTimeChart";
-import LeadTimeChart from "@/components/charts/LeadTimeChart";
-import ThroughputChart from "@/components/charts/ThroughputChart";
-import BurnupChart from "@/components/charts/BurnupChart";
-import WorkloadHeatmap from "@/components/charts/WorkloadHeatmap";
+} from "@/shared/hooks/useAnalyticsV2";
+import { useBoards } from "@/apps/project-management/hooks/useProjects";
+import { PRIORITIES } from "@/shared/lib/constants";
+import VelocityChart from "@/shared/components/charts/VelocityChart";
+import CFDChart from "@/shared/components/charts/CFDChart";
+import CycleTimeChart from "@/shared/components/charts/CycleTimeChart";
+import LeadTimeChart from "@/shared/components/charts/LeadTimeChart";
+import ThroughputChart from "@/shared/components/charts/ThroughputChart";
+import BurnupChart from "@/shared/components/charts/BurnupChart";
+import WorkloadHeatmap from "@/shared/components/charts/WorkloadHeatmap";
 
 // ── Shared primitives ─────────────────────────────────────────────────────────
 
@@ -36,19 +36,29 @@ const PRI_COLOR = Object.fromEntries(
 );
 
 const PRIORITY_BADGE = {
-  urgent:      "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
-  high:        "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300",
-  medium:      "bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300",
-  low:         "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+  urgent: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
+  high: "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300",
+  medium:
+    "bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300",
+  low: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
   no_priority: "bg-muted text-muted-foreground",
 };
 
-
-function StatCard({ label, value, color = "bg-primary/10 text-primary", icon: Icon }) {
+function StatCard({
+  label,
+  value,
+  color = "bg-primary/10 text-primary",
+  icon: Icon,
+}) {
   return (
     <div className="bg-card border border-border rounded-md p-4 shadow-card flex items-start gap-3">
       {Icon && (
-        <div className={cn("w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0", color)}>
+        <div
+          className={cn(
+            "w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0",
+            color,
+          )}
+        >
           <Icon className="w-5 h-5" />
         </div>
       )}
@@ -70,21 +80,33 @@ function HBar({ label, value, max, color }) {
       <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
         <div
           className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${pct}%`, backgroundColor: color || "hsl(var(--primary))" }}
+          style={{
+            width: `${pct}%`,
+            backgroundColor: color || "hsl(var(--primary))",
+          }}
         />
       </div>
-      <span className="text-xs font-semibold tabular-nums w-6 text-right">{value}</span>
+      <span className="text-xs font-semibold tabular-nums w-6 text-right">
+        {value}
+      </span>
     </div>
   );
 }
 
 function Card({ title, subtitle, children, className }) {
   return (
-    <div className={cn("bg-card border border-border rounded-md p-5 shadow-card", className)}>
+    <div
+      className={cn(
+        "bg-card border border-border rounded-md p-5 shadow-card",
+        className,
+      )}
+    >
       {(title || subtitle) && (
         <div className="mb-4">
           {title && <p className="text-sm font-semibold">{title}</p>}
-          {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+          {subtitle && (
+            <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
+          )}
         </div>
       )}
       {children}
@@ -93,7 +115,9 @@ function Card({ title, subtitle, children, className }) {
 }
 
 function Empty({ msg = "No data yet" }) {
-  return <p className="text-xs text-muted-foreground py-8 text-center">{msg}</p>;
+  return (
+    <p className="text-xs text-muted-foreground py-8 text-center">{msg}</p>
+  );
 }
 
 function SectionDivider({ label }) {
@@ -110,14 +134,19 @@ function SectionDivider({ label }) {
 function CompletionSparkline({ data }) {
   if (!data || data.length < 2) return <Empty msg="Not enough data yet" />;
   const counts = data.map((d) => d.count);
-  const max    = Math.max(...counts, 1);
-  const W = 400, H = 80;
-  const step   = W / (data.length - 1);
+  const max = Math.max(...counts, 1);
+  const W = 400,
+    H = 80;
+  const step = W / (data.length - 1);
   const points = data
     .map((d, i) => `${i * step},${H - (d.count / max) * (H - 10)}`)
     .join(" ");
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-20" preserveAspectRatio="none">
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      className="w-full h-20"
+      preserveAspectRatio="none"
+    >
       <polyline
         points={points}
         fill="none"
@@ -144,37 +173,75 @@ function KpiSection({ workspaceId, boardId }) {
   const { data } = useWorkspaceOverview(workspaceId, { boardId });
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      <StatCard label="Boards"      value={data?.boards}     icon={Layers}    color="bg-indigo-100 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300" />
-      <StatCard label="Total Tasks" value={data?.tasks}      icon={BarChart2} color="bg-violet-100 text-violet-600 dark:bg-violet-950 dark:text-violet-300" />
-      <StatCard label="Members"     value={data?.members}    icon={Users}     color="bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300" />
-      <StatCard label="Open Tasks"  value={data?.open_tasks} icon={Activity}  color="bg-orange-100 text-orange-600 dark:bg-orange-950 dark:text-orange-300" />
+      <StatCard
+        label="Boards"
+        value={data?.boards}
+        icon={Layers}
+        color="bg-indigo-100 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300"
+      />
+      <StatCard
+        label="Total Tasks"
+        value={data?.tasks}
+        icon={BarChart2}
+        color="bg-violet-100 text-violet-600 dark:bg-violet-950 dark:text-violet-300"
+      />
+      <StatCard
+        label="Members"
+        value={data?.members}
+        icon={Users}
+        color="bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300"
+      />
+      <StatCard
+        label="Open Tasks"
+        value={data?.open_tasks}
+        icon={Activity}
+        color="bg-orange-100 text-orange-600 dark:bg-orange-950 dark:text-orange-300"
+      />
     </div>
   );
 }
 
 function TaskBreakdownSection({ workspaceId, boardId }) {
   const { data } = useWorkspaceOverview(workspaceId, { boardId });
-  const byStatus   = data?.tasks_by_status   || [];
+  const byStatus = data?.tasks_by_status || [];
   const byPriority = data?.tasks_by_priority || [];
   const maxS = Math.max(1, ...byStatus.map((s) => s.count));
   const maxP = Math.max(1, ...byPriority.map((p) => p.count));
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <Card title="Tasks by Status">
-        {!byStatus.length ? <Empty /> : (
+        {!byStatus.length ? (
+          <Empty />
+        ) : (
           <div className="space-y-2.5">
             {byStatus.map((s) => (
-              <HBar key={s.status__name} label={s.status__name || "None"} value={s.count} max={maxS} color={s.status__color} />
+              <HBar
+                key={s.status__name}
+                label={s.status__name || "None"}
+                value={s.count}
+                max={maxS}
+                color={s.status__color}
+              />
             ))}
           </div>
         )}
       </Card>
       <Card title="Tasks by Priority">
-        {!byPriority.length ? <Empty /> : (
+        {!byPriority.length ? (
+          <Empty />
+        ) : (
           <div className="space-y-2.5">
             {byPriority.map((p) => {
               const cfg = PRI_COLOR[p.priority] || PRI_COLOR.no_priority;
-              return <HBar key={p.priority} label={cfg?.label || p.priority} value={p.count} max={maxP} color={cfg?.color} />;
+              return (
+                <HBar
+                  key={p.priority}
+                  label={cfg?.label || p.priority}
+                  value={p.count}
+                  max={maxP}
+                  color={cfg?.color}
+                />
+              );
             })}
           </div>
         )}
@@ -193,15 +260,25 @@ function ActivitySection({ workspaceId, boardId }) {
 }
 
 function WorkloadSection({ workspaceId, boardId, days }) {
-  const { data: hmData = [] } = useWorkloadHeatmap(workspaceId, { boardId, days });
+  const { data: hmData = [] } = useWorkloadHeatmap(workspaceId, {
+    boardId,
+    days,
+  });
   const active = hmData.filter?.((w) => w.assigned > 0) || [];
-  const maxW   = Math.max(1, ...active.map((w) => w.assigned));
+  const maxW = Math.max(1, ...active.map((w) => w.assigned));
   return (
     <Card title="Workload by Member">
-      {!active.length ? <Empty msg="No assigned tasks yet" /> : (
+      {!active.length ? (
+        <Empty msg="No assigned tasks yet" />
+      ) : (
         <div className="space-y-2.5">
           {active.map((w) => (
-            <HBar key={w.email} label={w.name || w.email} value={w.assigned} max={maxW} />
+            <HBar
+              key={w.email}
+              label={w.name || w.email}
+              value={w.assigned}
+              max={maxW}
+            />
           ))}
         </div>
       )}
@@ -210,12 +287,25 @@ function WorkloadSection({ workspaceId, boardId, days }) {
 }
 
 function VelocitySection({ workspaceId, boardId, days }) {
-  const { data: vData, isLoading: vLoad } = useVelocity(workspaceId, { boardId });
-  const { data: tData, isLoading: tLoad } = useThroughput(workspaceId, { boardId, period: "week", days });
-  const { data: bData, isLoading: bLoad } = useBurnup(workspaceId, { boardId, days });
+  const { data: vData, isLoading: vLoad } = useVelocity(workspaceId, {
+    boardId,
+  });
+  const { data: tData, isLoading: tLoad } = useThroughput(workspaceId, {
+    boardId,
+    period: "week",
+    days,
+  });
+  const { data: bData, isLoading: bLoad } = useBurnup(workspaceId, {
+    boardId,
+    days,
+  });
   return (
     <div className="space-y-4">
-      <VelocityChart data={vData} avgSP={vData?.avg_story_points} loading={vLoad} />
+      <VelocityChart
+        data={vData}
+        avgSP={vData?.avg_story_points}
+        loading={vLoad}
+      />
       <ThroughputChart data={tData} period="week" loading={tLoad} />
       {boardId && <BurnupChart data={bData} loading={bLoad} />}
     </div>
@@ -223,14 +313,23 @@ function VelocitySection({ workspaceId, boardId, days }) {
 }
 
 function FlowSection({ workspaceId, boardId, days }) {
-  const { data: cfdData, isLoading: cfdLoad } = useCFD(workspaceId, { boardId, days });
-  const { data: ltData,  isLoading: ltLoad  } = useLeadTime(workspaceId, { boardId, days });
-  const { data: ctData,  isLoading: ctLoad  } = useCycleTime(workspaceId, { boardId, days });
+  const { data: cfdData, isLoading: cfdLoad } = useCFD(workspaceId, {
+    boardId,
+    days,
+  });
+  const { data: ltData, isLoading: ltLoad } = useLeadTime(workspaceId, {
+    boardId,
+    days,
+  });
+  const { data: ctData, isLoading: ctLoad } = useCycleTime(workspaceId, {
+    boardId,
+    days,
+  });
   return (
     <div className="space-y-4">
       <CFDChart data={cfdData} loading={cfdLoad} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <LeadTimeChart  data={ltData} loading={ltLoad} />
+        <LeadTimeChart data={ltData} loading={ltLoad} />
         <CycleTimeChart data={ctData} loading={ctLoad} />
       </div>
     </div>
@@ -238,7 +337,10 @@ function FlowSection({ workspaceId, boardId, days }) {
 }
 
 function TeamSection({ workspaceId, boardId, days }) {
-  const { data: hmData, isLoading: hmLoad } = useWorkloadHeatmap(workspaceId, { boardId, days });
+  const { data: hmData, isLoading: hmLoad } = useWorkloadHeatmap(workspaceId, {
+    boardId,
+    days,
+  });
   return <WorkloadHeatmap data={hmData} loading={hmLoad} />;
 }
 
@@ -252,7 +354,9 @@ function TimeInStatusSection({ workspaceId, boardId, days }) {
       title="Time Spent in Each Status"
       subtitle="Historical avg — where work slowed down before moving forward"
     >
-      {!data.length ? <Empty /> : (
+      {!data.length ? (
+        <Empty />
+      ) : (
         <div className="space-y-3">
           {data.map((d) => (
             <div key={d.status} className="flex items-center gap-3">
@@ -262,7 +366,10 @@ function TimeInStatusSection({ workspaceId, boardId, days }) {
               <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-500"
-                  style={{ width: `${(d.avg_days / max) * 100}%`, backgroundColor: "hsl(var(--primary))" }}
+                  style={{
+                    width: `${(d.avg_days / max) * 100}%`,
+                    backgroundColor: "hsl(var(--primary))",
+                  }}
                 />
               </div>
               <span className="text-xs font-semibold tabular-nums w-14 text-right text-muted-foreground">
@@ -281,9 +388,9 @@ function TimeInStatusSection({ workspaceId, boardId, days }) {
 
 function OverdueAgingSection({ workspaceId, boardId }) {
   const { data } = useOverdueAging(workspaceId, { boardId });
-  const buckets  = data?.buckets || [];
-  const tasks    = data?.tasks   || [];
-  const total    = data?.total   ?? 0;
+  const buckets = data?.buckets || [];
+  const tasks = data?.tasks || [];
+  const total = data?.total ?? 0;
   const maxCount = Math.max(1, ...buckets.map((b) => b.count));
 
   return (
@@ -349,14 +456,16 @@ function CompletionRateSection({ workspaceId, boardId }) {
   const c = chartColors();
   const chartData = {
     labels: data.map((d) => d.sprint_name),
-    datasets: [{
-      data: data.map((d) => d.rate),
-      backgroundColor: data.map((d) =>
-        d.rate >= 80 ? "#22c55e" : d.rate >= 50 ? "#f59e0b" : "#ef4444"
-      ),
-      borderRadius: 4,
-      maxBarThickness: 56,
-    }],
+    datasets: [
+      {
+        data: data.map((d) => d.rate),
+        backgroundColor: data.map((d) =>
+          d.rate >= 80 ? "#22c55e" : d.rate >= 50 ? "#f59e0b" : "#ef4444",
+        ),
+        borderRadius: 4,
+        maxBarThickness: 56,
+      },
+    ],
   };
 
   const options = {
@@ -424,23 +533,45 @@ function EstimationAccuracySection({ workspaceId, boardId }) {
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-border">
-              <th className="text-left py-2 pr-4 font-semibold text-muted-foreground">Sprint</th>
-              <th className="text-right py-2 px-4 font-semibold text-muted-foreground">Story Points</th>
-              <th className="text-right py-2 pl-4 font-semibold text-muted-foreground">Avg Cycle Time</th>
+              <th className="text-left py-2 pr-4 font-semibold text-muted-foreground">
+                Sprint
+              </th>
+              <th className="text-right py-2 px-4 font-semibold text-muted-foreground">
+                Story Points
+              </th>
+              <th className="text-right py-2 pl-4 font-semibold text-muted-foreground">
+                Avg Cycle Time
+              </th>
             </tr>
           </thead>
           <tbody>
             {data.map((row) => (
-              <tr key={row.sprint_name} className="border-b border-border last:border-0 hover:bg-muted/30">
+              <tr
+                key={row.sprint_name}
+                className="border-b border-border last:border-0 hover:bg-muted/30"
+              >
                 <td className="py-2.5 pr-4 font-medium">{row.sprint_name}</td>
                 <td className="py-2.5 px-4 text-right tabular-nums">
-                  {row.estimated_sp > 0 ? `${row.estimated_sp} SP` : <span className="text-muted-foreground">—</span>}
+                  {row.estimated_sp > 0 ? (
+                    `${row.estimated_sp} SP`
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
                 </td>
                 <td className="py-2.5 pl-4 text-right tabular-nums">
-                  {row.avg_cycle_days != null
-                    ? <span className={row.avg_cycle_days > 7 ? "text-destructive font-semibold" : ""}>{row.avg_cycle_days}d</span>
-                    : <span className="text-muted-foreground">—</span>
-                  }
+                  {row.avg_cycle_days != null ? (
+                    <span
+                      className={
+                        row.avg_cycle_days > 7
+                          ? "text-destructive font-semibold"
+                          : ""
+                      }
+                    >
+                      {row.avg_cycle_days}d
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
                 </td>
               </tr>
             ))}
@@ -456,16 +587,24 @@ function EstimationAccuracySection({ workspaceId, boardId }) {
 // Each Component receives: workspaceId, boardId, days
 const SECTIONS = [
   // { id: "kpis",       Component: KpiSection },
-  { id: "tasks",      label: "Task Breakdown",          Component: TaskBreakdownSection },
-  { id: "activity",   Component: ActivitySection },
-  { id: "workload",   Component: WorkloadSection },
-  { id: "overdue",    label: "Risk & Health",            Component: OverdueAgingSection },
+  { id: "tasks", label: "Task Breakdown", Component: TaskBreakdownSection },
+  { id: "activity", Component: ActivitySection },
+  { id: "workload", Component: WorkloadSection },
+  { id: "overdue", label: "Risk & Health", Component: OverdueAgingSection },
   { id: "time-in-status", Component: TimeInStatusSection },
-  { id: "completion", label: "Sprint Performance",       Component: CompletionRateSection },
+  {
+    id: "completion",
+    label: "Sprint Performance",
+    Component: CompletionRateSection,
+  },
   { id: "estimation", Component: EstimationAccuracySection },
-  { id: "velocity",   label: "Velocity & Throughput",    Component: VelocitySection },
-  { id: "flow",       label: "Flow Metrics",             Component: FlowSection },
-  { id: "team",       label: "Team Heatmap",             Component: TeamSection },
+  {
+    id: "velocity",
+    label: "Velocity & Throughput",
+    Component: VelocitySection,
+  },
+  { id: "flow", label: "Flow Metrics", Component: FlowSection },
+  { id: "team", label: "Team Heatmap", Component: TeamSection },
 ];
 
 const DATE_OPTIONS = [
@@ -479,7 +618,7 @@ const DATE_OPTIONS = [
 export default function AnalyticsPage() {
   const { workspaceId } = useParams();
   const [boardId, setBoardId] = useState(undefined);
-  const [days, setDays]           = useState(30);
+  const [days, setDays] = useState(30);
 
   const { data: projects = [] } = useBoards(workspaceId);
   const sharedProps = { workspaceId, boardId, days };
@@ -506,7 +645,9 @@ export default function AnalyticsPage() {
             >
               <option value="">All projects</option>
               {projects.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
               ))}
             </select>
             <select
@@ -515,7 +656,9 @@ export default function AnalyticsPage() {
               className="text-xs bg-background border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-ring text-foreground"
             >
               {DATE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
               ))}
             </select>
           </div>

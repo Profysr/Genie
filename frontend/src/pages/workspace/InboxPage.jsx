@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { notificationUrl } from "@/lib/notificationNav";
+import { notificationUrl } from "@/shared/lib/notificationNav";
 import { formatDistanceToNow, format } from "date-fns";
 import {
   Bell,
@@ -13,14 +13,14 @@ import {
   Square,
   Inbox,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Avatar } from "@/components/ui/avatar";
+import { cn } from "@/shared/lib/utils";
+import { Avatar } from "@/shared/components/ui/avatar";
 import {
   useInbox,
   useUpdateInboxItem,
   useBulkUpdateInbox,
   snoozeUntil,
-} from "@/hooks/useInbox";
+} from "@/shared/hooks/useInbox";
 
 const TABS = [
   { id: "for_you", label: "For You" },

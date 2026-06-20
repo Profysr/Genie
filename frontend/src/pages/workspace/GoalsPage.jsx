@@ -12,10 +12,10 @@ import {
   Link,
   X,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Avatar } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import Modal from "@/components/ui/Modal";
+import { cn } from "@/shared/lib/utils";
+import { Avatar } from "@/shared/components/ui/avatar";
+import { Button } from "@/shared/components/ui/button";
+import Modal from "@/shared/components/ui/Modal";
 import {
   useObjectives,
   useCreateObjective,
@@ -26,9 +26,9 @@ import {
   useLinkTasks,
   CONFIDENCE_CONFIG,
   TIME_PERIODS,
-} from "@/hooks/useGoals";
-import { useMembers } from "@/hooks/useMembers";
-import api from "@/lib/api";
+} from "@/shared/hooks/useGoals";
+import { useMembers } from "@/shared/hooks/useMembers";
+import api from "@/shared/lib/api";
 
 // ── Circular progress ring ────────────────────────────────────────────────────
 function ProgressRing({ pct, confidence, size = 56 }) {
@@ -483,7 +483,10 @@ export default function GoalsPage() {
     time_period: getCurrentQuarter(),
   });
 
-  const { data: objectives = [], isLoading } = useObjectives(workspaceId, timePeriod);
+  const { data: objectives = [], isLoading } = useObjectives(
+    workspaceId,
+    timePeriod,
+  );
   const { data: members = [] } = useMembers(workspaceId);
   const createObjective = useCreateObjective(workspaceId);
 
@@ -492,17 +495,24 @@ export default function GoalsPage() {
       ? objectives.filter((o) => o.owner?.id === currentUser?.id)
       : objectives;
     return [...filtered].sort(
-      (a, b) => (CONFIDENCE_ORDER[a.confidence] ?? 2) - (CONFIDENCE_ORDER[b.confidence] ?? 2),
+      (a, b) =>
+        (CONFIDENCE_ORDER[a.confidence] ?? 2) -
+        (CONFIDENCE_ORDER[b.confidence] ?? 2),
     );
   }, [objectives, showMine, currentUser]);
 
   const totalKRs = visibleObjectives.flatMap((o) => o.key_results || []).length;
-  const onTrackCount = visibleObjectives.filter((o) => o.confidence === "on_track").length;
+  const onTrackCount = visibleObjectives.filter(
+    (o) => o.confidence === "on_track",
+  ).length;
   const needsAttentionCount = visibleObjectives.filter(
     (o) => o.confidence === "off_track" || o.confidence === "at_risk",
   ).length;
   const avgProgress = visibleObjectives.length
-    ? Math.round(visibleObjectives.reduce((s, o) => s + o.progress, 0) / visibleObjectives.length)
+    ? Math.round(
+        visibleObjectives.reduce((s, o) => s + o.progress, 0) /
+          visibleObjectives.length,
+      )
     : 0;
 
   const EmptyState = () => (
@@ -603,7 +613,10 @@ export default function GoalsPage() {
         <div className="flex items-center gap-2">
           {/* Mine / All toggle */}
           <div className="flex items-center gap-0.5 bg-muted/60 rounded-lg p-0.5">
-            {[{ label: "All", value: false }, { label: "Mine", value: true }].map((opt) => (
+            {[
+              { label: "All", value: false },
+              { label: "Mine", value: true },
+            ].map((opt) => (
               <button
                 key={opt.label}
                 onClick={() => setShowMine(opt.value)}
@@ -656,7 +669,9 @@ export default function GoalsPage() {
           </div>
           <div>
             <span className="text-muted-foreground">On Track: </span>
-            <span className="font-semibold text-emerald-600">{onTrackCount}</span>
+            <span className="font-semibold text-emerald-600">
+              {onTrackCount}
+            </span>
           </div>
           <div>
             <span className="text-muted-foreground">Avg Progress: </span>
@@ -665,7 +680,8 @@ export default function GoalsPage() {
           {needsAttentionCount > 0 && (
             <div className="ml-auto">
               <span className="text-amber-600 font-semibold text-xs">
-                {needsAttentionCount} need{needsAttentionCount === 1 ? "s" : ""} attention
+                {needsAttentionCount} need{needsAttentionCount === 1 ? "s" : ""}{" "}
+                attention
               </span>
             </div>
           )}

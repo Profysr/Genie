@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-import api from "@/lib/api";
+import api from "@/shared/lib/api";
 import { useParams } from "react-router-dom";
 import {
   Upload,
@@ -14,7 +14,7 @@ import {
   RefreshCw,
   Trash2,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/lib/utils";
 import {
   useImportSources,
   useImportJobs,
@@ -23,19 +23,13 @@ import {
   useRunImport,
   useRollbackImport,
   useDeleteImportJob,
-} from "@/hooks/useImport";
-import { useWorkspaceSocket } from "@/hooks/useWorkspaceSocket";
+} from "@/shared/hooks/useImport";
+import { useWorkspaceSocket } from "@/shared/hooks/useWorkspaceSocket";
 import { formatDistanceToNow } from "date-fns";
-import { useToast } from "@/components/ui/toast";
+import { useToast } from "@/shared/components/ui/toast";
 
 // ── Source icons ──────────────────────────────────────────────────────────────
-import {
-  SiJira,
-  SiClickup,
-  SiAsana,
-  SiGithub,
-  SiNotion
-} from "react-icons/si";
+import { SiJira, SiClickup, SiAsana, SiGithub, SiNotion } from "react-icons/si";
 import { CgMonday } from "react-icons/cg";
 import { FileSpreadsheet } from "lucide-react";
 
@@ -53,13 +47,15 @@ const SOURCE_ICONS = {
 
 // Export instructions shown in step 1 for each source
 const SOURCE_EXPORT_HINT = {
-  jira:    "Export from Jira: Issues → Export → XML export",
-  clickup: "Export from ClickUp: Space Settings → Import/Export → Export as CSV",
-  monday:  "Export from Monday: Board → ⋯ → Export board to Excel/CSV",
-  notion:  "Export from Notion: Settings → Export content → CSV",
-  github:  "Export from GitHub: Issues tab → Export to CSV (via GitHub CLI or third-party)",
-  asana:   "Export from Asana: Project → ⋯ → Export/Print → CSV",
-  csv:     "Upload any CSV file — you'll map the columns in the next step.",
+  jira: "Export from Jira: Issues → Export → XML export",
+  clickup:
+    "Export from ClickUp: Space Settings → Import/Export → Export as CSV",
+  monday: "Export from Monday: Board → ⋯ → Export board to Excel/CSV",
+  notion: "Export from Notion: Settings → Export content → CSV",
+  github:
+    "Export from GitHub: Issues tab → Export to CSV (via GitHub CLI or third-party)",
+  asana: "Export from Asana: Project → ⋯ → Export/Print → CSV",
+  csv: "Upload any CSV file — you'll map the columns in the next step.",
 };
 
 function SourceIcon({ sourceId, size = 28 }) {
@@ -129,7 +125,9 @@ function DropZone({ source, onFile, uploading }) {
               Drop your file here or click to browse
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {source === "jira" ? "Jira XML export" : "CSV export from your tool"}{" "}
+              {source === "jira"
+                ? "Jira XML export"
+                : "CSV export from your tool"}{" "}
               · Max 50 MB
             </p>
           </div>
@@ -352,7 +350,13 @@ function StepBar({ current }) {
   return (
     <div className="flex items-center gap-0 mb-8">
       {STEPS.map((label, i) => (
-        <div key={i} className={cn("flex items-center", i < STEPS.length - 1 ? "flex-1" : "flex-shrink-0")}>
+        <div
+          key={i}
+          className={cn(
+            "flex items-center",
+            i < STEPS.length - 1 ? "flex-1" : "flex-shrink-0",
+          )}
+        >
           <div
             className={cn(
               "w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 border-2 transition-colors",
@@ -462,8 +466,7 @@ export default function ImportPage() {
   const toast = useToast();
 
   const { data: sources = [] } = useImportSources(workspaceId);
-  const { data: jobs = [], refetch: refetchJobs } =
-    useImportJobs(workspaceId);
+  const { data: jobs = [], refetch: refetchJobs } = useImportJobs(workspaceId);
 
   const upload = useUploadImport(workspaceId);
   const updateMapping = useUpdateImportMapping(workspaceId);
@@ -746,7 +749,8 @@ export default function ImportPage() {
                   onClick={handleRunImport}
                   className="flex items-center gap-2 px-6 py-2 bg-emerald-600 text-white rounded-md text-sm font-semibold hover:bg-emerald-700 transition-colors"
                 >
-                  <Upload className="w-4 h-4" /> Import {jobData.total_count} tasks
+                  <Upload className="w-4 h-4" /> Import {jobData.total_count}{" "}
+                  tasks
                 </button>
               </div>
             </div>
@@ -817,7 +821,12 @@ export default function ImportPage() {
               </p>
             </div>
             {jobs.map((j) => (
-              <JobHistoryRow key={j.id} job={j} workspaceId={workspaceId} onResume={handleResume} />
+              <JobHistoryRow
+                key={j.id}
+                job={j}
+                workspaceId={workspaceId}
+                onResume={handleResume}
+              />
             ))}
           </div>
         )}

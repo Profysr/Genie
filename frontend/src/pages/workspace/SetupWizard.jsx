@@ -12,12 +12,12 @@ import {
   CheckCircle2,
   Clock,
 } from "lucide-react";
-import { useUpdateOnboarding } from "@/hooks/useOnboarding";
+import { useUpdateOnboarding } from "@/shared/hooks/useOnboarding";
 import { useMutation } from "@tanstack/react-query";
-import { usePendingInvites } from "@/hooks/useMembers";
-import api from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { usePendingInvites } from "@/shared/hooks/useMembers";
+import api from "@/shared/lib/api";
+import { Button } from "@/shared/components/ui/button";
+import { cn } from "@/shared/lib/utils";
 
 /* ── Configuration Constants ──────────────────────────────────────────────── */
 const TEAM_TYPES = [
@@ -343,7 +343,7 @@ function InviteStep({
 function ReadyStep({ onComplete, workspaceId, sentCount }) {
   const { data: pending = [] } = usePendingInvites(
     sentCount > 0 ? workspaceId : null,
-    { refetchInterval: 5000 }
+    { refetchInterval: 5000 },
   );
   const accepted = Math.max(0, sentCount - pending.length);
 

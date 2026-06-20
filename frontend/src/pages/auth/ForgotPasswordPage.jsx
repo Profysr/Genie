@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { CheckCircle, AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
+import { Label } from "@/shared/components/ui/label";
 import {
   Card,
   CardContent,
@@ -11,8 +11,8 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import api from "@/lib/api";
+} from "@/shared/components/ui/card";
+import api from "@/shared/lib/api";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -29,7 +29,11 @@ export default function ForgotPasswordPage() {
       setSent(true);
     } catch (err) {
       const data = err?.response?.data || {};
-      setError(data.email?.[0] || data.detail || "Something went wrong. Please try again.");
+      setError(
+        data.email?.[0] ||
+          data.detail ||
+          "Something went wrong. Please try again.",
+      );
     } finally {
       setLoading(false);
     }

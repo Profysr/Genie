@@ -2,10 +2,10 @@ import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
-import GoogleButton from "@/components/auth/GoogleButton";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import GoogleButton from "@/shared/components/auth/GoogleButton";
+import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
+import { Label } from "@/shared/components/ui/label";
 import {
   Card,
   CardContent,
@@ -13,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-} from "@/components/ui/card";
+} from "@/shared/components/ui/card";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -90,7 +90,9 @@ export default function LoginPage() {
         <div className="px-8 pb-2">
           <GoogleButton next={next} onError={setGoogleError} />
           {googleError && (
-            <p className="text-sm text-destructive mt-2 animate-slide-up">{googleError}</p>
+            <p className="text-sm text-destructive mt-2 animate-slide-up">
+              {googleError}
+            </p>
           )}
           <div className="relative my-5">
             <div className="absolute inset-0 flex items-center">

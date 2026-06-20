@@ -1,16 +1,24 @@
 import { useEffect, useState } from "react";
-import { Loader } from "@/components/ui/Loader";
+import { Loader } from "@/shared/components/ui/Loader";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/authStore";
-import { useAcceptInvite } from "@/hooks/useMembers";
-import api from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import { CheckCircle, XCircle, LogIn, UserPlus, Zap, Users, BarChart2 } from "lucide-react";
+import { useAcceptInvite } from "@/shared/hooks/useMembers";
+import api from "@/shared/lib/api";
+import { Button } from "@/shared/components/ui/button";
+import {
+  CheckCircle,
+  XCircle,
+  LogIn,
+  UserPlus,
+  Zap,
+  Users,
+  BarChart2,
+} from "lucide-react";
 
 const FEATURES = [
-  { icon: Zap,       text: "Kanban boards, sprints & task management" },
-  { icon: Users,     text: "Real-time collaboration & notifications" },
+  { icon: Zap, text: "Kanban boards, sprints & task management" },
+  { icon: Users, text: "Real-time collaboration & notifications" },
   { icon: BarChart2, text: "Wiki, forms, analytics — all in one workspace" },
 ];
 
@@ -31,7 +39,11 @@ export default function AcceptInvitePage() {
   const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState("");
 
-  const { data: invite, isLoading, isError } = useQuery({
+  const {
+    data: invite,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ["invite", token],
     queryFn: () => api.get(`/api/invites/${token}/`).then((r) => r.data),
     retry: false,
@@ -53,7 +65,12 @@ export default function AcceptInvitePage() {
     }
   }, [invite, accessToken]);
 
-  if (isLoading) return <InviteShell><Loader /></InviteShell>;
+  if (isLoading)
+    return (
+      <InviteShell>
+        <Loader />
+      </InviteShell>
+    );
 
   if (isError) {
     return (
@@ -77,7 +94,10 @@ export default function AcceptInvitePage() {
         <h2 className="text-lg font-semibold text-center">You're in!</h2>
         <p className="text-sm text-muted-foreground text-center mt-1">
           Redirecting you to{" "}
-          <span className="font-medium text-foreground">{invite?.workspace?.name}</span>…
+          <span className="font-medium text-foreground">
+            {invite?.workspace?.name}
+          </span>
+          …
         </p>
       </InviteShell>
     );
@@ -91,8 +111,8 @@ export default function AcceptInvitePage() {
         <h2 className="text-lg font-semibold text-center">Wrong account</h2>
         <p className="text-sm text-muted-foreground text-center mt-1">
           This invite is for{" "}
-          <span className="font-medium text-foreground">{invite?.email}</span>, but you're
-          signed in as{" "}
+          <span className="font-medium text-foreground">{invite?.email}</span>,
+          but you're signed in as{" "}
           <span className="font-medium text-foreground">{user?.email}</span>.
         </p>
         <p className="text-sm text-muted-foreground text-center mt-1">
@@ -110,12 +130,14 @@ export default function AcceptInvitePage() {
 
   const goToRegister = () => {
     localStorage.setItem("pendingInvite", token);
-    navigate(`/register?invite=${token}&email=${encodeURIComponent(inviteEmail)}`);
+    navigate(
+      `/register?invite=${token}&email=${encodeURIComponent(inviteEmail)}`,
+    );
   };
 
   const goToLogin = () => {
     navigate(
-      `/login?next=${encodeURIComponent(`/invites/${token}`)}&email=${encodeURIComponent(inviteEmail)}`
+      `/login?next=${encodeURIComponent(`/invites/${token}`)}&email=${encodeURIComponent(inviteEmail)}`,
     );
   };
 
@@ -128,7 +150,8 @@ export default function AcceptInvitePage() {
             {initial}
           </div>
           <p className="text-sm text-muted-foreground">
-            <span className="font-semibold text-foreground">{inviterName}</span> invited you to join
+            <span className="font-semibold text-foreground">{inviterName}</span>{" "}
+            invited you to join
           </p>
           <h1 className="text-xl font-bold mt-1">{workspaceName}</h1>
           <span className="inline-block mt-2 text-xs bg-secondary border rounded px-2.5 py-1 font-medium capitalize">
@@ -143,7 +166,10 @@ export default function AcceptInvitePage() {
           </p>
           <ul className="space-y-2.5">
             {FEATURES.map(({ icon: Icon, text }) => (
-              <li key={text} className="flex items-center gap-2.5 text-sm text-foreground">
+              <li
+                key={text}
+                className="flex items-center gap-2.5 text-sm text-foreground"
+              >
                 <Icon className="w-4 h-4 text-primary flex-shrink-0" />
                 {text}
               </li>
@@ -154,7 +180,8 @@ export default function AcceptInvitePage() {
         {/* CTAs */}
         <div className="px-8 py-6 space-y-3">
           <p className="text-xs text-muted-foreground text-center mb-1">
-            Invite sent to <span className="font-medium text-foreground">{inviteEmail}</span>
+            Invite sent to{" "}
+            <span className="font-medium text-foreground">{inviteEmail}</span>
           </p>
           {error && (
             <p className="text-sm text-destructive text-center">{error}</p>
@@ -162,7 +189,11 @@ export default function AcceptInvitePage() {
           <Button className="w-full gap-2" onClick={goToRegister}>
             <UserPlus className="w-4 h-4" /> Create account to join
           </Button>
-          <Button variant="outline" className="w-full gap-2" onClick={goToLogin}>
+          <Button
+            variant="outline"
+            className="w-full gap-2"
+            onClick={goToLogin}
+          >
             <LogIn className="w-4 h-4" /> I already have an account
           </Button>
         </div>

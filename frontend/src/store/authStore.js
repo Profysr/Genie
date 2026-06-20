@@ -1,7 +1,7 @@
 import { create } from "zustand"; // Zustand is a lightweight, fast, and scalable state management library for React. Alternative to Redux, MobX, etc. It uses hooks and has a minimal API.
 import { persist } from "zustand/middleware";
-import api from "@/lib/api";
-import { queryClient } from "@/lib/queryClient";
+import api from "@/shared/lib/api";
+import { queryClient } from "@/shared/lib/queryClient";
 
 export const useAuthStore = create(
   persist(
@@ -32,7 +32,10 @@ export const useAuthStore = create(
       register: async (email, password1, password2, full_name) => {
         queryClient.clear();
         const { data } = await api.post("/api/auth/registration/", {
-          email, password1, password2, full_name,
+          email,
+          password1,
+          password2,
+          full_name,
         });
         // When email verification is mandatory the response has no tokens —
         // only {"detail": "Verification e-mail sent."}. Callers check data.access.
@@ -55,9 +58,11 @@ export const useAuthStore = create(
         // Wipe every known token/auth key — both naming conventions used across
         // api.js (snake_case) and Zustand persist (camelCase inside "auth" JSON)
         const STORAGE_KEYS = [
-          "access_token", "refresh_token",   // api.js interceptor keys
-          "accessToken",  "refreshToken",    // camelCase variants
-          "auth",                            // Zustand persist root key — removes
+          "access_token",
+          "refresh_token", // api.js interceptor keys
+          "accessToken",
+          "refreshToken", // camelCase variants
+          "auth", // Zustand persist root key — removes
         ];
         STORAGE_KEYS.forEach((k) => localStorage.removeItem(k));
         queryClient.clear();
@@ -90,6 +95,6 @@ export const useAuthStore = create(
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
       }),
-    }
-  )
+    },
+  ),
 );

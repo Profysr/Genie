@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/components/ui/button";
 import {
   Card,
   CardContent,
@@ -9,8 +9,8 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-} from "@/components/ui/card";
-import api from "@/lib/api";
+} from "@/shared/components/ui/card";
+import api from "@/shared/lib/api";
 
 /**
  * Handles /verify-email/:key — the link sent by allauth after registration.
@@ -31,7 +31,7 @@ export default function EmailVerifyConfirmPage() {
         setErrorMsg(
           data.detail ||
             data.key?.[0] ||
-            "This link is invalid or has already been used."
+            "This link is invalid or has already been used.",
         );
         setStatus("error");
       }

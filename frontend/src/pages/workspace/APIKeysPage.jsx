@@ -9,27 +9,27 @@ import {
   AlertTriangle,
   ExternalLink,
 } from "lucide-react";
-import Modal from "@/components/ui/Modal";
-import { EmptyState } from "@/components/ui/empty-state";
-import { cn } from "@/lib/utils";
+import Modal from "@/shared/components/ui/Modal";
+import { EmptyState } from "@/shared/components/ui/empty-state";
+import { cn } from "@/shared/lib/utils";
 import {
   useAPIKeys,
   useCreateAPIKey,
   useRevokeAPIKey,
-} from "@/hooks/useAPIKeys";
+} from "@/shared/hooks/useAPIKeys";
 import { formatDistanceToNow } from "date-fns";
-import { useToast } from "@/components/ui/toast";
-import { BACKEND_URL } from "@/lib/env";
-import { Loader } from "@/components/ui/Loader";
+import { useToast } from "@/shared/components/ui/toast";
+import { BACKEND_URL } from "@/shared/lib/env";
+import { Loader } from "@/shared/components/ui/Loader";
 
 const INPUT_CLS =
   "w-full text-sm bg-background border border-border rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-ring";
 
 const EXPIRY_OPTIONS = [
-  { value: "",    label: "Never" },
-  { value: "7",   label: "7 days" },
-  { value: "30",  label: "30 days" },
-  { value: "90",  label: "90 days" },
+  { value: "", label: "Never" },
+  { value: "7", label: "7 days" },
+  { value: "30", label: "30 days" },
+  { value: "90", label: "90 days" },
   { value: "365", label: "1 year" },
 ];
 
@@ -46,7 +46,9 @@ const SCOPES = [
 function FormField({ label, children }) {
   return (
     <div>
-      <label className="text-xs text-muted-foreground mb-1 block">{label}</label>
+      <label className="text-xs text-muted-foreground mb-1 block">
+        {label}
+      </label>
       {children}
     </div>
   );
@@ -132,7 +134,9 @@ function NewKeyModal({ workspaceId, onClose, onCreated }) {
             className={INPUT_CLS}
           >
             {EXPIRY_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
             ))}
           </select>
         </FormField>
@@ -268,11 +272,17 @@ function KeyRow({ apiKey, onRevoke }) {
         onClose={() => setConfirming(false)}
         title="Revoke API key"
         confirmLabel="Revoke key"
-        onConfirm={() => { onRevoke(apiKey.id); setConfirming(false); }}
+        onConfirm={() => {
+          onRevoke(apiKey.id);
+          setConfirming(false);
+        }}
       >
         <p className="text-sm text-muted-foreground">
-          Revoke <span className="font-medium text-foreground">{apiKey.name}</span>?
-          Any integrations using <code className="font-mono text-xs">{apiKey.key_prefix}…</code> will stop working immediately.
+          Revoke{" "}
+          <span className="font-medium text-foreground">{apiKey.name}</span>?
+          Any integrations using{" "}
+          <code className="font-mono text-xs">{apiKey.key_prefix}…</code> will
+          stop working immediately.
         </p>
       </Modal>
     </>
@@ -285,7 +295,13 @@ function KeysTable({ keys, onRevoke }) {
       <thead className="bg-muted/30 border-b border-border">
         <tr>
           {COLUMNS.map((col) => (
-            <th key={col.header} className={cn(CELL, "text-left font-medium text-muted-foreground text-xs")}>
+            <th
+              key={col.header}
+              className={cn(
+                CELL,
+                "text-left font-medium text-muted-foreground text-xs",
+              )}
+            >
               {col.header}
             </th>
           ))}

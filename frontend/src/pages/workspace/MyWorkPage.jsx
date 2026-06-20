@@ -1,13 +1,10 @@
 import { useState, useMemo } from "react";
-import { Loader } from "@/components/ui/Loader";
+import { Loader } from "@/shared/components/ui/Loader";
 import { useNavigate } from "react-router-dom";
-import { useMyWork } from "@/hooks/useMyWork";
+import { useMyWork } from "@/shared/hooks/useMyWork";
 import { Calendar, ChevronDown, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
-import {
-  PRIORITIES,
-  pickColor,
-} from "@/lib/constants";
+import { cn } from "@/shared/lib/utils";
+import { PRIORITIES, pickColor } from "@/shared/lib/constants";
 
 const PRI = Object.fromEntries(
   PRIORITIES.map((p) => [

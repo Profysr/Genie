@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useWorkspaces } from "@/hooks/useWorkspace";
-import { Loader } from "@/components/ui/Loader";
+import { useWorkspaces } from "@/shared/hooks/useWorkspace";
+import { Loader } from "@/shared/components/ui/Loader";
 
 export default function WorkspaceRedirect() {
   const navigate = useNavigate();
