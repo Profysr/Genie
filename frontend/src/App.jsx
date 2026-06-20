@@ -4,8 +4,8 @@ import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { Loader } from "@/shared/components/ui/Loader";
 
 // ── Shell components — always needed, load eagerly ───────────────────────────
-import ProtectedRoute from "@/components/layout/ProtectedRoute";
-import AppLayout from "@/components/layout/AppLayout";
+import ProtectedRoute from "@/shared/components/layout/ProtectedRoute";
+import AppLayout from "@/shared/components/layout/AppLayout";
 import WorkspaceRedirect from "@/pages/workspace/WorkspaceRedirect";
 
 // ── Public pages ──────────────────────────────────────────────────────────────
@@ -38,9 +38,7 @@ const KanbanPage = lazy(
   () => import("@/apps/project-management/pages/KanbanPage"),
 );
 // ‼️ Merged this view into Timeline view - const RoadmapPage = lazy(() => import("@/pages/projects/RoadmapPage"));
-const WikiPage = lazy(
-  () => import("@/apps/project-management/pages/WikiPage"),
-);
+const WikiPage = lazy(() => import("@/apps/project-management/pages/WikiPage"));
 const FormsPage = lazy(
   () => import("@/apps/project-management/pages/FormsPage"),
 );

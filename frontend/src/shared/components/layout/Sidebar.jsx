@@ -6,7 +6,7 @@ import BoardTypeIcon from "@/shared/components/ui/BoardTypeIcon";
 import { resolvedNavGroups, workspaceUrl } from "@/shared/lib/navLinks";
 import { useInboxUnreadCount } from "@/shared/hooks/useInbox";
 import { useBoards } from "@/apps/project-management/hooks/useProjects";
-import UserPanel from "@/components/layout/UserPanel";
+import UserPanel from "@/shared/components/layout/UserPanel";
 import { Tooltip } from "@/shared/components/ui/tooltip";
 
 export default function Sidebar({

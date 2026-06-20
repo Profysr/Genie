@@ -5,7 +5,7 @@ import { useThemeStore } from "@/store/themeStore";
 import { useWorkspace } from "@/shared/hooks/useWorkspace";
 import { useAnnouncePresence } from "@/shared/hooks/usePresence";
 import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts";
-import Sidebar from "@/components/layout/Sidebar";
+import Sidebar from "@/shared/components/layout/Sidebar";
 
 // Only rendered on interaction — load their bundles on first open, not at app start
 const CommandPalette = lazy(() => import("@/shared/components/CommandPalette"));

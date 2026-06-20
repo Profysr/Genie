@@ -20,7 +20,7 @@ import { useThemeStore } from "@/store/themeStore";
 import { Avatar } from "@/shared/components/ui/avatar";
 import { ConfirmModal } from "@/shared/components/ui/ConfirmModal";
 import { cn } from "@/shared/lib/utils";
-import NotificationBell from "@/components/layout/NotificationBell";
+import NotificationBell from "@/shared/components/layout/NotificationBell";
 import { FOCUS_DURATIONS } from "@/shared/lib/constants";
 import { useWorkspaces } from "@/shared/hooks/useWorkspace";
 
