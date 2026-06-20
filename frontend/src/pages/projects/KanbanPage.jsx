@@ -263,7 +263,14 @@ export default function KanbanPage() {
 
   const tasks = allTasks;
 
+  const [dragSourceColumnId, setDragSourceColumnId] = useState(null);
+
+  const handleDragStart = (start) => {
+    setDragSourceColumnId(start.source.droppableId);
+  };
+
   const handleDragEnd = (result) => {
+    setDragSourceColumnId(null);
     if (!result.destination) return;
     if (!perms.canEdit) return;
 
@@ -492,27 +499,35 @@ export default function KanbanPage() {
 
         {/* Board */}
         {view === "kanban" && (
-          <DragDropContext onDragEnd={handleDragEnd}>
+          <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <div className="flex-1 overflow-x-auto p-6">
               <div className="flex gap-5 h-full items-start">
-                {statuses?.map((col) => (
-                  <KanbanColumn
-                    key={col.id}
-                    column={col}
-                    tasks={tasksByStatus(col.id)}
-                    onAddTask={(statusId) =>
-                      setCreateModal({ open: true, statusId })
-                    }
-                    onTaskClick={(task) => openTask(task.id)}
-                    selectedTaskId={selectedTaskId}
-                    selectedIds={selectedIds}
-                    onToggleSelect={toggleSelect}
-                    workspaceId={workspaceId}
-                    boardId={boardId}
-                    canEdit={perms.canEdit}
-                    labelsById={labelsById}
-                  />
-                ))}
+                {statuses?.map((col) => {
+                  const srcCol = dragSourceColumnId
+                    ? statuses.find((s) => s.id === dragSourceColumnId)
+                    : null;
+                  return (
+                    <KanbanColumn
+                      key={col.id}
+                      column={col}
+                      tasks={tasksByStatus(col.id)}
+                      onAddTask={(statusId) =>
+                        setCreateModal({ open: true, statusId })
+                      }
+                      onTaskClick={(task) => openTask(task.id)}
+                      selectedTaskId={selectedTaskId}
+                      selectedIds={selectedIds}
+                      onToggleSelect={toggleSelect}
+                      workspaceId={workspaceId}
+                      boardId={boardId}
+                      canEdit={perms.canEdit}
+                      labelsById={labelsById}
+                      dragSourceName={
+                        srcCol && srcCol.id !== col.id ? srcCol.name : null
+                      }
+                    />
+                  );
+                })}
               </div>
             </div>
           </DragDropContext>

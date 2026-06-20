@@ -99,9 +99,14 @@ export default {
           "0%":   { opacity: "0" },
           "100%": { opacity: "1" },
         },
+        "drag-arrow": {
+          "0%, 100%": { transform: "translateX(0px)" },
+          "50%":       { transform: "translateX(3px)" },
+        },
       },
       animation: {
         "column-expand": "column-expand 280ms cubic-bezier(0.16,1,0.3,1) forwards",
+        "drag-arrow":    "drag-arrow 0.7s ease-in-out infinite",
       },
       transitionTimingFunction: {
         "ease-out-expo": "var(--ease-out)",
