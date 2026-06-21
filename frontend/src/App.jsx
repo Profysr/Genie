@@ -44,6 +44,17 @@ const FormsPage = lazy(
 );
 // ‼️ Automation disabled — const AutomationsPage = lazy(() => import("@/pages/projects/AutomationsPage"));
 
+// ── Org Structure pages ───────────────────────────────────────────────────────
+const DepartmentsPage = lazy(
+  () => import("@/apps/org-structure/pages/DepartmentsPage"),
+);
+const TeamsPage = lazy(
+  () => import("@/apps/org-structure/pages/TeamsPage"),
+);
+const OrgChartPage = lazy(
+  () => import("@/apps/org-structure/pages/OrgChartPage"),
+);
+
 // ── Workspace pages ───────────────────────────────────────────────────────────
 const DashboardsPage = lazy(() => import("@/pages/workspace/DashboardsPage"));
 const AnalyticsPage = lazy(() => import("@/pages/workspace/AnalyticsPage"));
@@ -143,6 +154,11 @@ export default function App() {
               path="boards/:boardId/automations"
               element={<AutomationsPage />}
             /> */}
+
+              {/* Org Structure */}
+              <Route path="departments" element={<DepartmentsPage />} />
+              <Route path="teams" element={<TeamsPage />} />
+              <Route path="org-chart" element={<OrgChartPage />} />
 
               {/* Workspace */}
               {/* <Route path="roadmap" element={<RoadmapPage />} /> */}

@@ -1837,10 +1837,6 @@ The existing `DashboardPage` (workspace home, fixed stats + recent projects) and
 > Status: COMPLETED ✅
 
 ### Architectural decisions
-
-**CLI-first development practice**
-All generated artifacts (Django apps, migrations, package installs) must be created via CLI commands — never hand-written. `python manage.py startapp`, `makemigrations`, `migrate`, `npm install` are the source of truth. Hand-writing migration files or `apps.py` introduces drift and skips framework validation hooks.
-
 **Frontend `src/apps/` modular architecture**
 The frontend moved from a flat `src/pages/` + `src/components/` layout to a feature-sliced `src/apps/` model. Each product module is a self-contained entity:
 
@@ -1868,52 +1864,87 @@ Dependency graph: `hr_management` depends on `org_structure`. Disabling `org_str
 
 All endpoints live under `/api/workspaces/<id>/org/…` and require the `org_structure` module to be enabled.
 
-**Dependency upgrades to latest stable**
-All pip dependencies bumped to latest stable for maximum long-term support window:
-- Django 5.2.15 LTS (supported until April 2028)
-- dj-rest-auth 7.2.0 + django-allauth 65.18.0 (compatible pair)
-- channels 4.3.2 + channels-redis 4.3.0 + daphne 4.2.2
-- celery 5.6.3, redis 7.4.1, Pillow 12.2.0, and all others at latest stable
-
-**Future: desktop app for HR time tracking**
+**Future: desktop app for HR time tracking** Planned 
 An Electron or Tauri desktop app will be built as a separate module for HR time tracking. It connects to the JCN backend via WebSocket, lets HR managers see real-time working hours per employee, and runs as an always-on background process on the user's machine. This is scoped to a future phase and will not ship as part of the web app — it's a standalone binary that authenticates with the same JWT token.
 
 ---
 
 ## vB.1 — Departments & Teams (Weeks 4–6)
 
-> Status: PLANNED 📋
+> Status: COMPLETE ✅
 
-**Backend — new `people` Django app**
+**Backend — `organization` Django app** (shipped in vB.0, confirmed complete)
 
 | Model | Key Fields | Notes |
 |-------|-----------|-------|
-| `Department` | `workspace` FK, `name`, `head` FK→User (nullable), `parent` FK self (nested depts), `order` | UUIDv7 PK; supports Engineering → Backend nesting |
-| `Team` | `workspace` FK, `department` FK (nullable), `name`, `description`, `lead` FK→User (nullable) | Can be cross-functional (no dept) |
-| `TeamMembership` | `team` FK, `user` FK, `job_title`, `level` (JUNIOR/MID/SENIOR/LEAD/MANAGER/DIRECTOR/C_LEVEL), `is_lead` | `unique_together: [team, user]` |
+| `Department` | `workspace` FK, `name`, `identifier` (max 6 chars), `color`, `description`, `head` FK→WorkspaceMember (nullable), `parent` FK self (nullable) | Flat list returned; tree built client-side |
+| `Team` | `workspace` FK, `name`, `identifier`, `color`, `description`, `department` FK (nullable), `lead` FK→WorkspaceMember (nullable) | Can be cross-functional (no dept) |
+| `TeamMember` | `team` FK, `member` FK→WorkspaceMember, `is_lead` | `unique_together: [team, member]` |
+| `JobTitle` | `workspace` FK, `name` | Workspace-scoped label |
+| `OrgProfile` | `member` O2O WorkspaceMember, `job_title` FK, `bio` | Extended profile |
+| `ReportingLine` | `member` / `reports_to` both FK→WorkspaceMember | Direct reports graph |
 
-**Indexes**: `dept_workspace_parent_idx`, `team_workspace_dept_idx`, `membership_team_user_idx`
+All endpoints gated by `_require_module(workspace, "org_structure")` → HTTP 403 if module disabled.
 
 **API surface**
-- `GET/POST /api/workspaces/{ws}/departments/`
-- `GET/PATCH/DELETE /api/workspaces/{ws}/departments/{id}/`
-- `GET/POST /api/workspaces/{ws}/teams/`
-- `GET/PATCH/DELETE /api/workspaces/{ws}/teams/{id}/`
-- `GET/POST /api/workspaces/{ws}/teams/{id}/members/`
-- `PATCH/DELETE /api/workspaces/{ws}/teams/{id}/members/{mid}/`
+- `GET/POST /api/workspaces/{ws}/org/departments/`
+- `GET/PATCH/DELETE /api/workspaces/{ws}/org/departments/{id}/`
+- `GET/POST /api/workspaces/{ws}/org/departments/{id}/members/`
+- `DELETE /api/workspaces/{ws}/org/departments/{id}/members/{mid}/`
+- `GET/POST /api/workspaces/{ws}/org/teams/`
+- `GET/PATCH/DELETE /api/workspaces/{ws}/org/teams/{id}/`
+- `GET/POST /api/workspaces/{ws}/org/teams/{id}/members/`
+- `DELETE /api/workspaces/{ws}/org/teams/{id}/members/{mid}/`
+- `GET /api/workspaces/{ws}/org/job-titles/`
+- `POST /api/workspaces/{ws}/org/job-titles/`
+- `GET /api/workspaces/{ws}/org/chart/`
 
-**Frontend — new "People" sidebar group**
+**Serializer shapes** — read vs write fields are split:
+- `DepartmentSerializer` returns: `id, name, identifier, color, description, parent (mini), head (mini member), member_count`
+- Write fields: `head_id`, `parent_id`
+- `TeamSerializer` returns: `id, name, identifier, color, description, department (mini), lead (mini member), member_count`
+- Write fields: `department_id`, `lead_id`, `member_id`
 
-- **Teams page** `/w/:ws/teams`:
-  - Grid of team cards: name, department badge, lead avatar, member count chip
-  - Click team → team detail page: member list with level badges, description, lead highlight, edit controls (admin only)
-  - "Create team" modal: name, department picker, optional lead assignment
-  - Add members to team: workspace member search + level selector
-- **Departments page** `/w/:ws/departments`:
-  - Nested list with indentation showing parent/child hierarchy (collapsible)
-  - Per department: head avatar, team count, total member count
-  - Inline create, rename, re-parent (drag handle), set head
-  - Reorder within the same level (drag-and-drop, persisted to `order` field)
+---
+
+**Frontend — `src/apps/org-structure/` module** (shipped in vB.1)
+
+New self-contained module under `src/apps/org-structure/`. Never imports from sibling apps; only `src/shared/`.
+
+**`hooks/useOrg.js`** — all data hooks for org structure:
+
+| Hook | Query Key | staleTime |
+|------|-----------|-----------|
+| `useDepartments` | `["org-departments", ws]` | `Infinity` |
+| `useDepartmentMembers` | `["org-dept-members", ws, deptId]` | `Infinity` |
+| `useTeams` | `["org-teams", ws]` | `Infinity` |
+| `useTeamMembers` | `["org-team-members", ws, teamId]` | `Infinity` |
+| `useJobTitles` | `["org-job-titles", ws]` | `Infinity` |
+| `useOrgChart` | `["org-chart", ws]` | `5 * 60_000` |
+
+Mutation hooks: `useCreateDepartment`, `useUpdateDepartment`, `useDeleteDepartment`, `useAddDepartmentMember`, `useRemoveDepartmentMember`, `useCreateTeam`, `useUpdateTeam`, `useDeleteTeam`, `useAddTeamMember`, `useRemoveTeamMember`, `useCreateJobTitle`.
+
+**`pages/DepartmentsPage.jsx`** (`/w/:ws/departments`):
+- Flat list from API → recursive `buildTree()` → nested `DeptNode` component with expand/collapse
+- `DeptNode`: color dot, identifier badge (colored with `color + "22"` background), name, head Avatar, member count, hover edit/delete actions
+- `DeptFormModal`: auto-generates identifier from name (first letters of each word, uppercase, max 6) until user manually edits it (`identifierLocked` flag); 8 color swatches; parent dept + head member selects
+- Delete uses `Modal variant="delete"` with confirmation
+
+**`pages/TeamsPage.jsx`** (`/w/:ws/teams`):
+- Grid of `TeamCard` components; clicking a card opens a `w-80` right-side detail panel (`TeamDetail`)
+- `TeamDetail`: fetches `useTeamMembers`; shows lead highlighted in amber card, member list with role badges, remove buttons; inline `AddMemberPanel` with name/email search
+- `selectedTeam` synced to latest data via `useEffect([teams])` so mutations (edit/remove) stay reflected
+- `TeamFormModal`: same `identifierLocked` pattern as departments; department picker, lead picker
+
+**`pages/OrgChartPage.jsx`** (`/w/:ws/org-chart`):
+- People directory grouped by department, using `/org/chart/` endpoint
+- Flat nodes grouped by `node.departments[]`; ungrouped members rendered under "No Department"
+- `PersonCard`: Avatar, job_title, team names, role badge
+- Header shows "Interactive org chart coming in vB.2" chip — placeholder for vB.2 canvas renderer
+
+**Navigation & routing:**
+- `src/shared/lib/navLinks.js`: added "People" `NAV_GROUPS` entry with `departments`, `teams`, `org-chart` items; icons `Building2`, `Users2`, `Network` from lucide-react
+- `src/App.jsx`: lazy imports for all three pages; routes `departments`, `teams`, `org-chart` added inside the workspace `SuspenseOutlet`
 
 ---
 

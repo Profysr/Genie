@@ -1,8 +1,10 @@
 import {
   LayoutDashboard,
   FolderKanban,
-  Map,
   Users,
+  Users2,
+  Building2,
+  Network,
   Settings,
   Target,
   BarChart2,
@@ -61,6 +63,27 @@ export const NAV_ITEMS = [
   //   desc: "Sprint timeline",
   //   path: "roadmap",
   // },
+  {
+    key: "departments",
+    icon: Building2,
+    label: "Departments",
+    desc: "Company departments & structure",
+    path: "departments",
+  },
+  {
+    key: "teams",
+    icon: Users2,
+    label: "Teams",
+    desc: "Teams & their members",
+    path: "teams",
+  },
+  {
+    key: "org-chart",
+    icon: Network,
+    label: "Org Chart",
+    desc: "Company org chart",
+    path: "org-chart",
+  },
   {
     key: "members",
     icon: Users,
@@ -124,6 +147,10 @@ export const NAV_GROUPS = [
   //   label: "Views",
   //   items: ["roadmap"],
   // },
+  {
+    label: "People",
+    items: ["departments", "teams", "org-chart"],
+  },
   {
     label: "Workspace",
     items: [

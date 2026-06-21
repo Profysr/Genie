@@ -129,6 +129,14 @@ The master index of every React Query key used in the codebase. Prefix-match inv
 # Presence
 ["presence", workspaceId, resourceType, resourceId]
 ["presence", workspaceId, "all"]
+
+# Org Structure
+["org-departments",  workspaceId]
+["org-dept-members", workspaceId, deptId]
+["org-teams",        workspaceId]
+["org-team-members", workspaceId, teamId]
+["org-job-titles",   workspaceId]
+["org-chart",        workspaceId]
 ```
 
 ---
@@ -139,8 +147,9 @@ How long data is considered fresh before React Query will refetch on next mount/
 
 | staleTime | Keys |
 |---|---|
-| `Infinity` (never auto-stale) | `workspace`, `workspaces`, `boards`, `board`, `workspace-members`, `labels`, `statuses`, `saved-views`, `onboarding`, `import sources`, `presence` |
+| `Infinity` (never auto-stale) | `workspace`, `workspaces`, `boards`, `board`, `workspace-members`, `labels`, `statuses`, `saved-views`, `onboarding`, `import sources`, `presence`, `org-departments`, `org-dept-members`, `org-teams`, `org-team-members`, `org-job-titles` |
 | `60_000` (1 min) | `portfolio`, all `analytics` keys, `burndown` |
+| `5 * 60_000` (5 min) | `org-chart` |
 | `30_000` (30 s) | `inbox`, `inbox-unread-count`, `integrations`, `api-keys`, `sprint detail` |
 | `15_000` (15 s) | `import jobs`, `webhook deliveries` |
 | default (`0`) | `tasks`, `task-detail`, `sprints list`, `approvals`, `attachments`, `automations`, `forms`, `wiki`, `children`, `dependencies` |
@@ -534,6 +543,56 @@ Create/revoke both invalidate this key.
 ```
 
 `useImportJob` polls every 2 seconds while an import is running. Sources never change so `Infinity` is correct.
+
+---
+
+### `useOrg.js`  *(src/apps/org-structure/hooks/useOrg.js)*
+
+All data hooks for the Org Structure module. Follows the same key-factory pattern as `useTasks.js`. All list/detail keys use `staleTime: Infinity` (near-static config data); only `org-chart` uses `5 * 60_000` because it aggregates across members.
+
+```
+["org-departments",  workspaceId]                  staleTime: Infinity
+["org-dept-members", workspaceId, deptId]          staleTime: Infinity
+["org-teams",        workspaceId]                  staleTime: Infinity
+["org-team-members", workspaceId, teamId]          staleTime: Infinity
+["org-job-titles",   workspaceId]                  staleTime: Infinity
+["org-chart",        workspaceId]                  staleTime: 5 * 60_000
+```
+
+#### Query hooks
+
+| Hook | Key | URL |
+|------|-----|-----|
+| `useDepartments(ws)` | `org-departments` | `GET /org/departments/` |
+| `useDepartmentMembers(ws, deptId)` | `org-dept-members` | `GET /org/departments/{id}/members/` |
+| `useTeams(ws)` | `org-teams` | `GET /org/teams/` |
+| `useTeamMembers(ws, teamId)` | `org-team-members` | `GET /org/teams/{id}/members/` |
+| `useJobTitles(ws)` | `org-job-titles` | `GET /org/job-titles/` |
+| `useOrgChart(ws)` | `org-chart` | `GET /org/chart/` |
+
+#### Mutation hooks
+
+All mutations invalidate their respective list key. `useRemoveDepartmentMember` / `useRemoveTeamMember` also invalidate the member sub-key.
+
+| Hook | Invalidates |
+|------|-------------|
+| `useCreateDepartment` / `useUpdateDepartment` / `useDeleteDepartment` | `org-departments` |
+| `useAddDepartmentMember` / `useRemoveDepartmentMember` | `org-departments`, `org-dept-members` |
+| `useCreateTeam` / `useUpdateTeam` / `useDeleteTeam` | `org-teams` |
+| `useAddTeamMember` / `useRemoveTeamMember` | `org-teams`, `org-team-members` |
+| `useCreateJobTitle` | `org-job-titles` |
+
+#### Write field convention
+
+Backend serializers split read and write fields. Always use these write-only fields in mutation payloads — never the nested read objects:
+
+| Field | Sets |
+|-------|------|
+| `head_id` | Department head (WorkspaceMember PK) |
+| `parent_id` | Parent department (Department PK) |
+| `department_id` | Team's department (Department PK) |
+| `lead_id` | Team lead (WorkspaceMember PK) |
+| `member_id` | Member to add (WorkspaceMember PK) |
 
 ---
 
