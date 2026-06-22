@@ -123,7 +123,28 @@ Product areas are gated behind workspace-level modules. `MODULE_REGISTRY` is the
 | GET | `/api/workspaces/{ws}/invites/pending/` | List pending invites |
 | DELETE | `/api/workspaces/{ws}/invites/{token}/` | Cancel a pending invite |
 | GET | `/api/invites/{token}/` | Public — get invite info (workspace name, inviter) |
-| POST | `/api/invites/{token}/accept/` | Accept invite and join workspace |
+| POST | `/api/invites/{token}/accept/` | Accept invite and join workspace; auto-assigns the matching system CustomRole |
+
+### Custom RBAC (vD.1)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/workspaces/{ws}/roles/` | List all roles (system + custom) with `member_count` and `permission_definitions` |
+| POST | `/api/workspaces/{ws}/roles/` | Create a custom role (admin only). Body: `{ name, description?, permissions: {key: bool} }`. Unknown permission keys → 400. `is_system` is always `false` for created roles. |
+| GET | `/api/workspaces/{ws}/roles/{id}/` | Role detail |
+| PATCH | `/api/workspaces/{ws}/roles/{id}/` | Update name/description/permissions (admin only). System roles → 400. |
+| DELETE | `/api/workspaces/{ws}/roles/{id}/` | Delete role (admin only). System roles → 400. Roles with active assignments → 400. |
+| POST | `/api/workspaces/{ws}/members/{id}/assign-role/` | Assign or reassign a CustomRole to a member (admin only). Body: `{ role: "<uuid>" }`. Role must belong to this workspace. Idempotent via `update_or_create`. |
+
+**Permission keys** (defined in `workspaces/constants.py::PERMISSIONS`):
+`project.create`, `project.delete`, `project.admin`, `task.create`, `task.edit`, `task.delete`, `sprint.manage`, `automation.manage`, `member.invite`, `member.remove`, `member.view_profile`, `hr.view`, `hr.manage_leave`, `hr.manage_attendance`, `org.view`, `org.manage`, `report.view`, `settings.manage`, `api_keys.manage`
+
+**System roles** (auto-created per workspace, `is_system=True`, non-deletable):
+- `Admin` — all permissions `true`
+- `Member` — project.create/task.create+edit/sprint.manage/member.invite/member.view_profile/hr.view/org.view/report.view
+- `Viewer` — member.view_profile/hr.view/org.view/report.view
+
+**Helper** `has_workspace_permission(user, workspace, action)` in `workspaces/rbac.py` — owner short-circuits to `True`; otherwise checks `RoleAssignment→CustomRole.permissions`; returns `False` if no `RoleAssignment` exists.
 
 ### Inbox
 
@@ -462,6 +483,8 @@ Available `{metric}` values:
 | `WebhookDelivery` | `webhook` (FK), `event`, `request_body`, `response_code`, `response_body`, `duration_ms`, `success`, `attempt` | indexes: webhook+created_at, webhook+success |
 | `ImportJob` | `workspace` (FK), `source`, `status`, `file_name`, `parsed_rows`, `field_mapping`, `preview_rows`, `progress_pct`, `total_count`, `imported_count`, `skipped_count`, `error_log`, `imported_task_ids`, `created_by`, `completed_at` | index: workspace+status. Sources: jira, clickup, monday, notion, github, asana, csv |
 | `OnboardingState` | `workspace` (O2O), `wizard_completed`, `team_type`, `checklist_dismissed`, `dismissed_by_users` (JSON) | |
+| `CustomRole` | `workspace` (FK), `name`, `description`, `is_system` (bool), `permissions` (JSONField `{"task.create": true, ...}`) | unique: workspace+name; ordering: -is_system, name; index: `crole_workspace_system_idx`. `is_system=True` protects built-in Admin/Member/Viewer roles. Auto-created per workspace via `create_system_roles()`. |
+| `RoleAssignment` | `workspace_member` (O2O→WorkspaceMember), `role` (FK→CustomRole, PROTECT), `assigned_by` (FK→User, nullable) | One per member; `update_or_create` on reassign; index: `rla_role_idx`. Auto-created for workspace owner (Admin) on workspace creation and for invited members on invite acceptance. |
 
 ### projects
 
@@ -656,27 +679,35 @@ User created → post_save → UserProfile auto-created
 
 ## Permission Model
 
+### Workspace-level (vD.1 — Custom RBAC)
+
+Every `WorkspaceMember` has a `RoleAssignment` → `CustomRole` with a `permissions` JSONField. Permission resolution:
+1. Workspace owner → always `True` for any action.
+2. Check `RoleAssignment → CustomRole.permissions[action]`.
+3. No assignment → `False`.
+
+`has_workspace_permission(user, workspace, action)` in `workspaces/rbac.py` is the single entry point.
+Admin-level actions (API keys, webhooks, role changes, invites) gate on `settings.manage`.
+Project-admin actions gate on `project.admin`.
+
+### Board-level (unchanged from v2.1)
+
 ```
-WorkspaceMember.role:  ADMIN > MEMBER > VIEWER
 BoardMember.role:      admin > editor > viewer > guest
 
 Role weights (_PROJ_WEIGHT): admin=4, editor=3, viewer=2, guest=1
 Action thresholds (_ACTION_MIN): view≥2, edit≥3, delete≥4, admin≥4
 
-Resolution:
-  workspace ADMIN  → always "admin"   (no board override can restrict this)
-  workspace MEMBER → min(editor=3, board_override_weight)
-  workspace VIEWER → always "viewer"  (cannot be promoted)
+get_effective_role resolution (projects/permissions.py):
+  CustomRole has project.admin → always "admin"  (no board override can restrict this)
+  CustomRole has task.edit     → min(editor=3, board_override_weight)
+  neither                      → always "viewer" (cannot be promoted)
 
 get_effective_role(user, board)         → role string or None
 has_project_permission(user, board, action) → bool
 log_audit(actor, workspace, action, resource_type, resource_id, before, after)  → AuditEvent
 bulk_log_audit(actor, workspace, action, resource_type, entries)                → bulk AuditEvent
 ```
-
-Admin-only operations: API keys, webhooks, member role changes, invite cancellation.
-Board admin: status management, board deletion, member management.
-Viewer: read-only on boards.
 
 ---
 
@@ -804,7 +835,7 @@ All paginated responses follow DRF's standard envelope: `{count, next, previous,
 
 | Item | Scope | Priority |
 |------|-------|---------|
-| RBAC is simple (3 ws roles + 4 board roles) — no custom role builder | `WorkspaceMember.Role` | v2 RBAC system |
+| Board-level RBAC (4 board roles) is still driven by `BoardMember.role` text field — not yet integrated with CustomRole permission flags | `projects/permissions.py` | vD.2 or later |
 | `InboxItem` actor fields are denormalized strings | `workspaces/models.py` | Acceptable v1 perf trade-off |
 | Workspace templates are static in `constants.py` | `workspaces/constants.py` | Future: `WorkspaceTemplate` model |
 | ‼️ Automation engine fully disabled — `fire_automation` is a no-op stub, routes commented out, signals disabled | `projects/automation.py`, `signals.py`, `urls.py` | Rebuild with Celery tasks + action registry pattern before re-enabling |

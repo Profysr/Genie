@@ -1,14 +1,16 @@
 from rest_framework import serializers
 from django.utils import timezone
 from .models import (
-    Workspace,
-    WorkspaceMember,
-    WorkspaceInvite,
+    CustomRole,
+    ImportJob,
     InboxItem,
-    WorkspaceAPIKey,
+    RoleAssignment,
     Webhook,
     WebhookDelivery,
-    ImportJob,
+    Workspace,
+    WorkspaceAPIKey,
+    WorkspaceInvite,
+    WorkspaceMember,
 )
 from accounts.serializers import MiniUserSerializer
 
@@ -35,7 +37,11 @@ class WorkspaceSerializer(serializers.ModelSerializer):
             uid = request.user.id
             for m in obj.members.all():
                 if m.user_id == uid:
-                    return m.role
+                    # Resolve role name from RoleAssignment → CustomRole.
+                    try:
+                        return m.role_assignment.role.name
+                    except Exception:
+                        pass
         return None
 
     def validate(self, data):
@@ -47,23 +53,38 @@ class WorkspaceSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
+        from .rbac import create_system_roles
+        from .models import RoleAssignment
+
         validated_data["owner"] = self.context["request"].user
         workspace = super().create(validated_data)
-        WorkspaceMember.objects.create(
+        member = WorkspaceMember.objects.create(
             workspace=workspace,
             user=workspace.owner,
-            role=WorkspaceMember.Role.ADMIN,
+        )
+        # Seed the three built-in roles and assign Admin to the owner.
+        system_roles = create_system_roles(workspace)
+        RoleAssignment.objects.create(
+            workspace_member=member,
+            role=system_roles["Admin"],
         )
         return workspace
 
 
 class WorkspaceMemberSerializer(serializers.ModelSerializer):
     user = MiniUserSerializer(read_only=True)
+    role = serializers.SerializerMethodField()
 
     class Meta:
         model = WorkspaceMember
         fields = ["id", "user", "role", "joined_at"]
         read_only_fields = ["user", "joined_at"]
+
+    def get_role(self, obj):
+        try:
+            return obj.role_assignment.role.name
+        except Exception:
+            return None
 
 
 class WorkspaceInviteSerializer(serializers.ModelSerializer):
@@ -219,3 +240,87 @@ class ImportJobDetailSerializer(ImportJobSerializer):
             "preview_rows", "field_mapping", "error_log",
         ]
         read_only_fields = fields
+
+
+# ── vD.1 — Custom RBAC ───────────────────────────────────────────────────────
+from .constants import PERMISSIONS  # noqa: E402
+
+
+class CustomRoleSerializer(serializers.ModelSerializer):
+    """
+    Read + write serializer for CustomRole.
+
+    `permissions` must be a dict keyed on known permission strings.
+    Unknown keys are rejected; system roles may not be mutated via this serializer.
+    The `permission_definitions` field exposes the full PERMISSIONS registry
+    (key → description) so the frontend can build the role editor without a
+    separate API call.
+    """
+
+    permission_definitions = serializers.SerializerMethodField()
+    member_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CustomRole
+        fields = [
+            "id", "name", "description", "is_system",
+            "permissions", "member_count", "permission_definitions",
+            "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "is_system", "created_at", "updated_at"]
+
+    def get_permission_definitions(self, obj):
+        return PERMISSIONS
+
+    def get_member_count(self, obj):
+        # Reads from prefetch cache when the view prefetches `assignments`.
+        return len(obj.assignments.all())
+
+    def validate_name(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Name cannot be blank.")
+        return value
+
+    def validate_permissions(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("permissions must be an object.")
+        # Coerce all values to bool.
+        # Known keys missing from the payload default to False.
+        # Unknown/custom keys are preserved as-is — PERMISSIONS is a UI registry,
+        # not an enforcement gate, so custom keys defined via the API are valid.
+        coerced = {key: bool(v) for key, v in value.items()}
+        for key in PERMISSIONS:
+            coerced.setdefault(key, False)
+        return coerced
+
+    def validate(self, attrs):
+        if self.instance and self.instance.is_system:
+            raise serializers.ValidationError(
+                "System roles cannot be modified. Duplicate this role to create a custom one."
+            )
+        return attrs
+
+
+class RoleAssignmentSerializer(serializers.ModelSerializer):
+    """
+    Serializer used by the assign-role endpoint.
+    Only `role` is writable; everything else is read-only context.
+    """
+
+    role = serializers.PrimaryKeyRelatedField(queryset=CustomRole.objects.none())
+    role_detail = CustomRoleSerializer(source="role", read_only=True)
+
+    class Meta:
+        model = RoleAssignment
+        fields = ["id", "role", "role_detail", "assigned_at"]
+        read_only_fields = ["id", "assigned_at"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Scope the role choices to the current workspace.
+        workspace = self.context.get("workspace")
+        if workspace:
+            self.fields["role"].queryset = CustomRole.objects.filter(
+                workspace=workspace
+            )

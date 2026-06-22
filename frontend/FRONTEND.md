@@ -51,6 +51,34 @@ This is what makes a module extractable: cut the `apps/<module>` folder + its `s
 
 ---
 
+## RBAC — Custom Role Permissions (vD.2)
+
+Workspace-level permission gating. Every workspace member has a `CustomRole` with a `permissions` map.
+
+| Layer | Location | Role |
+|---|---|---|
+| Backend source of truth | `backend/workspaces/constants.py` → `PERMISSIONS` dict | key → human description for 22 permission keys |
+| System roles | `SYSTEM_ROLE_PERMISSIONS` | Admin (all), Member (default), Viewer (read-only) |
+| DB enforcement | `has_workspace_permission(user, ws, key)` | called in views |
+| Frontend hooks | `src/shared/hooks/useRoles.js` | `useRoles`, `useCreateRole`, `useUpdateRole`, `useDeleteRole`, `useAssignRole` |
+| Frontend context | `src/contexts/PermissionsContext.jsx` | `PermissionsProvider` (in AppLayout) + `usePermission()` → `{ can(key), isOwner }` |
+
+**Permission keys** (grouped):
+- Projects/Boards: `project.create`, `project.delete`, `project.admin`
+- Kanban/Tasks: `task.view`, `task.create`, `task.edit`, `task.delete`, `task.move`, `task.comment`, `sprint.manage`, `automation.manage`
+- People & HR: `member.invite`, `member.remove`, `member.view_profile`, `hr.view`, `hr.manage_leave`, `hr.manage_attendance`, `org.view`, `org.manage`
+- Workspace: `report.view`, `settings.manage`, `api_keys.manage`
+
+**Nav gating** — `navLinks.js` items carry a `permission` field. `Sidebar` calls `can(item.permission)` and hides items that return false. Workspace owner always passes. Items without a `permission` field are always visible.
+
+**Query key** — `["workspace-roles", workspaceId]` — `staleTime: Infinity`.
+
+**Role assignment** — `POST /api/workspaces/:id/members/:memberId/assign-role/ { role: <uuid> }`. On `MembersPage`, admins see a dropdown of all roles (system roles shown with 🔒 suffix). Selecting fires `useAssignRole`.
+
+**Role builder** — `Settings → Roles & Permissions` section. Left panel = role list with member count. Right panel = name/desc fields + per-permission toggles grouped by category. Dependency rules auto-enable required permissions (e.g. `hr.manage_leave` enables `hr.view`). System roles are read-only; custom roles can be saved, duplicated, or deleted (delete blocked if `member_count > 0`).
+
+---
+
 ## Module System (feature gating)
 
 JCN's product areas are licensed as modules. The system spans backend + frontend:

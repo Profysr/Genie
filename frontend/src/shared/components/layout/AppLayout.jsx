@@ -5,6 +5,7 @@ import { useThemeStore } from "@/store/themeStore";
 import { useWorkspace } from "@/shared/hooks/useWorkspace";
 import { useAnnouncePresence } from "@/shared/hooks/usePresence";
 import { ModulesContext, useModulesQuery } from "@/shared/hooks/useModules";
+import { PermissionsProvider } from "@/contexts/PermissionsContext";
 import { useWorkspaceSocket } from "@/shared/hooks/useWorkspaceSocket";
 import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts";
 import Sidebar from "@/shared/components/layout/Sidebar";
@@ -89,6 +90,7 @@ export default function AppLayout() {
   });
 
   return (
+    <PermissionsProvider workspaceId={workspaceId}>
     <ModulesContext.Provider value={modulesCtx}>
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar
@@ -137,5 +139,6 @@ export default function AppLayout() {
       </Suspense>
     </div>
     </ModulesContext.Provider>
+    </PermissionsProvider>
   );
 }

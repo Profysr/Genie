@@ -103,9 +103,8 @@ def get_workspace_for_user(workspace_id, user):
 
 
 def _is_workspace_admin(workspace, user):
-    return WorkspaceMember.objects.filter(
-        workspace=workspace, user=user, role=WorkspaceMember.Role.ADMIN
-    ).exists()
+    from workspaces.rbac import has_workspace_permission
+    return workspace.owner_id == user.pk or has_workspace_permission(user, workspace, "project.admin")
 
 
 # ── Shared object-lookup helpers ──────────────────────────────────────────────

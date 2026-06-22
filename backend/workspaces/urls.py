@@ -29,6 +29,10 @@ from .views import (
     ImportJobDetailView,
     ImportJobRunView,
     ImportJobRollbackView,
+    # vD.1 — Custom RBAC
+    CustomRoleListCreateView,
+    CustomRoleDetailView,
+    MemberAssignRoleView,
 )
 
 # Workspace is identified by its stable UUIDv7 ID (wsp_...)
@@ -81,4 +85,9 @@ urlpatterns = [
     # Module System
     path(f"{_ws}/modules/", WorkspaceModuleListView.as_view()),
     path(f"{_ws}/modules/<str:module_key>/", WorkspaceModuleToggleView.as_view()),
+
+    # Custom RBAC (vD.1)
+    path(f"{_ws}/roles/", CustomRoleListCreateView.as_view()),
+    path(f"{_ws}/roles/<str:role_id>/", CustomRoleDetailView.as_view()),
+    path(f"{_ws}/members/<str:member_id>/assign-role/", MemberAssignRoleView.as_view()),
 ]

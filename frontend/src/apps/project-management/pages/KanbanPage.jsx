@@ -25,6 +25,7 @@ import { useBoardSocket } from "@/shared/hooks/useWorkspaceSocket";
 import { useBoardPermissions } from "@/apps/project-management/hooks/useProjectPermissions";
 import { usePresence, useAnnouncePresence } from "@/shared/hooks/usePresence";
 import { useAuthStore } from "@/store/authStore";
+import { usePermission } from "@/contexts/PermissionsContext";
 import BoardTypeIcon from "@/shared/components/ui/BoardTypeIcon";
 import { useToast } from "@/shared/components/ui/toast";
 import KanbanColumn from "@/apps/project-management/components/tasks/KanbanColumn";
@@ -187,6 +188,7 @@ export default function KanbanPage() {
   );
   const { data: statuses = [] } = useStatuses(workspaceId, boardId);
   const perms = useBoardPermissions(workspaceId, boardId);
+  const { can, isOwner: isWsOwner } = usePermission();
 
   const moveTask = useMoveTask(workspaceId, boardId);
   const createLabel = useCreateLabel(workspaceId, boardId);
@@ -285,7 +287,7 @@ export default function KanbanPage() {
   const handleDragEnd = (result) => {
     setDragSourceColumnId(null);
     if (!result.destination) return;
-    if (!perms.canEdit) return;
+    if (!perms.canEdit && !(isWsOwner || can("task.move"))) return;
 
     const { draggableId, source, destination } = result;
 
@@ -445,7 +447,7 @@ export default function KanbanPage() {
                 label: "Board settings",
                 Icon: Settings2,
                 onClick: () => setBoardSettings(true),
-                show: perms.canAdmin,
+                show: perms.canAdmin || isWsOwner || can("project.admin"),
               },
             ]
               .filter(({ show }) => show)
@@ -460,7 +462,7 @@ export default function KanbanPage() {
                 </Tooltip>
               ))}
 
-            {perms.canEdit && (
+            {(perms.canEdit || isWsOwner || can("task.create")) && (
               <Button
                 size="sm"
                 onClick={() =>

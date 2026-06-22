@@ -57,20 +57,17 @@ def _get_workspace(workspace_id, user):
 
 
 def _is_workspace_admin(workspace, user) -> bool:
-    """Returns True if the user is an explicit Admin member of the workspace."""
-    return WorkspaceMember.objects.filter(
-        workspace=workspace, user=user, role=WorkspaceMember.Role.ADMIN
-    ).exists()
+    """Returns True if the user is the workspace owner or has admin-level permissions."""
+    from .rbac import has_workspace_permission
+    return workspace.owner_id == user.pk or has_workspace_permission(user, workspace, "settings.manage")
 
 
 def _require_admin(workspace, user):
-    """Fails early and throws an explicit DRF PermissionDenied exception if the user lacks access."""
-    # Check if they are the platform-level workspace owner or an authorized Admin member
-    if workspace.owner == user:
+    """Raises PermissionDenied if the user is not the owner or does not have admin permissions."""
+    from .rbac import has_workspace_permission
+    if workspace.owner_id == user.pk:
         return
-
-    member = workspace.members.filter(user=user).first()
-    if not member or member.role not in ("admin", WorkspaceMember.Role.ADMIN):
+    if not has_workspace_permission(user, workspace, "settings.manage"):
         raise PermissionDenied("Only workspace admins can perform this action.")
 
 
@@ -256,11 +253,25 @@ class AcceptInviteView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        WorkspaceMember.objects.get_or_create(
+        member, created = WorkspaceMember.objects.get_or_create(
             workspace=invite.workspace,
             user=request.user,
             defaults={"role": invite.role, "invited_by": invite.invited_by},
         )
+        if created:
+            # Assign the matching system role to put the new member in the RBAC system.
+            from .models import CustomRole, RoleAssignment
+            system_role_name = invite.role
+            role = CustomRole.objects.filter(
+                workspace=invite.workspace,
+                name=system_role_name,
+                is_system=True,
+            ).first()
+            if role:
+                RoleAssignment.objects.create(
+                    workspace_member=member,
+                    role=role,
+                )
         invite.status = WorkspaceInvite.Status.ACCEPTED
         invite.save()
 
@@ -763,3 +774,134 @@ class WorkspaceModuleToggleView(APIView):
             defaults={"is_enabled": is_enabled, "enabled_by": request.user},
         )
         return Response({"key": module_key, "name": module_def["name"], "is_enabled": obj.is_enabled})
+
+
+# ==============================================================================
+# ── vD.1 — CUSTOM RBAC ────────────────────────────────────────────────────────
+# ==============================================================================
+
+
+class CustomRoleListCreateView(APIView):
+    """
+    GET  /api/workspaces/{ws}/roles/  — list all roles for this workspace.
+    POST /api/workspaces/{ws}/roles/  — create a new custom role (admin only).
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get_serializer_imports(self):
+        from .serializers import CustomRoleSerializer
+        return CustomRoleSerializer
+
+    def get(self, request, workspace_id):
+        from .serializers import CustomRoleSerializer
+
+        workspace = _get_workspace(workspace_id, request.user)
+        roles = (
+            workspace.custom_roles.prefetch_related("assignments").all()
+        )
+        return Response(CustomRoleSerializer(roles, many=True).data)
+
+    def post(self, request, workspace_id):
+        from .serializers import CustomRoleSerializer
+
+        workspace = _get_workspace(workspace_id, request.user)
+        _require_admin(workspace, request.user)
+
+        serializer = CustomRoleSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(workspace=workspace, is_system=False)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class CustomRoleDetailView(APIView):
+    """
+    GET    /api/workspaces/{ws}/roles/{id}/
+    PATCH  /api/workspaces/{ws}/roles/{id}/  — admin only; system roles rejected by serializer.
+    DELETE /api/workspaces/{ws}/roles/{id}/  — admin only; system roles cannot be deleted.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get_role(self, workspace_id, role_id, user):
+        from .models import CustomRole
+
+        workspace = _get_workspace(workspace_id, user)
+        role = get_object_or_404(
+            CustomRole, workspace=workspace, id=_parse_pk(role_id)
+        )
+        return role, workspace
+
+    def get(self, request, workspace_id, role_id):
+        from .serializers import CustomRoleSerializer
+
+        role, _ = self._get_role(workspace_id, role_id, request.user)
+        return Response(CustomRoleSerializer(role).data)
+
+    def patch(self, request, workspace_id, role_id):
+        from .serializers import CustomRoleSerializer
+
+        role, workspace = self._get_role(workspace_id, role_id, request.user)
+        _require_admin(workspace, request.user)
+
+        serializer = CustomRoleSerializer(role, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def delete(self, request, workspace_id, role_id):
+        role, workspace = self._get_role(workspace_id, role_id, request.user)
+        _require_admin(workspace, request.user)
+
+        if role.is_system:
+            return Response(
+                {"detail": "System roles cannot be deleted."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if role.assignments.exists():
+            return Response(
+                {"detail": "Cannot delete a role that is currently assigned to members. Re-assign those members first."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        role.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class MemberAssignRoleView(APIView):
+    """
+    POST /api/workspaces/{ws}/members/{id}/assign-role/
+
+    Assigns (or reassigns) a CustomRole to a workspace member.
+    Body: { "role": "<role-uuid>" }
+    Admin only. The role must belong to the same workspace.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, workspace_id, member_id):
+        from .models import RoleAssignment
+        from .serializers import RoleAssignmentSerializer
+
+        workspace = _get_workspace(workspace_id, request.user)
+        _require_admin(workspace, request.user)
+
+        member = get_object_or_404(
+            WorkspaceMember, workspace=workspace, id=_parse_pk(member_id)
+        )
+
+        serializer = RoleAssignmentSerializer(
+            data=request.data,
+            context={"workspace": workspace},
+        )
+        serializer.is_valid(raise_exception=True)
+        role = serializer.validated_data["role"]
+
+        assignment, created = RoleAssignment.objects.update_or_create(
+            workspace_member=member,
+            defaults={"role": role, "assigned_by": request.user},
+        )
+
+        return Response(
+            RoleAssignmentSerializer(assignment, context={"workspace": workspace}).data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )

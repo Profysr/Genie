@@ -25,11 +25,6 @@ class Workspace(models.Model):
 class WorkspaceMember(models.Model):
     PREFIX = "wsm"
 
-    class Role(models.TextChoices):
-        ADMIN = "admin", "Admin"
-        MEMBER = "member", "Member"
-        VIEWER = "viewer", "Viewer"
-
     id = UUIDv7Field()
     workspace = models.ForeignKey(
         Workspace, on_delete=models.CASCADE, related_name="members"
@@ -39,7 +34,6 @@ class WorkspaceMember(models.Model):
         on_delete=models.CASCADE,
         related_name="workspace_memberships",
     )
-    role = models.CharField(max_length=20, choices=Role.choices, default=Role.MEMBER)
     invited_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -51,12 +45,9 @@ class WorkspaceMember(models.Model):
 
     class Meta:
         unique_together = ["workspace", "user"]
-        indexes = [
-            models.Index(fields=["workspace", "role"], name="wsmember_workspace_role_idx"),
-        ]
 
     def __str__(self):
-        return f"{self.user.email} @ {self.workspace.name} ({self.role})"
+        return f"{self.user.email} @ {self.workspace.name}"
 
 
 class WorkspaceInvite(models.Model):
@@ -67,6 +58,14 @@ class WorkspaceInvite(models.Model):
         ACCEPTED = "accepted", "Accepted"
         DECLINED = "declined", "Declined"
 
+    # The invite role determines which system CustomRole is assigned on acceptance.
+    # Capitalised names match system role names (Admin/Member/Viewer).
+    INVITE_ROLE_CHOICES = [
+        ("Admin", "Admin"),
+        ("Member", "Member"),
+        ("Viewer", "Viewer"),
+    ]
+
     id = UUIDv7Field()
     workspace = models.ForeignKey(
         Workspace, on_delete=models.CASCADE, related_name="invites"
@@ -74,8 +73,8 @@ class WorkspaceInvite(models.Model):
     email = models.EmailField()
     role = models.CharField(
         max_length=20,
-        choices=WorkspaceMember.Role.choices,
-        default=WorkspaceMember.Role.MEMBER,
+        choices=INVITE_ROLE_CHOICES,
+        default="Member",
     )
     invited_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -379,6 +378,74 @@ class OnboardingState(models.Model):
 
     def __str__(self):
         return f"Onboarding: {self.workspace.name}"
+
+
+# ── vD.1 — Custom RBAC ───────────────────────────────────────────────────────
+class CustomRole(models.Model):
+    """
+    Workspace-scoped role carrying a JSON permission map.
+    System roles (is_system=True) mirror the legacy admin/member/viewer
+    behaviour and are protected from edit/delete.
+    """
+
+    PREFIX = "rol"
+
+    id = UUIDv7Field()
+    workspace = models.ForeignKey(
+        Workspace, on_delete=models.CASCADE, related_name="custom_roles"
+    )
+    name = models.CharField(max_length=100)
+    description = models.CharField(max_length=500, blank=True)
+    is_system = models.BooleanField(default=False)
+    # {"project.create": true, "hr.manage_leave": false, ...}
+    permissions = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ["workspace", "name"]
+        ordering = ["-is_system", "name"]
+
+    def __str__(self):
+        suffix = " (system)" if self.is_system else ""
+        return f"{self.name}{suffix} @ {self.workspace.name}"
+
+
+class RoleAssignment(models.Model):
+    """
+    Maps a WorkspaceMember to a CustomRole.
+    One-to-one: each member has exactly one active role assignment.
+    """
+
+    PREFIX = "rla"
+
+    id = UUIDv7Field()
+    workspace_member = models.OneToOneField(
+        WorkspaceMember,
+        on_delete=models.CASCADE,
+        related_name="role_assignment",
+    )
+    role = models.ForeignKey(
+        CustomRole,
+        on_delete=models.PROTECT,
+        related_name="assignments",
+    )
+    assigned_at = models.DateTimeField(auto_now_add=True)
+    assigned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="role_assignments_made",
+    )
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["role"], name="rla_role_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.workspace_member} → {self.role.name}"
 
 
 # ── Module System ─────────────────────────────────────────────────────────────

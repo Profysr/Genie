@@ -24,9 +24,9 @@ import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   useMembers,
-  useUpdateMemberRole,
   useRemoveMember,
 } from "@/shared/hooks/useMembers";
+import { useRoles, useAssignRole } from "@/shared/hooks/useRoles";
 import { useWorkspace } from "@/shared/hooks/useWorkspace";
 import { useAuthStore } from "@/store/authStore";
 import api from "@/shared/lib/api";
@@ -38,24 +38,33 @@ import {
   useJobTitles,
 } from "@/apps/org-structure/hooks/useOrg";
 
-export const ROLES = ["admin", "member", "viewer"];
 export const ROLE_CONFIG = {
-  admin: {
+  Admin: {
     label: "Admin",
     icon: Shield,
     className: "text-primary bg-primary/10 border-primary/20",
   },
-  member: {
+  Member: {
     label: "Member",
     icon: User,
     className: "text-foreground bg-secondary border-border",
   },
-  viewer: {
+  Viewer: {
     label: "Viewer",
     icon: Eye,
     className: "text-muted-foreground bg-secondary border-border",
   },
 };
+
+function getRoleConfig(roleName) {
+  return (
+    ROLE_CONFIG[roleName] ?? {
+      label: roleName ?? "—",
+      icon: User,
+      className: "text-foreground bg-secondary border-border",
+    }
+  );
+}
 
 const EMPLOYMENT_TYPES = [
   { value: "full_time", label: "Full-time", color: "bg-emerald-100 text-emerald-700" },
@@ -132,8 +141,9 @@ export function ActiveMemberItem({
   onSelect,
   onRoleChange,
   onRemove,
+  roles = [],
 }) {
-  const roleConf = ROLE_CONFIG[member.role] || ROLE_CONFIG.member;
+  const roleConf = getRoleConfig(member.role);
   const RoleIcon = roleConf.icon;
 
   return (
@@ -145,7 +155,7 @@ export function ActiveMemberItem({
       )}
     >
       <div className="flex items-center gap-3">
-        <Avatar name={member.user?.full_name || member.user?.email} src={member.user?.avatar} size="md" />
+        <Avatar user={member.user} size="md" />
         <div>
           <div className="flex items-center gap-1.5">
             <p className="text-sm font-medium leading-tight">{member.user?.full_name || "-"}</p>
@@ -161,13 +171,16 @@ export function ActiveMemberItem({
       <div className="flex items-center gap-2">
         {isAdmin && !isSelf && !isWorkspaceOwner ? (
           <select
-            className="text-xs border rounded px-2 py-1 bg-background outline-none focus:ring-1 focus:ring-ring"
-            value={member.role}
+            className="text-xs border rounded px-2 py-1 bg-background outline-none focus:ring-1 focus:ring-ring max-w-[140px]"
+            value={roles.find((r) => r.name === member.role)?.id ?? ""}
             onClick={(e) => e.stopPropagation()}
             onChange={(e) => onRoleChange(member.id, e.target.value)}
           >
-            {ROLES.map((r) => (
-              <option key={r} value={r}>{ROLE_CONFIG[r].label}</option>
+            <option value="" disabled>Select role…</option>
+            {roles.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}{r.is_system ? " 🔒" : ""}
+              </option>
             ))}
           </select>
         ) : (
@@ -433,6 +446,7 @@ export default function MembersPage() {
 
   const { data: members = [], isLoading } = useMembers(workspaceId);
   const { data: workspace } = useWorkspace(workspaceId);
+  const { data: roles = [] } = useRoles(workspaceId);
 
   const { data: pendingInvites = [] } = useQuery({
     queryKey: ["workspace-invites", workspaceId],
@@ -441,7 +455,7 @@ export default function MembersPage() {
     enabled: !!workspaceId,
   });
 
-  const updateRole = useUpdateMemberRole(workspaceId);
+  const assignRole = useAssignRole(workspaceId);
   const removeMember = useRemoveMember(workspaceId);
 
   const cancelInvite = useMutation({
@@ -456,9 +470,12 @@ export default function MembersPage() {
   const [copiedToken, setCopiedToken] = useState(null);
   const [selectedMemberId, setSelectedMemberId] = useState(null);
 
+  const isOwner = workspace?.owner?.email === user?.email;
   const currentMember = members.find((m) => m.user?.email === user?.email);
   const isAdmin =
-    currentMember?.role === "admin" || workspace?.owner?.email === user?.email;
+    isOwner ||
+    currentMember?.role?.toLowerCase() === "admin" ||
+    workspace?.my_role?.toLowerCase() === "admin";
 
   const selectedMember = members.find((m) => m.id === selectedMemberId);
 
@@ -534,8 +551,9 @@ export default function MembersPage() {
                         prev === member.id ? null : member.id,
                       )
                     }
-                    onRoleChange={(memberId, nextRole) =>
-                      updateRole.mutate({ memberId, role: nextRole })
+                    roles={roles}
+                    onRoleChange={(memberId, roleId) =>
+                      assignRole.mutate({ memberId, roleId })
                     }
                     onRemove={(target) =>
                       setConfirmState({

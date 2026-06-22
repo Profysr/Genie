@@ -6,7 +6,6 @@ from django.conf import settings
 from workspaces.models import Workspace
 from core.constants import DEFAULT_TASK_STATUSES  # noqa: F401 — re-exported for existing imports
 from core.fields import UUIDv7Field
-from workspaces.models import WorkspaceMember
 
 
 class BoardQuerySet(models.QuerySet):
@@ -27,9 +26,11 @@ class BoardQuerySet(models.QuerySet):
             .filter(workspace=workspace)
         )
 
-        is_admin = WorkspaceMember.objects.filter(
-            workspace=workspace, user=user, role=WorkspaceMember.Role.ADMIN
-        ).exists()
+        from workspaces.rbac import has_workspace_permission
+        is_admin = (
+            workspace.owner_id == user.pk
+            or has_workspace_permission(user, workspace, "project.admin")
+        )
 
         if is_admin:
             return qs

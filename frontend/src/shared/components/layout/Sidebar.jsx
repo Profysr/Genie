@@ -4,6 +4,7 @@ import { cn } from "@/shared/lib/utils";
 import { ChevronDown, Search, ChevronsLeft } from "lucide-react";
 import BoardTypeIcon from "@/shared/components/ui/BoardTypeIcon";
 import { resolvedNavGroups, workspaceUrl } from "@/shared/lib/navLinks";
+import { usePermission } from "@/contexts/PermissionsContext";
 import { useInboxUnreadCount } from "@/shared/hooks/useInbox";
 import { useBoards } from "@/apps/project-management/hooks/useProjects";
 import UserPanel from "@/shared/components/layout/UserPanel";
@@ -26,6 +27,7 @@ export default function Sidebar({
   const inboxUnread = useInboxUnreadCount(workspaceId);
   const { data: boards = [] } = useBoards(workspaceId);
   const [openSections, setOpenSections] = useState({});
+  const { can, isOwner, isLoading: permsLoading } = usePermission();
 
   const toggleSection = (key) =>
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -39,17 +41,23 @@ export default function Sidebar({
     })),
   };
 
-  const navGroups = resolvedNavGroups().map((group) => ({
-    ...group,
-    items: group.items.map((item) => ({
-      to: workspaceUrl(workspaceId, item.path),
-      icon: item.icon,
-      label: item.label,
-      key: item.key,
-      end: item.end ?? false,
-      collapsible: item.collapsible ?? false,
-    })),
-  }));
+  const navGroups = resolvedNavGroups()
+    .map((group) => ({
+      ...group,
+      items: group.items
+        .filter((item) =>
+          !item.permission || isOwner || permsLoading || can(item.permission),
+        )
+        .map((item) => ({
+          to: workspaceUrl(workspaceId, item.path),
+          icon: item.icon,
+          label: item.label,
+          key: item.key,
+          end: item.end ?? false,
+          collapsible: item.collapsible ?? false,
+        })),
+    }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <aside

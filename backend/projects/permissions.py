@@ -1,77 +1,97 @@
 """
-Project-level permission utilities (v2.1.0).
+Project-level permission utilities (vD.1).
 
-Role hierarchy
-==============
-Workspace level (set once, applies everywhere):
-  admin  → full control of all projects; CANNOT be restricted by project overrides
-  member → editor on all projects by default; CAN be restricted per-project
-  viewer → read-only everywhere; CAN be restricted further but never promoted
+How it works
+============
+has_project_permission(user, board, action) is the single entry point.
 
-Project level (overrides only — can restrict Members/Viewers, never Admins):
-  admin  → manages this project's settings & members (Members only)
-  editor → create / edit / delete tasks
-  viewer → read-only
-  guest  → read-only via share link (no login)
+1. Workspace owner → always True.
+2. CustomRole permission check via has_workspace_permission() — fully data-driven.
+   Any permission key can be created through the API without code changes.
+3. BoardMember override — a per-board role can grant extra access within one board
+   (e.g. a Viewer-level member promoted to editor on one specific board).
 
-Resolution rule
-  workspace admin  →  always "admin"  (no override can touch this)
-  workspace member →  min(member_weight=3, project_override_weight)
-  workspace viewer →  always "viewer" (can't be promoted, guest is separate)
+Action → permission key mapping (_ACTION_TO_PERM):
+  "view"   → "task.view"
+  "edit"   → "task.edit"
+  "delete" → "task.delete"
+  "move"   → "task.move"
+  "comment"→ "task.comment"
+  "admin"  → "project.admin"
+
+Adding a new board action requires only one new entry in _ACTION_TO_PERM — no
+weight constants, no threshold tables.
+
+get_effective_role() is kept for serializers that need a role string (e.g.
+BoardMemberSerializer). New code should call has_project_permission() directly.
 """
 from workspaces.models import WorkspaceMember
+from workspaces.rbac import has_workspace_permission
 
-# Maps each role name to a numeric weight used for comparison.
-# Higher = more privilege. Add a new role here when introducing one;
-# keep weights contiguous so ACTION_MIN thresholds stay intuitive.
-_PROJ_WEIGHT  = {"admin": 4, "editor": 3, "viewer": 2, "guest": 1}
+# Maps board actions to workspace-level CustomRole permission keys.
+# To add a new action: add one entry here. No other code change needed.
+_ACTION_TO_PERM = {
+    "view":    "task.view",
+    "edit":    "task.edit",
+    "delete":  "task.delete",
+    "move":    "task.move",
+    "comment": "task.comment",
+    "admin":   "project.admin",
+}
 
-# Reverse of _PROJ_WEIGHT — used to turn a computed weight back into a role string. Must stay in sync with _PROJ_WEIGHT: every weight value needs an entry here.
-_WEIGHT_ROLE  = {4: "admin", 3: "editor", 2: "viewer", 1: "guest"}
+# Board-level role weights — used only for BoardMember override fallback.
+_PROJ_WEIGHT = {"admin": 4, "editor": 3, "viewer": 2, "guest": 1}
+_ACTION_MIN  = {"view": 2, "edit": 3, "delete": 4, "move": 3, "comment": 2, "admin": 4}
 
-# Minimum weight required to perform each action.
-# Raise a threshold to restrict an action to a higher role (e.g. "edit": 4
-# would make editing admin-only). Lower it to open an action to more roles.
-# Roles below the threshold receive 403 from has_project_permission().
-_ACTION_MIN   = {"view": 2, "edit": 3, "delete": 4, "admin": 4}
+
+def has_project_permission(user, board, action):
+    """
+    Return True if *user* can perform *action* on *board*.
+
+    Checks (in order):
+      1. Workspace owner → True.
+      2. CustomRole has the matching permission → True.
+      3. BoardMember override role meets the action threshold → True.
+      4. Otherwise → False.
+    """
+    from .models import BoardMember
+
+    workspace = board.workspace
+
+    if not WorkspaceMember.objects.filter(workspace=workspace, user=user).exists():
+        return False
+
+    if workspace.owner_id == user.pk:
+        return True
+
+    # Primary check: workspace-level CustomRole permission (data-driven).
+    perm_key = _ACTION_TO_PERM.get(action)
+    if perm_key and has_workspace_permission(user, workspace, perm_key):
+        return True
+
+    # Fallback: per-board BoardMember override can grant additional access.
+    try:
+        bm = BoardMember.objects.get(board=board, user=user)
+        return _PROJ_WEIGHT.get(bm.role, 0) >= _ACTION_MIN.get(action, 999)
+    except BoardMember.DoesNotExist:
+        return False
 
 
 def get_effective_role(user, board):
     """
-    Return the effective board role string for *user* on *board*,
-    or None if the user is not a workspace member.
+    Return the effective board role string for serializers that need it,
+    or None if the user has no access.
+
+    Derives the string from has_project_permission() so the two are always
+    in sync — no separate logic to maintain.
     """
-    from .models import BoardMember
-
-    try:
-        ws_member = WorkspaceMember.objects.get(workspace=board.workspace, user=user)
-    except WorkspaceMember.DoesNotExist:
+    if not has_project_permission(user, board, "view"):
         return None
-
-    if ws_member.role == WorkspaceMember.Role.ADMIN:
+    if has_project_permission(user, board, "admin"):
         return "admin"
-
-    if ws_member.role == WorkspaceMember.Role.VIEWER:
-        return "viewer"
-
-    member_cap = 3
-    try:
-        board_member = BoardMember.objects.get(board=board, user=user)
-        proj_weight = _PROJ_WEIGHT.get(board_member.role, member_cap)
-    except BoardMember.DoesNotExist:
-        proj_weight = member_cap  # default: editor
-
-    effective = min(member_cap, proj_weight)
-    return _WEIGHT_ROLE.get(effective, "viewer")
-
-
-def has_project_permission(user, board, action):
-    """Return True if *user* has the required permission level on *board*."""
-    role = get_effective_role(user, board)
-    if role is None:
-        return False
-    weight = _PROJ_WEIGHT.get(role, 0)
-    return weight >= _ACTION_MIN.get(action, 999)
+    if has_project_permission(user, board, "edit"):
+        return "editor"
+    return "viewer"
 
 
 def log_audit(actor, workspace, action, resource_type, resource_id, before=None, after=None):

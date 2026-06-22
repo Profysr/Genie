@@ -58,6 +58,7 @@ export const NAV_ITEMS = [
     label: "Analytics",
     desc: "Velocity, flow & team metrics",
     path: "analytics",
+    permission: "report.view",
   },
   // {
   //   key: "roadmap",
@@ -72,6 +73,7 @@ export const NAV_ITEMS = [
     label: "Departments",
     desc: "Company departments & structure",
     path: "departments",
+    permission: "org.view",
   },
   {
     key: "teams",
@@ -79,6 +81,7 @@ export const NAV_ITEMS = [
     label: "Teams",
     desc: "Teams & their members",
     path: "teams",
+    permission: "org.view",
   },
   {
     key: "org-chart",
@@ -86,6 +89,7 @@ export const NAV_ITEMS = [
     label: "Org Chart",
     desc: "Company org chart",
     path: "org-chart",
+    permission: "org.view",
   },
   {
     key: "hr-dashboard",
@@ -93,6 +97,7 @@ export const NAV_ITEMS = [
     label: "HR Overview",
     desc: "Headcount, leave & attendance summary",
     path: "hr",
+    permission: "hr.view",
   },
   {
     key: "hr-leave",
@@ -100,6 +105,8 @@ export const NAV_ITEMS = [
     label: "Leave",
     desc: "Leave requests & balances",
     path: "hr/leave",
+    permission: "hr.view",
+    end: true,
   },
   {
     key: "hr-attendance",
@@ -107,6 +114,8 @@ export const NAV_ITEMS = [
     label: "Attendance",
     desc: "Clock-in/out & team hours",
     path: "hr/attendance",
+    permission: "hr.view",
+    end: true,
   },
   {
     key: "members",
