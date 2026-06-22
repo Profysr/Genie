@@ -34,6 +34,7 @@ import {
   Trash2,
   Copy,
   Save,
+  ChevronDown,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -70,6 +71,41 @@ const REQUIRES = {
   "hr.manage_attendance": ["hr.view"],
   "org.manage": ["org.view"],
 };
+
+// ── Permission Preview Card ───────────────────────────────────────────────────
+function PermissionPreview({ perms, defs }) {
+  const [open, setOpen] = useState(false);
+  const enabled = Object.entries(perms)
+    .filter(([, v]) => v)
+    .map(([k]) => defs[k] ?? k);
+
+  return (
+    <div className="rounded-md border bg-muted/30">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <span>What can this role do? ({enabled.length} permissions)</span>
+        <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", open && "rotate-180")} />
+      </button>
+      {open && (
+        <div className="px-3 pb-3 space-y-1">
+          {enabled.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic">No permissions enabled.</p>
+          ) : (
+            enabled.map((desc) => (
+              <div key={desc} className="flex items-start gap-2 text-xs text-foreground">
+                <span className="mt-0.5 flex-shrink-0 text-emerald-500">✓</span>
+                <span>{desc}</span>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Role Builder ─────────────────────────────────────────────────────────────
 function PermissionToggle({ label, permKey, checked, onChange, disabled, requiresKeys }) {
@@ -197,6 +233,8 @@ function RoleEditor({ role, workspaceId, onClose }) {
             </div>
           </div>
         ))}
+
+        <PermissionPreview perms={perms} defs={defs} />
       </div>
 
       {!isSystem && (

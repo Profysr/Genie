@@ -98,6 +98,7 @@ export const NAV_ITEMS = [
     desc: "Headcount, leave & attendance summary",
     path: "hr",
     permission: "hr.view",
+    end: true,
   },
   {
     key: "hr-leave",
@@ -106,7 +107,6 @@ export const NAV_ITEMS = [
     desc: "Leave requests & balances",
     path: "hr/leave",
     permission: "hr.view",
-    end: true,
   },
   {
     key: "hr-attendance",
@@ -115,7 +115,6 @@ export const NAV_ITEMS = [
     desc: "Clock-in/out & team hours",
     path: "hr/attendance",
     permission: "hr.view",
-    end: true,
   },
   {
     key: "members",

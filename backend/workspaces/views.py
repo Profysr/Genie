@@ -804,13 +804,16 @@ class CustomRoleListCreateView(APIView):
 
     def post(self, request, workspace_id):
         from .serializers import CustomRoleSerializer
+        from projects.permissions import log_audit
 
         workspace = _get_workspace(workspace_id, request.user)
         _require_admin(workspace, request.user)
 
         serializer = CustomRoleSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(workspace=workspace, is_system=False)
+        role = serializer.save(workspace=workspace, is_system=False)
+        log_audit(request.user, workspace, "role.created", "CustomRole", str(role.id),
+                  after={"name": role.name, "permissions": role.permissions})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
@@ -840,16 +843,22 @@ class CustomRoleDetailView(APIView):
 
     def patch(self, request, workspace_id, role_id):
         from .serializers import CustomRoleSerializer
+        from projects.permissions import log_audit
 
         role, workspace = self._get_role(workspace_id, role_id, request.user)
         _require_admin(workspace, request.user)
 
+        before = {"name": role.name, "permissions": dict(role.permissions)}
         serializer = CustomRoleSerializer(role, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        log_audit(request.user, workspace, "role.updated", "CustomRole", str(role.id),
+                  before=before, after={"name": role.name, "permissions": role.permissions})
         return Response(serializer.data)
 
     def delete(self, request, workspace_id, role_id):
+        from projects.permissions import log_audit
+
         role, workspace = self._get_role(workspace_id, role_id, request.user)
         _require_admin(workspace, request.user)
 
@@ -863,6 +872,8 @@ class CustomRoleDetailView(APIView):
                 {"detail": "Cannot delete a role that is currently assigned to members. Re-assign those members first."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        log_audit(request.user, workspace, "role.deleted", "CustomRole", str(role.id),
+                  before={"name": role.name})
         role.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -896,12 +907,102 @@ class MemberAssignRoleView(APIView):
         serializer.is_valid(raise_exception=True)
         role = serializer.validated_data["role"]
 
+        old_role_name = None
+        try:
+            old_assignment = member.role_assignment
+            old_role_name = old_assignment.role.name
+        except RoleAssignment.DoesNotExist:
+            pass
+
         assignment, created = RoleAssignment.objects.update_or_create(
             workspace_member=member,
             defaults={"role": role, "assigned_by": request.user},
+        )
+
+        from projects.permissions import log_audit
+        log_audit(
+            request.user, workspace, "role.assigned", "WorkspaceMember", str(member.id),
+            before={"role": old_role_name} if old_role_name else None,
+            after={"role": role.name, "member": member.user.email if member.user else str(member.id)},
         )
 
         return Response(
             RoleAssignmentSerializer(assignment, context={"workspace": workspace}).data,
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
+
+
+class MemberBulkAssignRoleView(APIView):
+    """
+    POST /api/workspaces/{ws}/members/bulk-assign-role/
+
+    Assigns a single CustomRole to multiple members in one DB round-trip.
+    Body: { "role": "<uuid>", "member_ids": ["<uuid>", ...] }
+    Admin only. All member_ids must belong to this workspace.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, workspace_id):
+        from .models import RoleAssignment
+        from projects.permissions import log_audit
+        from django.db import transaction
+
+        workspace = _get_workspace(workspace_id, request.user)
+        _require_admin(workspace, request.user)
+
+        role_id = request.data.get("role")
+        member_ids = request.data.get("member_ids", [])
+
+        if not role_id:
+            return Response({"detail": "role is required."}, status=status.HTTP_400_BAD_REQUEST)
+        if not member_ids or not isinstance(member_ids, list):
+            return Response({"detail": "member_ids must be a non-empty list."}, status=status.HTTP_400_BAD_REQUEST)
+        if len(member_ids) > 200:
+            return Response({"detail": "Cannot bulk-assign more than 200 members at once."}, status=status.HTTP_400_BAD_REQUEST)
+
+        from .models import CustomRole
+        role = get_object_or_404(CustomRole, workspace=workspace, id=_parse_pk(role_id))
+
+        parsed_ids = []
+        for mid in member_ids:
+            try:
+                parsed_ids.append(_parse_pk(mid))
+            except Exception:
+                return Response({"detail": f"Invalid member id: {mid}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        members = list(
+            WorkspaceMember.objects.filter(workspace=workspace, id__in=parsed_ids)
+            .select_related("user")
+        )
+        if len(members) != len(parsed_ids):
+            return Response(
+                {"detail": "One or more member_ids do not belong to this workspace."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        with transaction.atomic():
+            assignments = [
+                RoleAssignment(
+                    workspace_member=m,
+                    role=role,
+                    assigned_by=request.user,
+                )
+                for m in members
+            ]
+            RoleAssignment.objects.bulk_create(
+                assignments,
+                update_conflicts=True,
+                unique_fields=["workspace_member"],
+                update_fields=["role", "assigned_by"],
+            )
+            log_audit(
+                request.user, workspace, "role.bulk_assigned", "CustomRole", str(role.id),
+                after={
+                    "role": role.name,
+                    "member_count": len(members),
+                    "member_ids": [str(m.id) for m in members],
+                },
+            )
+
+        return Response({"assigned": len(members)}, status=status.HTTP_200_OK)

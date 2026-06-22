@@ -15,6 +15,9 @@ import {
   Users,
   Building2,
   Hash,
+  CheckSquare,
+  Square,
+  UserCheck,
 } from "lucide-react";
 import { Avatar } from "@/shared/components/ui/avatar";
 import { Button } from "@/shared/components/ui/button";
@@ -26,7 +29,7 @@ import {
   useMembers,
   useRemoveMember,
 } from "@/shared/hooks/useMembers";
-import { useRoles, useAssignRole } from "@/shared/hooks/useRoles";
+import { useRoles, useAssignRole, useBulkAssignRole } from "@/shared/hooks/useRoles";
 import { useWorkspace } from "@/shared/hooks/useWorkspace";
 import { useAuthStore } from "@/store/authStore";
 import api from "@/shared/lib/api";
@@ -139,12 +142,15 @@ export function ActiveMemberItem({
   isAdmin,
   isSelected,
   onSelect,
+  isChecked,
+  onCheck,
   onRoleChange,
   onRemove,
   roles = [],
 }) {
   const roleConf = getRoleConfig(member.role);
   const RoleIcon = roleConf.icon;
+  const checkable = isAdmin && !isSelf && !isWorkspaceOwner;
 
   return (
     <div
@@ -155,6 +161,18 @@ export function ActiveMemberItem({
       )}
     >
       <div className="flex items-center gap-3">
+        {checkable && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onCheck?.(member.id); }}
+            className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors"
+            title={isChecked ? "Deselect" : "Select"}
+          >
+            {isChecked
+              ? <CheckSquare className="w-4 h-4 text-primary" />
+              : <Square className="w-4 h-4" />}
+          </button>
+        )}
         <Avatar user={member.user} size="md" />
         <div>
           <div className="flex items-center gap-1.5">
@@ -456,6 +474,7 @@ export default function MembersPage() {
   });
 
   const assignRole = useAssignRole(workspaceId);
+  const bulkAssignRole = useBulkAssignRole(workspaceId);
   const removeMember = useRemoveMember(workspaceId);
 
   const cancelInvite = useMutation({
@@ -469,6 +488,25 @@ export default function MembersPage() {
   const [confirmState, setConfirmState] = useState(null);
   const [copiedToken, setCopiedToken] = useState(null);
   const [selectedMemberId, setSelectedMemberId] = useState(null);
+  const [checkedIds, setCheckedIds] = useState(new Set());
+  const [bulkRoleId, setBulkRoleId] = useState("");
+
+  const toggleCheck = (id) =>
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  const clearChecked = () => { setCheckedIds(new Set()); setBulkRoleId(""); };
+
+  const handleBulkAssign = () => {
+    if (!bulkRoleId || checkedIds.size === 0) return;
+    bulkAssignRole.mutate(
+      { roleId: bulkRoleId, memberIds: [...checkedIds] },
+      { onSuccess: clearChecked },
+    );
+  };
 
   const isOwner = workspace?.owner?.email === user?.email;
   const currentMember = members.find((m) => m.user?.email === user?.email);
@@ -533,6 +571,42 @@ export default function MembersPage() {
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">
             Active Members
           </h2>
+
+          {/* Bulk action toolbar */}
+          {isAdmin && checkedIds.size > 0 && (
+            <div className="mb-2 flex items-center gap-3 px-3 py-2 rounded-lg border bg-primary/5 border-primary/20">
+              <UserCheck className="w-4 h-4 text-primary flex-shrink-0" />
+              <span className="text-sm font-medium text-primary">
+                {checkedIds.size} selected
+              </span>
+              <select
+                className="ml-2 text-xs border rounded px-2 py-1 bg-background outline-none focus:ring-1 focus:ring-ring"
+                value={bulkRoleId}
+                onChange={(e) => setBulkRoleId(e.target.value)}
+              >
+                <option value="">Assign role…</option>
+                {roles.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}{r.is_system ? " 🔒" : ""}
+                  </option>
+                ))}
+              </select>
+              <Button
+                size="sm"
+                disabled={!bulkRoleId || bulkAssignRole.isPending}
+                onClick={handleBulkAssign}
+              >
+                {bulkAssignRole.isPending ? "Assigning…" : "Apply"}
+              </Button>
+              <button
+                onClick={clearChecked}
+                className="ml-auto text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+
           <div className="rounded-lg border bg-card overflow-hidden">
             {isLoading ? (
               <div className="p-6 text-sm text-muted-foreground">Loading…</div>
@@ -551,6 +625,8 @@ export default function MembersPage() {
                         prev === member.id ? null : member.id,
                       )
                     }
+                    isChecked={checkedIds.has(member.id)}
+                    onCheck={toggleCheck}
                     roles={roles}
                     onRoleChange={(memberId, roleId) =>
                       assignRole.mutate({ memberId, roleId })

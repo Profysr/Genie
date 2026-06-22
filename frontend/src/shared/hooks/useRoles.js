@@ -62,3 +62,18 @@ export const useAssignRole = (workspaceId) => {
       qc.invalidateQueries({ queryKey: ["workspace-members", workspaceId] }),
   });
 };
+
+export const useBulkAssignRole = (workspaceId) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ roleId, memberIds }) =>
+      api
+        .post(`/api/workspaces/${workspaceId}/members/bulk-assign-role/`, {
+          role: roleId,
+          member_ids: memberIds,
+        })
+        .then((r) => r.data),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["workspace-members", workspaceId] }),
+  });
+};
