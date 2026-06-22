@@ -120,7 +120,11 @@ class DepartmentMemberListCreateView(APIView):
         memberships = dept.memberships.select_related(
             "member", "member__user"
         ).order_by("id")
-        return Response(DepartmentMemberSerializer(memberships, many=True).data)
+        return Response(
+            DepartmentMemberSerializer(
+                memberships, many=True, context={"department": dept}
+            ).data
+        )
 
     def post(self, request, workspace_id, dept_id):
         workspace, dept = self._get_dept(workspace_id, dept_id, request.user)
@@ -220,7 +224,9 @@ class TeamMemberListCreateView(APIView):
         memberships = team.memberships.select_related(
             "member", "member__user"
         ).order_by("id")
-        return Response(TeamMemberSerializer(memberships, many=True).data)
+        return Response(
+            TeamMemberSerializer(memberships, many=True, context={"team": team}).data
+        )
 
     def post(self, request, workspace_id, team_id):
         workspace, team = self._get_team(workspace_id, team_id, request.user)
@@ -371,13 +377,16 @@ class OrgChartView(APIView):
         nodes = []
         for m in members:
             profile = getattr(m, "org_profile", None)
-            manager_line = m.reports_to.first()
+            # reports_to is prefetched — read from the cache (don't use .first(),
+            # which issues a fresh LIMIT query per member and bypasses the prefetch).
+            reports_to = m.reports_to.all()
+            manager_line = reports_to[0] if reports_to else None
             nodes.append(
                 {
                     "id": str(m.id),
                     "name": m.user.full_name,
                     "email": m.user.email,
-                    "avatar": m.user.avatar.url if m.user.avatar else None,
+                    "avatar": m.user.avatar,
                     "role": m.role,
                     "job_title": (
                         profile.job_title.name

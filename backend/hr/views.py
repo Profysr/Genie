@@ -10,10 +10,12 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from django.db import transaction
+from django.db.models import Count
+
 from core.modules import require_module
 from workspaces.models import Workspace, WorkspaceMember
 from projects.views.helpers import notify
-from django.db.models import Count
 from .models import Attendance, AttendancePolicy, EmployeeDocument, EmployeeNote, LeaveBalance, LeavePolicy, LeaveRequest
 from .serializers import (
     AttendancePolicySerializer,
@@ -24,7 +26,21 @@ from .serializers import (
     LeavePolicySerializer,
     LeaveRequestReviewSerializer,
     LeaveRequestSerializer,
+    MiniMemberSerializer,
 )
+
+# Employee document upload constraints (basic first-line validation; content_type is
+# client-supplied so it's a guard, not a guarantee).
+ALLOWED_DOC_CONTENT_TYPES = {
+    "application/pdf",
+    "image/png",
+    "image/jpeg",
+    "image/gif",
+    "image/webp",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
+MAX_DOC_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
 
 # ── Shared utilities ──────────────────────────────────────────────────────────
 
@@ -49,6 +65,40 @@ def _is_admin(workspace, user):
 def _require_admin(workspace, user):
     if not _is_admin(workspace, user):
         raise PermissionDenied("Admin access required.")
+
+
+def _business_days(start, end):
+    """Count Mon–Fri days in an inclusive date range. Holidays are not modelled (v1)."""
+    return sum(
+        1 for i in range((end - start).days + 1)
+        if (start + timedelta(days=i)).weekday() < 5
+    )
+
+
+def _parse_date_window(request, default_lookback_days=31, max_span_days=366):
+    """Resolve ?date_from / ?date_to into a bounded inclusive window.
+
+    Attendance is one row per employee per day, so an unfiltered list grows without
+    bound. The UI always queries by week/month, so rather than offset-pagination
+    (which would truncate a partial week) we bound the window: default to the last
+    `default_lookback_days`, and hard-cap the span at `max_span_days`.
+    """
+    today = timezone.localdate()
+    raw_from = request.query_params.get("date_from")
+    raw_to = request.query_params.get("date_to")
+    try:
+        date_to = date.fromisoformat(raw_to) if raw_to else today
+        date_from = (
+            date.fromisoformat(raw_from) if raw_from
+            else date_to - timedelta(days=default_lookback_days)
+        )
+    except ValueError:
+        raise ValidationError({"non_field_errors": "Dates must be ISO format (YYYY-MM-DD)."})
+    if date_to < date_from:
+        raise ValidationError({"date_to": "date_to must be on or after date_from."})
+    if (date_to - date_from).days > max_span_days:
+        raise ValidationError({"non_field_errors": f"Date range too large (max {max_span_days} days)."})
+    return date_from, date_to
 
 
 # ── Leave Policies ─────────────────────────────────────────────────────────────
@@ -117,6 +167,12 @@ class LeaveRequestListCreateView(APIView):
         if status_filter:
             qs = qs.filter(status=status_filter)
 
+        # Backstop against unbounded history: default to the last 24 months
+        # (by creation) unless the caller explicitly opts out with ?all=true.
+        if request.query_params.get("all") not in ("1", "true", "True"):
+            cutoff = timezone.localdate() - timedelta(days=730)
+            qs = qs.filter(created_at__date__gte=cutoff)
+
         return Response(LeaveRequestSerializer(qs, many=True).data)
 
     def post(self, request, workspace_id):
@@ -138,29 +194,27 @@ class LeaveRequestListCreateView(APIView):
         if end < start:
             raise ValidationError({"end_date": "End date must be on or after start date."})
 
-        # Count business days (Mon–Fri) in the range
-        days_requested = sum(
-            1 for i in range((end - start).days + 1)
-            if (start + timedelta(days=i)).weekday() < 5
-        )
+        days_requested = _business_days(start, end)
 
-        # Update or create the balance for the current year
-        current_year = date.today().year
-        balance, _ = LeaveBalance.objects.get_or_create(
-            employee=member, policy=policy, year=current_year,
-            defaults={"total_days": policy.days_per_year},
-        )
-        available = float(balance.total_days - balance.used_days - balance.pending_days)
-        if days_requested > available:
-            raise ValidationError(
-                {"non_field_errors": f"Insufficient balance. Available: {available} days, requested: {days_requested} days."}
+        # Balance is tracked per the year the leave is taken (start_date.year),
+        # matching the review path — otherwise pending/used land on different rows.
+        # Lock the balance row so concurrent requests can't both pass the check and
+        # over-allocate (read-modify-write race).
+        current_year = start.year
+        with transaction.atomic():
+            balance, _ = LeaveBalance.objects.select_for_update().get_or_create(
+                employee=member, policy=policy, year=current_year,
+                defaults={"total_days": policy.days_per_year},
             )
+            available = float(balance.total_days - balance.used_days - balance.pending_days)
+            if days_requested > available:
+                raise ValidationError(
+                    {"non_field_errors": f"Insufficient balance. Available: {available} days, requested: {days_requested} days."}
+                )
 
-        leave_request = serializer.save(employee=member, policy=policy)
-
-        # Add pending days to balance
-        balance.pending_days = float(balance.pending_days) + days_requested
-        balance.save(update_fields=["pending_days"])
+            leave_request = serializer.save(employee=member, policy=policy)
+            balance.pending_days = float(balance.pending_days) + days_requested
+            balance.save(update_fields=["pending_days"])
 
         # Notify admins
         admins = WorkspaceMember.objects.filter(workspace=workspace, role="admin").select_related("user")
@@ -198,30 +252,28 @@ class LeaveRequestReviewView(APIView):
         serializer.is_valid(raise_exception=True)
 
         new_status = serializer.validated_data["status"]
-        leave_request.status = new_status
-        leave_request.approver = request.user
-        leave_request.reviewer_comment = serializer.validated_data.get("comment", "")
-        leave_request.reviewed_at = timezone.now()
-        leave_request.save(update_fields=["status", "approver", "reviewer_comment", "reviewed_at"])
+        days = _business_days(leave_request.start_date, leave_request.end_date)
+        current_year = leave_request.start_date.year
 
-        # Adjust balance
-        start = leave_request.start_date
-        end = leave_request.end_date
-        days = sum(
-            1 for i in range((end - start).days + 1)
-            if (start + timedelta(days=i)).weekday() < 5
-        )
-        current_year = start.year
-        try:
-            balance = LeaveBalance.objects.get(
-                employee=leave_request.employee, policy=leave_request.policy, year=current_year
-            )
-            balance.pending_days = max(0, float(balance.pending_days) - days)
-            if new_status == "approved":
-                balance.used_days = float(balance.used_days) + days
-            balance.save(update_fields=["pending_days", "used_days"])
-        except LeaveBalance.DoesNotExist:
-            pass
+        # Lock the balance row and the status transition together so a concurrent
+        # review can't double-apply the used/pending adjustment.
+        with transaction.atomic():
+            leave_request.status = new_status
+            leave_request.approver = request.user
+            leave_request.reviewer_comment = serializer.validated_data.get("comment", "")
+            leave_request.reviewed_at = timezone.now()
+            leave_request.save(update_fields=["status", "approver", "reviewer_comment", "reviewed_at"])
+
+            try:
+                balance = LeaveBalance.objects.select_for_update().get(
+                    employee=leave_request.employee, policy=leave_request.policy, year=current_year
+                )
+                balance.pending_days = max(0, float(balance.pending_days) - days)
+                if new_status == "approved":
+                    balance.used_days = float(balance.used_days) + days
+                balance.save(update_fields=["pending_days", "used_days"])
+            except LeaveBalance.DoesNotExist:
+                pass
 
         # Notify the employee
         verb = "leave.approved" if new_status == "approved" else "leave.rejected"
@@ -246,7 +298,7 @@ class LeaveBalanceListView(APIView):
         _require_module(workspace)
         member = _get_member(workspace, request.user)
 
-        current_year = date.today().year
+        current_year = timezone.localdate().year
         qs = LeaveBalance.objects.select_related(
             "employee__user", "policy"
         ).filter(policy__workspace=workspace, year=current_year)
@@ -266,7 +318,7 @@ class WhosOffView(APIView):
         workspace = _get_workspace(workspace_id, request.user)
         _require_module(workspace)
 
-        today = date.today()
+        today = timezone.localdate()
         window_end = today + timedelta(days=7)
 
         requests = (
@@ -284,16 +336,7 @@ class WhosOffView(APIView):
         for req in requests:
             data.append({
                 "id": str(req.id),
-                "employee": {
-                    "id": str(req.employee.id),
-                    "user": {
-                        "id": str(req.employee.user.id),
-                        "full_name": req.employee.user.full_name,
-                        "avatar": req.employee.user.avatar,
-                        "avatar_type": req.employee.user.avatar_type,
-                        "avatar_icon": req.employee.user.avatar_icon,
-                    },
-                },
+                "employee": MiniMemberSerializer(req.employee).data,
                 "leave_type": req.policy.leave_type,
                 "policy_name": req.policy.name,
                 "start_date": str(req.start_date),
@@ -349,7 +392,7 @@ class ClockInView(APIView):
         _require_module(workspace)
         member = _get_member(workspace, request.user)
 
-        today = date.today()
+        today = timezone.localdate()
         now_time = timezone.localtime().time().replace(second=0, microsecond=0)
 
         record, created = Attendance.objects.get_or_create(
@@ -378,7 +421,7 @@ class ClockOutView(APIView):
         _require_module(workspace)
         member = _get_member(workspace, request.user)
 
-        today = date.today()
+        today = timezone.localdate()
         now_time = timezone.localtime().time().replace(second=0, microsecond=0)
 
         try:
@@ -408,20 +451,15 @@ class AttendanceListView(APIView):
         _require_module(workspace)
         _require_admin(workspace, request.user)
 
+        date_from, date_to = _parse_date_window(request)
         qs = Attendance.objects.select_related("employee__user").filter(
-            employee__workspace=workspace
+            employee__workspace=workspace,
+            date__range=[date_from, date_to],
         )
 
         employee_filter = request.query_params.get("employee")
         if employee_filter:
             qs = qs.filter(employee_id=employee_filter)
-
-        date_from = request.query_params.get("date_from")
-        date_to = request.query_params.get("date_to")
-        if date_from:
-            qs = qs.filter(date__gte=date_from)
-        if date_to:
-            qs = qs.filter(date__lte=date_to)
 
         policy = _get_attendance_policy(workspace)
         return Response(AttendanceSerializer(qs, many=True, context={"policy": policy}).data)
@@ -437,14 +475,8 @@ class MyAttendanceView(APIView):
         _require_module(workspace)
         member = _get_member(workspace, request.user)
 
-        qs = Attendance.objects.filter(employee=member)
-
-        date_from = request.query_params.get("date_from")
-        date_to = request.query_params.get("date_to")
-        if date_from:
-            qs = qs.filter(date__gte=date_from)
-        if date_to:
-            qs = qs.filter(date__lte=date_to)
+        date_from, date_to = _parse_date_window(request)
+        qs = Attendance.objects.filter(employee=member, date__range=[date_from, date_to])
 
         policy = _get_attendance_policy(workspace)
         return Response(AttendanceSerializer(qs, many=True, context={"policy": policy}).data)
@@ -460,7 +492,7 @@ class AttendanceSummaryView(APIView):
         _require_module(workspace)
         _require_admin(workspace, request.user)
 
-        today = date.today()
+        today = timezone.localdate()
         week_start = today - timedelta(days=today.weekday())
         week_end = week_start + timedelta(days=6)
 
@@ -480,18 +512,8 @@ class AttendanceSummaryView(APIView):
         for rec in records:
             emp_id = str(rec.employee_id)
             if emp_id not in summary:
-                u = rec.employee.user
                 summary[emp_id] = {
-                    "employee": {
-                        "id": emp_id,
-                        "user": {
-                            "id": str(u.id),
-                            "full_name": u.full_name,
-                            "avatar": u.avatar,
-                            "avatar_type": u.avatar_type,
-                            "avatar_icon": u.avatar_icon,
-                        },
-                    },
+                    "employee": MiniMemberSerializer(rec.employee).data,
                     "total_hours": 0.0,
                     "late_count": 0,
                     "days_present": 0,
@@ -527,7 +549,7 @@ class AttendanceQRView(APIView):
         _require_module(workspace)
         _require_admin(workspace, request.user)
 
-        today = date.today()
+        today = timezone.localdate()
         code = _make_qr_code(str(workspace_id), str(today))
 
         return Response({
@@ -550,7 +572,7 @@ class QRClockInView(APIView):
         except ValueError:
             raise ValidationError({"non_field_errors": "Invalid date in QR code."})
 
-        if qr_date != date.today():
+        if qr_date != timezone.localdate():
             raise ValidationError({"non_field_errors": "This QR code has expired."})
 
         workspace = _get_workspace(workspace_id, request.user)
@@ -588,7 +610,7 @@ class HRDashboardView(APIView):
         _require_admin(workspace, request.user)
 
         from organization.models import OrgProfile
-        today = date.today()
+        today = timezone.localdate()
         this_month_start = today.replace(day=1)
         week_start = today - timedelta(days=today.weekday())
         week_end = week_start + timedelta(days=6)
@@ -716,6 +738,14 @@ class EmployeeDocumentListCreateView(APIView):
         file_obj = request.FILES.get("file")
         if not file_obj:
             raise ValidationError({"file": "No file provided."})
+        if file_obj.size > MAX_DOC_SIZE_BYTES:
+            raise ValidationError(
+                {"file": f"File too large (max {MAX_DOC_SIZE_BYTES // (1024 * 1024)} MB)."}
+            )
+        if file_obj.content_type not in ALLOWED_DOC_CONTENT_TYPES:
+            raise ValidationError(
+                {"file": f"Unsupported file type '{file_obj.content_type}'. Allowed: PDF, images, Word documents."}
+            )
 
         doc = EmployeeDocument.objects.create(
             employee=employee,

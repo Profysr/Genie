@@ -57,7 +57,8 @@ class DepartmentMember(models.Model):
     id = UUIDv7Field()
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name="memberships")
     member = models.ForeignKey(WorkspaceMember, on_delete=models.CASCADE, related_name="department_memberships")
-    is_head = models.BooleanField(default=False)
+    # "Headship" is derived from Department.head (single source of truth); the API
+    # still exposes a computed `is_head` on each membership.
     joined_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -107,7 +108,8 @@ class TeamMember(models.Model):
     id = UUIDv7Field()
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="memberships")
     member = models.ForeignKey(WorkspaceMember, on_delete=models.CASCADE, related_name="team_memberships")
-    is_lead = models.BooleanField(default=False)
+    # "Lead" is derived from Team.lead (single source of truth); the API still
+    # exposes a computed `is_lead` on each membership.
     joined_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

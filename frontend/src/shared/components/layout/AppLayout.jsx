@@ -5,6 +5,7 @@ import { useThemeStore } from "@/store/themeStore";
 import { useWorkspace } from "@/shared/hooks/useWorkspace";
 import { useAnnouncePresence } from "@/shared/hooks/usePresence";
 import { ModulesContext, useModulesQuery } from "@/shared/hooks/useModules";
+import { useWorkspaceSocket } from "@/shared/hooks/useWorkspaceSocket";
 import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts";
 import Sidebar from "@/shared/components/layout/Sidebar";
 
@@ -24,6 +25,12 @@ export default function AppLayout() {
   const navigate = useNavigate();
 
   const { data: workspace } = useWorkspace(workspaceId);
+
+  // Workspace-wide realtime — one connection alive on every page so the inbox
+  // badge, goals, and presence stay live without per-query polling. Board/task
+  // events use a separate board-scoped connection (useBoardSocket in KanbanPage).
+  useWorkspaceSocket(workspaceId);
+
   const { data: modulesData, isLoading: modulesLoading } = useModulesQuery(workspaceId);
   const modulesCtx = {
     isLoading: modulesLoading,

@@ -8,14 +8,78 @@ This document is the single source of truth for navigating the frontend. Read it
 
 | Layer | Tech | File |
 |---|---|---|
-| HTTP client | Axios | `src/lib/api.js` |
-| Server state | TanStack React Query v5 | hooks/* |
+| HTTP client | Axios | `src/shared/lib/api.js` |
+| Server state | TanStack React Query v5 | `src/apps/*/hooks/*`, `src/shared/hooks/*` |
 | Client state | Zustand | `src/store/authStore.js` |
-| Real-time | Native WebSocket | `src/hooks/useWorkspaceSocket.js` |
+| Real-time | Native WebSocket | `src/shared/hooks/useWorkspaceSocket.js` |
 | Routing | React Router v6 | `src/App.jsx` |
-| Environment | Vite env vars | `src/lib/env.js` |
+| Environment | Vite env vars | `src/shared/lib/env.js` |
 
-### `src/lib/api.js`
+> **Path note:** Some older sections below still reference legacy `src/lib/`, `src/hooks/`, `src/components/`, `src/pages/` paths. Since vB.0 these live under either `src/shared/` (cross-app primitives, layout, lib, shared hooks) or `src/apps/<module>/` (feature code). When a path looks stale, resolve it via the Directory Architecture map below.
+
+---
+
+## Directory Architecture (`src/apps/` modular layout)
+
+Since **vB.0** the frontend is feature-sliced. Each product module is a self-contained entity that ships and could be extracted independently.
+
+```
+src/apps/project-management/   — PM: boards, tasks, sprints, kanban, gantt, wiki, forms, time
+   ├── pages/        KanbanPage, ProjectsPage, WikiPage, FormsPage, …
+   ├── components/   tasks/*, projects/*
+   └── hooks/        useTasks, useProjects, useSprints, … (see Hooks reference)
+src/apps/org-structure/        — Org: departments, teams, org chart, job titles, profiles
+   ├── pages/        DepartmentsPage, TeamsPage, OrgChartPage
+   └── hooks/        useOrg.js (all org data hooks)
+src/apps/hr-management/        — HR: leave, attendance, HR dashboard, employee docs/notes
+   ├── pages/        HRDashboardPage, LeavePage, AttendancePage, MemberDetailPage
+   └── hooks/        useLeave, useAttendance, useHRDashboard, useEmployeeDocs, useEmployeeNotes
+src/shared/                    — cross-app primitives
+   ├── components/   layout/ (AppLayout, Sidebar), CommandPalette, ui/*
+   ├── hooks/        useWorkspace, useMembers, useModules, useWorkspaceSocket, usePresence, …
+   └── lib/          api.js, env.js, navLinks.js, queryClient.js
+src/store/                     — Zustand stores (authStore, themeStore) — NOT under shared/
+```
+
+### The separation rule (enforced by convention)
+
+> A file under `src/apps/<module>/` may import **only** from its own module folder or from `src/shared/` (and `src/store/`). It must **never** import from a sibling app.
+
+This is what makes a module extractable: cut the `apps/<module>` folder + its `src/shared` dependencies and it stands alone.
+
+**Known exception (downward dependency):** `hr-management/pages/MemberDetailPage.jsx` imports `useOrgProfile` from `@/apps/org-structure/hooks/useOrg`. This mirrors the backend `hr_management → org_structure` `depends_on` edge — HR genuinely builds on org profiles. It is the **only** cross-app import in the tree. If HR is ever extracted standalone, this hook must be promoted into `src/shared/hooks/` (or the org-profile read endpoint re-exposed). Treat any *new* cross-app import as a violation; route it through `src/shared/` instead.
+
+---
+
+## Module System (feature gating)
+
+JCN's product areas are licensed as modules. The system spans backend + frontend:
+
+| Layer | Location | Role |
+|---|---|---|
+| Registry (source of truth) | `backend/core/modules.py` → `MODULE_REGISTRY` | tier (`free`/`pro`/`enterprise`), `always_on`, `depends_on`, icon |
+| DB state | `WorkspaceModule` model (`workspaces` app) | which modules each workspace has enabled |
+| Backend enforcement | `require_module(workspace, key)` | raises HTTP 403 if disabled; called at the top of every org/HR view |
+| Frontend context | `src/shared/hooks/useModules.js` | `ModulesContext` (provided in `AppLayout`) + `useModules()` → `{ isEnabled(key), isLoading, modules }` |
+
+**Modules:** `projects` (free, always_on), `org_structure` (pro), `hr_management` (enterprise, `depends_on: ["org_structure"]`), `analytics_advanced` (pro).
+
+### Hooks
+- `useModulesQuery(ws)` — `GET /api/workspaces/:id/modules/`, key `["workspace-modules", ws]`, `staleTime 5min`.
+- `useToggleModule(ws)` — `PATCH /api/workspaces/:id/modules/:key/ { is_enabled }`; invalidates the modules query.
+- `useModules()` — reads `ModulesContext`; call `isEnabled("org_structure")` anywhere under `AppLayout`.
+
+### ⚠️ Gating gap (frontend does not yet consume `isEnabled`)
+The infrastructure exists and the **backend enforces** module access, but the **frontend does not gate on it yet**:
+- `Sidebar` renders `resolvedNavGroups()` unconditionally — the **People** and **HR** nav groups show even when `org_structure` / `hr_management` are disabled.
+- `App.jsx` routes (`departments`, `teams`, `org-chart`, `hr`, `hr/leave`, `hr/attendance`) are **not** wrapped in a module guard.
+- `navLinks.js` items carry **no `module` key**, so there is no nav-item → module mapping to drive gating.
+
+**Result today:** a user in a workspace with HR disabled still sees HR nav + can route to it, then hits a raw 403 from the API. To close this: (1) add a `module` field to the relevant `NAV_ITEMS`, (2) filter `resolvedNavGroups()` / groups in `Sidebar` by `isEnabled(item.module)`, (3) wrap the routes in a `<ModuleGate module="…">` element that redirects/– shows an upsell instead of a 403. `analytics_advanced` is registered but the Analytics nav/route is likewise ungated.
+
+---
+
+### `src/shared/lib/api.js`
 Single Axios instance shared by all hooks.
 - Attaches `Authorization: Bearer {token}` on every request (from `localStorage.access_token`).
 - On **401**: auto-refreshes via `/api/auth/token/refresh/`, retries the original request once.
@@ -138,6 +202,27 @@ The master index of every React Query key used in the codebase. Prefix-match inv
 ["org-job-titles",   workspaceId]
 ["org-chart",        workspaceId]
 ["org-profile",      workspaceId, memberId]
+
+# HR — Leave (src/apps/hr-management/hooks/useLeave.js)
+["hr-leave-policies",  workspaceId]
+["hr-leave-requests",  workspaceId, statusFilter|"all"]
+["hr-leave-balances",  workspaceId]
+["hr-whos-off",        workspaceId]
+
+# HR — Attendance (useAttendance.js)
+["hr-attendance-policy",  workspaceId]
+["hr-attendance-my",      workspaceId, dateFrom, dateTo]
+["hr-attendance-list",    workspaceId, employee, dateFrom, dateTo]   ← admin
+["hr-attendance-summary", workspaceId, dateFrom, dateTo]
+["hr-attendance-qr",      workspaceId]                               ← admin, on-demand
+
+# HR — Dashboard / Lifecycle (useHRDashboard.js, useEmployeeDocs.js, useEmployeeNotes.js)
+["hr-dashboard",       workspaceId]
+["hr-employee-docs",   workspaceId, memberId]
+["hr-employee-notes",  workspaceId, memberId]
+
+# Module system
+["workspace-modules",  workspaceId]
 ```
 
 ---
@@ -148,31 +233,57 @@ How long data is considered fresh before React Query will refetch on next mount/
 
 | staleTime | Keys |
 |---|---|
-| `Infinity` (never auto-stale) | `workspace`, `workspaces`, `boards`, `board`, `workspace-members`, `labels`, `statuses`, `saved-views`, `onboarding`, `import sources`, `presence`, `org-departments`, `org-dept-members`, `org-teams`, `org-team-members`, `org-job-titles` |
-| `60_000` (1 min) | `portfolio`, all `analytics` keys, `burndown` |
-| `5 * 60_000` (5 min) | `org-chart` |
-| `2 * 60_000` (2 min) | `org-profile` |
-| `30_000` (30 s) | `inbox`, `inbox-unread-count`, `integrations`, `api-keys`, `sprint detail` |
+| `Infinity` (never auto-stale) | `workspace`, `workspaces`, `boards`, `board`, `workspace-members`, `labels`, `statuses`, `saved-views`, `onboarding`, `import sources`, `presence`, `org-departments`, `org-dept-members`, `org-teams`, `org-team-members`, `org-job-titles`, `hr-leave-policies`, `hr-attendance-policy`, `inbox-unread-count` (event-driven — see useInbox) |
+| `60_000` (1 min) | `portfolio`, all `analytics` keys, `burndown`, `hr-leave-balances`, `hr-whos-off`, `hr-attendance-qr`, `hr-employee-docs`, `hr-employee-notes` |
+| `5 * 60_000` (5 min) | `org-chart`, `workspace-modules` |
+| `2 * 60_000` (2 min) | `org-profile`, `hr-dashboard` |
+| `30_000` (30 s) | `inbox`, `integrations`, `api-keys`, `sprint detail`, `hr-leave-requests`, `hr-attendance-my`, `hr-attendance-list`, `hr-attendance-summary` |
 | `15_000` (15 s) | `import jobs`, `webhook deliveries` |
-| default (`0`) | `tasks`, `task-detail`, `sprints list`, `approvals`, `attachments`, `automations`, `forms`, `wiki`, `children`, `dependencies` |
+| global default `30_000` | `tasks`, `task-detail`, `sprints list`, `approvals`, `attachments`, `automations`, `forms`, `wiki`, `children`, `dependencies` |
+
+> **The global default is `30_000`, not `0`** — set in `src/shared/lib/queryClient.js`. Any query with no explicit `staleTime` inherits 30s. (Earlier revisions of this doc said `0`; that was wrong.)
 
 **Rules for choosing:**
 - `Infinity`: near-static config (workspace settings, board list, members, labels). Only invalidate on explicit mutation.
 - `60s`: aggregate data that changes when tasks change but a 1-min lag is acceptable (analytics, burndown).
-- `30s`: user-facing counters and integration status.
-- `0` (default): anything task-level — needs to stay fresh.
+- `30s`: user-facing counters, integration status, and task-level data (the global default).
+- Never `Infinity` on task-derived data — see Pitfalls.
+
+### `SOCKET_BACKED` — kill redundant focus refetch on socket-driven queries
+
+`src/shared/lib/queryClient.js` exports `SOCKET_BACKED = { refetchOnWindowFocus: false }`. Spread it into any query whose cache is already kept live by a WebSocket event, so RQ's default "refetch on every window focus" (which fires once the 30s `staleTime` lapses) doesn't duplicate what the socket already pushed.
+
+- Keeps `refetchOnReconnect` (RQ default `true`) as the resync safety net for events missed during a dropped socket.
+- Does **not** raise `staleTime` — a fresh mount still background-refreshes once.
+- **Applied to:** `tasks`, `task-detail`, `comments`, `activities`, `approvals` (board socket); `sprint` detail (invalidated by board socket task events); `inbox` list (workspace socket). `inbox-unread-count` goes further (`staleTime: Infinity`) because the socket *increments it in place* — a cheap counter, not a payload.
+- **Not applied to** queries with no matching WS event — `subtasks`, `attachments`, `dependencies`, custom fields — they keep focus-refetch as their only cross-tab sync.
 
 ---
 
 ## Hooks — Detailed Reference
 
-### `useWorkspaceSocket.js`
+### `useWorkspaceSocket.js`  *(two scoped connections)*
 
-Opens one WebSocket per workspace. Call once at the page level (KanbanPage). All cache mutations happen here for server-pushed events.
+Connects to the workspace WebSocket. The backend pushes **every** event to every connection; a stable module-level `handle(type, payload, qc, ws)` decides which events each connection acts on, so the two scopes never double-process the same event.
 
-WebSocket URL: `ws(s)://BACKEND/ws/workspaces/{workspaceId}/?token={access_token}`
+WebSocket URL (both): `ws(s)://BACKEND/ws/workspaces/{workspaceId}/?token={access_token}`
 
-#### Event → Cache Action Map
+| Hook | Mounted in | Lifetime | Handles |
+|---|---|---|---|
+| `useWorkspaceSocket(ws)` | **`AppLayout`** (once) | whole session, every page | workspace-wide events: `notification.created`, `objective.*`, `presence.updated` |
+| `useBoardSocket(ws)` | **`KanbanPage`** | only while a board is open | board events: `task.*`, `comment.*`, `approval.*`, `typing.update`, `reaction.updated` |
+
+> **Why two connections (vB.x):** workspace-wide events (the inbox badge especially) must stay live on *every* page, but task/board events only matter while a board is open. Previously the single socket lived only in `KanbanPage`, so the inbox badge fell back to 30s-stale + focus refetch everywhere else. Splitting lets the badge be event-driven app-wide while board traffic stays scoped to the board. The second connection is cheap (same endpoint, scoped handler).
+
+#### Workspace scope — `handleWorkspaceEvent`
+
+| Event | Cache action | Keys affected |
+|---|---|---|
+| `notification.created` | `setQueryData` (**increment in place, no GET**) + `invalidateQueries` on the list | `["inbox-unread-count", ws]` (+1), `["inbox", ws]` |
+| `objective.created` / `updated` / `deleted` | `invalidateQueries` | `["objectives", ws]` (prefix — all time-period variants) |
+| `presence.updated` | `invalidateQueries` | `presenceKey(...)`, `["presence", ws, "all"]` |
+
+#### Board scope — `handleBoardEvent`
 
 | Event | Cache action | Keys affected |
 |---|---|---|
@@ -183,11 +294,10 @@ WebSocket URL: `ws(s)://BACKEND/ws/workspaces/{workspaceId}/?token={access_token
 | `comment.created` | `setQueryData` | `["task-detail", ws, board_id, task_id]` |
 | `comment.deleted` | `setQueryData` | `["task-detail", ws, board_id, task_id]` |
 | `reaction.updated` | `setQueryData` | `["task-detail", ws, board_id, task_id]` |
-| `notification.created` | `invalidateQueries` | `["inbox", ws]`, `["inbox-unread-count", ws]` |
 | `approval.created/updated` | `invalidateQueries` | `["approvals", ws, board_id, task_id]`, `["tasks", ws, board_id]` |
 | `typing.update` | DOM custom event | `window → "jcn:typing"` |
-| `presence.updated` | `invalidateQueries` | `presenceKey(...)`, `["presence", ws, "all"]` |
-| `objective.created` / `objective.updated` / `objective.deleted` | `invalidateQueries` | `["objectives", workspaceId]` (prefix — hits all time-period variants) |
+
+**Inbox badge is poll-free:** `useInboxUnreadCount` uses `staleTime: Infinity` + `refetchOnWindowFocus/Reconnect: false`. It fetches once per session, then the count only moves via three events — **created** (workspace socket increments in place), and **read / bulk-read** (`useUpdateInboxItem` / `useBulkUpdateInbox` invalidate the key). No window-focus refetching.
 
 **Why `setQueriesData` (not `setQueryData`):**
 `useTasks` stores data under `["tasks", ws, boardId, filters]` (4-element key). `setQueryData` requires an exact match and would miss the filtered variant. `setQueriesData` with a 3-element prefix hits every active filter combination.
@@ -227,24 +337,26 @@ commentsKey(ws, proj, taskId) → ["comments", ws, proj, taskId]
 
 #### Mutations
 
+> **Mutations merge, they do not refetch (perf).** Every PATCH/move/delete returns (or implies) the full task, so the high-frequency mutations patch the cache in place via `setQueriesData` instead of `invalidateQueries(["tasks"])` — which would refetch the **entire board task list** from the backend on every small edit. Only `useCreateTask` still invalidates (a brand-new task's filter membership is unknown). Other clients are reconciled by the board socket. Shared helpers: `mergeTaskInLists` (lists + children), `patchSubtaskCounts`, `maybeInvalidateSprint`.
+
 **`useCreateTask`**
 - `POST /tasks/`
-- onSuccess: invalidates `["tasks", ws, proj]`, `["sprint", ws, proj]`
+- onSuccess: invalidates `["tasks", ws, proj]`, `["sprint", ws, proj]` — **the one mutation that still refetches the list** (new task may or may not match active filters).
 
 **`useUpdateTask`** ← used by board-level views (Kanban, Calendar, Gantt)
 - `PATCH /tasks/{taskId}/`
-- onSuccess: invalidates `["tasks", ws, proj]`, `["children", ws, proj]`, `["sprint", ws, proj]`
+- onSuccess: `mergeTaskInLists` (server response → `["tasks"]` + `["children"]`) + `setQueryData(detailKey)`; `maybeInvalidateSprint` (only if the payload touched `status_id`/`sprint_id`/`sprint`). **No task-list refetch.**
 
 **`useUpdateTaskDetail`** ← used by TaskDetailPanel only
 - `PATCH /tasks/{taskId}/`
 - onSuccess:
   1. `setQueryData(detailKey)` — merges `{ ...old, ...updated }` immediately
-  2. `invalidateQueries(["tasks", ws, proj])` — refreshes all list views
-  3. `invalidateQueries(["sprint", ws, proj])` — refreshes sprint counts
+  2. `mergeTaskInLists` — patches the updated task into every `["tasks", ws, proj, *]` variant + `["children"]` (no refetch)
+  3. `maybeInvalidateSprint` — refreshes sprint counts **only** when a sprint-affecting field changed
 
 **`useDeleteTask`**
 - `DELETE /tasks/{taskId}/`
-- onSuccess: invalidates `["tasks", ws, proj]`, `["sprint", ws, proj]`
+- onSuccess: `setQueriesData(["tasks"])` filters the id out, `removeQueries(detailKey)`, invalidates `["sprint", ws, proj]` (deletion always affects completion). No list refetch.
 
 **`useMoveTask`** ← Kanban drag-drop, most complex mutation
 - `PATCH /tasks/{taskId}/move/` with `{ status_id, order }`
@@ -271,8 +383,8 @@ commentsKey(ws, proj, taskId) → ["comments", ws, proj, taskId]
   - Decrements `comment_count`
 
 **`useCreateSubtask`** / **`useToggleSubtask`** / **`useDeleteSubtask`**
-- All update `subtasksKey` and `detailKey` directly via `setQueryData`
-- All also `invalidateQueries(["tasks", ws, proj])` so task cards (which show subtask counts) refresh
+- All update `subtasksKey` via `setQueryData`, then call `patchSubtaskCounts` which writes the recomputed `subtask_count` + `done_subtask_count` into `detailKey` **and** every `["tasks", ws, proj, *]` variant.
+- **No `invalidateQueries(["tasks"])`** — the card progress bar updates from the patched counts, so toggling a checklist item no longer refetches the whole board.
 
 ---
 
@@ -641,6 +753,55 @@ Backend serializers split read and write fields. Always use these write-only fie
 
 ---
 
+### HR Management hooks  *(src/apps/hr-management/hooks/)*
+
+All HR endpoints sit under `/api/workspaces/{ws}/hr/…` and are backend-gated by `require_module(ws, "hr_management")`.
+
+#### `useLeave.js`
+```
+["hr-leave-policies",  ws]                    staleTime: Infinity
+["hr-leave-requests",  ws, statusFilter|"all"] staleTime: 30_000
+["hr-leave-balances",  ws]                    staleTime: 60_000
+["hr-whos-off",        ws]                    staleTime: 60_000
+```
+| Hook | URL | Notes |
+|------|-----|-------|
+| `useLeavePolicies` / `useCreateLeavePolicy` / `useUpdateLeavePolicy` / `useDeleteLeavePolicy` | `…/hr/leave-policies/[:id/]` | mutations invalidate policies |
+| `useLeaveRequests(ws, status?)` | `…/hr/leave-requests/?status=` | employee sees own, admin sees all |
+| `useCreateLeaveRequest` | `POST …/leave-requests/` | invalidates **requests + balances** |
+| `useReviewLeaveRequest` | `POST …/leave-requests/:id/review/ {status, comment}` | admin/lead; invalidates requests + balances |
+| `useLeaveBalances` | `GET …/leave-balances/` | |
+| `useWhosOff` | `GET …/whos-off/` | today + next 7 days; dashboard widget |
+
+#### `useAttendance.js`
+```
+["hr-attendance-policy",  ws]                       staleTime: Infinity
+["hr-attendance-my",      ws, dateFrom, dateTo]      staleTime: 30_000  enabled: !!dateFrom
+["hr-attendance-list",    ws, employee, from, to]    staleTime: 30_000  ← admin
+["hr-attendance-summary", ws, dateFrom, dateTo]      staleTime: 30_000  ← admin
+["hr-attendance-qr",      ws]                        staleTime: 60_000  enabled on demand
+```
+- `useUpdateAttendancePolicy` uses `setQueryData` (PATCH response is the new policy).
+- `useClockIn` / `useClockOut` invalidate all three attendance data keys via **2-element prefix** (`["hr-attendance-my", ws]` etc.) so every date-range variant refreshes.
+- `useAttendanceQR(ws, enabled)` only fires when `enabled` (QR modal open).
+
+#### `useHRDashboard.js`
+```
+["hr-dashboard", ws]   staleTime: 2 * 60_000
+```
+`GET …/hr/dashboard/` — headcount, leave overview, attendance overview, upcoming events.
+
+#### `useEmployeeDocs.js` / `useEmployeeNotes.js`
+```
+["hr-employee-docs",  ws, memberId]   staleTime: 60_000
+["hr-employee-notes", ws, memberId]   staleTime: 60_000
+```
+Per-member, admin-scoped. Docs use multipart upload (`…/hr/members/:id/documents/`); notes are CRUD (`…/hr/members/:id/notes/`). All mutations invalidate the member-scoped key. Both consumed by `MemberDetailPage.jsx`.
+
+> **No WebSocket integration yet.** HR data is poll/stale-time driven only — no `useWorkspaceSocket` events for leave/attendance. Leave-approval notifications arrive through the existing `notify()` → inbox path (the bell), not via live HR cache patching.
+
+---
+
 ### `useProjectPermissions.js`
 
 Not a React Query hook — wraps `useBoard()` and derives permissions.
@@ -995,13 +1156,13 @@ Quick reference for when you're writing a new mutation or adding a new feature:
 
 | Change | Keys to invalidate or update |
 |---|---|
-| Task field changed (assignee, dates, priority, sprint) | `["tasks", ws, proj]`, `["sprint", ws, proj]` |
-| Task status changed | `["tasks", ws, proj]`, `["sprint", ws, proj]` |
-| Task created | `["tasks", ws, proj]`, `["sprint", ws, proj]` |
-| Task deleted | `["tasks", ws, proj]`, `["sprint", ws, proj]` |
-| Task moved (Kanban drag) | `setQueriesData` on `["tasks"]` + `["sprint"]` invalidate |
-| Comment added/deleted | `setQueryData` on `["task-detail"]` only |
-| Subtask added/toggled/deleted | `setQueryData` on `["subtasks"]` + `["task-detail"]` + invalidate `["tasks"]` |
+| Task field changed (assignee, dates, priority) | **merge** server response into `["tasks"]`+`["children"]`+`detail`; sprint **only if** status/sprint changed |
+| Task status changed | **merge** into `["tasks"]`; invalidate `["sprint", ws, proj]` |
+| Task created | invalidate `["tasks", ws, proj]`, `["sprint", ws, proj]` (membership unknown — only mutation that refetches) |
+| Task deleted | `setQueriesData` filter out id + `removeQueries(detail)`; invalidate `["sprint", ws, proj]` |
+| Task moved (Kanban drag) | optimistic + merge on `["tasks"]`/`["children"]`; `["sprint"]` invalidate |
+| Comment added/deleted | `setQueryData` on `["task-detail"]` (+ infinite `["comments"]`) only |
+| Subtask added/toggled/deleted | `setQueryData` on `["subtasks"]` + `patchSubtaskCounts` into `["task-detail"]` & `["tasks"]` — **no `["tasks"]` refetch** |
 | Child task created/attached | `["children"]`, `["task-detail"]`, `["tasks"]` |
 | Sprint created/deleted | `["sprints"]` (list only) |
 | Sprint updated | `["sprints"]` + `["sprint", ws, proj, id]` |

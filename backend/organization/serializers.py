@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from accounts.serializers import MiniUserSerializer
+from workspaces.models import WorkspaceMember
 from .models import Department, DepartmentMember, JobTitle, OrgProfile, ReportingLine, Team, TeamMember
 
 
@@ -69,11 +70,18 @@ class DepartmentMemberSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(read_only=True)
     member = MiniMemberSerializer(read_only=True)
     member_id = serializers.UUIDField(write_only=True)
+    is_head = serializers.SerializerMethodField()
 
     class Meta:
         model = DepartmentMember
         fields = ["id", "member", "member_id", "is_head", "joined_at"]
         read_only_fields = ["id", "joined_at"]
+
+    def get_is_head(self, obj):
+        # Derived from Department.head — single source of truth. Prefer the context
+        # department (set by list/create views) to avoid a per-row FK fetch.
+        dept = self.context.get("department") or obj.department
+        return dept.head_id == obj.member_id
 
     def create(self, validated_data):
         validated_data["department"] = self.context["department"]
@@ -118,11 +126,18 @@ class TeamMemberSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(read_only=True)
     member = MiniMemberSerializer(read_only=True)
     member_id = serializers.UUIDField(write_only=True)
+    is_lead = serializers.SerializerMethodField()
 
     class Meta:
         model = TeamMember
         fields = ["id", "member", "member_id", "is_lead", "joined_at"]
         read_only_fields = ["id", "joined_at"]
+
+    def get_is_lead(self, obj):
+        # Derived from Team.lead — single source of truth. Prefer the context team
+        # (set by list/create views) to avoid a per-row FK fetch.
+        team = self.context.get("team") or obj.team
+        return team.lead_id == obj.member_id
 
     def create(self, validated_data):
         validated_data["team"] = self.context["team"]
@@ -182,6 +197,41 @@ class ReportingLineSerializer(serializers.ModelSerializer):
         model = ReportingLine
         fields = ["id", "manager", "manager_id", "report", "report_id", "created_at"]
         read_only_fields = ["id", "created_at"]
+
+    def validate(self, attrs):
+        workspace = self.context["workspace"]
+        manager_id = attrs["manager_id"]
+        report_id = attrs["report_id"]
+
+        if manager_id == report_id:
+            raise serializers.ValidationError("A member cannot report to themselves.")
+
+        # Both endpoints must be members of this workspace.
+        valid_ids = set(
+            WorkspaceMember.objects.filter(
+                workspace=workspace, id__in=[manager_id, report_id]
+            ).values_list("id", flat=True)
+        )
+        if manager_id not in valid_ids:
+            raise serializers.ValidationError({"manager_id": "Not a member of this workspace."})
+        if report_id not in valid_ids:
+            raise serializers.ValidationError({"report_id": "Not a member of this workspace."})
+
+        # Adding manager → report closes a cycle iff `report` is already an ancestor
+        # of `manager`. Walk up manager's chain (unique_together on report makes it a
+        # simple chain); the `seen` guard also breaks any pre-existing bad cycle.
+        current = manager_id
+        seen = set()
+        while current is not None and current not in seen:
+            seen.add(current)
+            if current == report_id:
+                raise serializers.ValidationError("This reporting line would create a cycle.")
+            current = (
+                ReportingLine.objects.filter(workspace=workspace, report_id=current)
+                .values_list("manager_id", flat=True)
+                .first()
+            )
+        return attrs
 
     def create(self, validated_data):
         validated_data["workspace"] = self.context["workspace"]

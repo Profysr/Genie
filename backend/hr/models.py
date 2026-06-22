@@ -189,10 +189,9 @@ class Attendance(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        # unique_together already creates a (employee, date) index, which also serves
+        # employee-only and employee+date-range lookups — no separate index needed.
         unique_together = ["employee", "date"]
-        indexes = [
-            models.Index(fields=["employee", "date"], name="attendance_employee_date_idx"),
-        ]
         ordering = ["-date"]
 
     def __str__(self):

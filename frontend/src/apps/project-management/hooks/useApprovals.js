@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/lib/api";
+import { SOCKET_BACKED } from "@/shared/lib/queryClient";
 
 function approvalsKey(workspaceId, boardId, taskId) {
   return ["approvals", workspaceId, boardId, taskId];
@@ -15,6 +16,8 @@ export function useApprovals(workspaceId, boardId, taskId) {
         )
         .then((r) => r.data),
     enabled: !!workspaceId && !!boardId && !!taskId,
+    // Live via board socket (approval.created/updated)
+    ...SOCKET_BACKED,
   });
 }
 

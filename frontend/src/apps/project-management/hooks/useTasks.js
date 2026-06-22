@@ -5,6 +5,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import api from "@/shared/lib/api";
+import { SOCKET_BACKED } from "@/shared/lib/queryClient";
 
 // ── Query key factories ───────────────────────────────────────────────────────
 
@@ -48,6 +49,8 @@ export const useTasks = (workspaceId, boardId, filters = {}) => {
         )
         .then((r) => r.data),
     enabled: !!workspaceId && !!boardId,
+    // Live via board socket (task.created/updated/moved/deleted) — see SOCKET_BACKED
+    ...SOCKET_BACKED,
   });
 };
 
@@ -62,6 +65,8 @@ export const useTaskDetail = (workspaceId, boardId, taskId) =>
         )
         .then((r) => r.data),
     enabled: !!taskId,
+    // Live via board socket (task.updated, comment.*, reaction.updated)
+    ...SOCKET_BACKED,
   });
 
 export const useTaskSubtasks = (workspaceId, boardId, taskId) =>
@@ -87,6 +92,9 @@ export const useTaskComments = (workspaceId, boardId, taskId) =>
     },
     getNextPageParam: (lastPage) => lastPage.next ?? undefined,
     enabled: !!taskId,
+    // Live via board socket (comment.created/deleted); focus refetch would also
+    // reset the infinite scroll position, so disable it.
+    ...SOCKET_BACKED,
   });
 
 export const useTaskActivities = (workspaceId, boardId, taskId) =>
@@ -100,6 +108,8 @@ export const useTaskActivities = (workspaceId, boardId, taskId) =>
     },
     getNextPageParam: (lastPage) => lastPage.next ?? undefined,
     enabled: !!taskId,
+    // Read-only feed, never invalidated (doc) — keep focus from resetting pages.
+    ...SOCKET_BACKED,
   });
 
 // ── Task CRUD ─────────────────────────────────────────────────────────────────
@@ -118,6 +128,37 @@ export const useCreateTask = (workspaceId, boardId) => {
   });
 };
 
+// ── Cache-merge helpers ─────────────────────────────────────────────────────
+// Patch the server response into the task list / children / detail caches in
+// place instead of refetching. The PATCH/move endpoints return the full updated
+// task, so we never need a follow-up GET of the whole board (backend-expensive).
+// Mirrors useMoveTask. Other clients are reconciled by the board socket.
+const mergeTaskInLists = (qc, workspaceId, boardId, task) => {
+  qc.setQueriesData({ queryKey: ["tasks", workspaceId, boardId] }, (old) =>
+    Array.isArray(old)
+      ? old.map((t) => (t.id === task.id ? { ...t, ...task } : t))
+      : old,
+  );
+  qc.setQueriesData(
+    { queryKey: ["children", workspaceId, boardId], exact: false },
+    (old) =>
+      Array.isArray(old)
+        ? old.map((c) => (c.id === task.id ? { ...c, ...task } : c))
+        : old,
+  );
+};
+
+// Sprint completion is a server-computed aggregate that only moves when a task's
+// status or sprint assignment changes — not on every field edit. Invalidate it
+// (immediate refetch when SprintView is open; it's a tiny counts payload) only
+// when the changed fields can actually affect it.
+const SPRINT_AFFECTING = ["status_id", "sprint_id", "sprint"];
+const maybeInvalidateSprint = (qc, workspaceId, boardId, changed) => {
+  if (!changed || SPRINT_AFFECTING.some((k) => k in changed)) {
+    qc.invalidateQueries({ queryKey: ["sprint", workspaceId, boardId] });
+  }
+};
+
 // Used by board-level views (Kanban, Calendar, Gantt, Sprint) — refreshes the task list
 export const useUpdateTask = (workspaceId, boardId) => {
   const qc = useQueryClient();
@@ -129,10 +170,12 @@ export const useUpdateTask = (workspaceId, boardId) => {
           data,
         )
         .then((r) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["tasks", workspaceId, boardId] });
-      qc.invalidateQueries({ queryKey: ["children", workspaceId, boardId] });
-      qc.invalidateQueries({ queryKey: ["sprint", workspaceId, boardId] });
+    onSuccess: (updated, { taskId, ...data }) => {
+      mergeTaskInLists(qc, workspaceId, boardId, updated);
+      qc.setQueryData(detailKey(workspaceId, boardId, updated.id), (old) =>
+        old ? { ...old, ...updated } : old,
+      );
+      maybeInvalidateSprint(qc, workspaceId, boardId, data);
     },
   });
 };
@@ -148,13 +191,13 @@ export const useUpdateTaskDetail = (workspaceId, boardId, taskId) => {
           data,
         )
         .then((r) => r.data),
-    onSuccess: (updated) => {
+    onSuccess: (updated, data) => {
       qc.setQueryData(detailKey(workspaceId, boardId, taskId), (old) => ({
         ...old,
         ...updated,
       }));
-      qc.invalidateQueries({ queryKey: ["tasks", workspaceId, boardId] });
-      qc.invalidateQueries({ queryKey: ["sprint", workspaceId, boardId] });
+      mergeTaskInLists(qc, workspaceId, boardId, updated);
+      maybeInvalidateSprint(qc, workspaceId, boardId, data);
     },
   });
 };
@@ -166,8 +209,12 @@ export const useDeleteTask = (workspaceId, boardId) => {
       api.delete(
         `/api/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/`,
       ),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["tasks", workspaceId, boardId] });
+    onSuccess: (_, taskId) => {
+      qc.setQueriesData({ queryKey: ["tasks", workspaceId, boardId] }, (old) =>
+        Array.isArray(old) ? old.filter((t) => t.id !== taskId) : old,
+      );
+      qc.removeQueries({ queryKey: detailKey(workspaceId, boardId, taskId) });
+      // Deletion can change sprint completion — always refresh.
       qc.invalidateQueries({ queryKey: ["sprint", workspaceId, boardId] });
     },
   });
@@ -317,6 +364,24 @@ export const useDeleteComment = (workspaceId, boardId, taskId) => {
 
 // ── Subtasks ──────────────────────────────────────────────────────────────────
 
+// Patch subtask progress counts into the detail + every task-list variant from
+// the authoritative subtasks array — no full task-list refetch per toggle.
+// (Task list serializer exposes subtask_count + done_subtask_count per card.)
+const patchSubtaskCounts = (qc, workspaceId, boardId, taskId, subtasks) => {
+  const subtask_count = subtasks.length;
+  const done_subtask_count = subtasks.filter((s) => s.is_done).length;
+  qc.setQueryData(detailKey(workspaceId, boardId, taskId), (d) =>
+    d ? { ...d, subtask_count, done_subtask_count } : d,
+  );
+  qc.setQueriesData({ queryKey: ["tasks", workspaceId, boardId] }, (old) =>
+    Array.isArray(old)
+      ? old.map((t) =>
+          t.id === taskId ? { ...t, subtask_count, done_subtask_count } : t,
+        )
+      : old,
+  );
+};
+
 export const useCreateSubtask = (workspaceId, boardId, taskId) => {
   const qc = useQueryClient();
   return useMutation({
@@ -328,13 +393,12 @@ export const useCreateSubtask = (workspaceId, boardId, taskId) => {
         )
         .then((r) => r.data),
     onSuccess: (subtask) => {
-      qc.setQueryData(subtasksKey(workspaceId, boardId, taskId), (old) =>
-        old ? [...old, subtask] : [subtask],
-      );
-      qc.setQueryData(detailKey(workspaceId, boardId, taskId), (old) =>
-        old ? { ...old, subtask_count: (old.subtask_count || 0) + 1 } : old,
-      );
-      qc.invalidateQueries({ queryKey: ["tasks", workspaceId, boardId] });
+      const next = [
+        ...(qc.getQueryData(subtasksKey(workspaceId, boardId, taskId)) || []),
+        subtask,
+      ];
+      qc.setQueryData(subtasksKey(workspaceId, boardId, taskId), next);
+      patchSubtaskCounts(qc, workspaceId, boardId, taskId, next);
     },
   });
 };
@@ -350,16 +414,11 @@ export const useToggleSubtask = (workspaceId, boardId, taskId) => {
         )
         .then((r) => r.data),
     onSuccess: (updated) => {
-      qc.setQueryData(subtasksKey(workspaceId, boardId, taskId), (old) => {
-        if (!old) return old;
-        const next = old.map((s) => (s.id === updated.id ? updated : s));
-        const done = next.filter((s) => s.is_done).length;
-        qc.setQueryData(detailKey(workspaceId, boardId, taskId), (d) =>
-          d ? { ...d, done_subtask_count: done } : d,
-        );
-        return next;
-      });
-      qc.invalidateQueries({ queryKey: ["tasks", workspaceId, boardId] });
+      const next = (
+        qc.getQueryData(subtasksKey(workspaceId, boardId, taskId)) || []
+      ).map((s) => (s.id === updated.id ? updated : s));
+      qc.setQueryData(subtasksKey(workspaceId, boardId, taskId), next);
+      patchSubtaskCounts(qc, workspaceId, boardId, taskId, next);
     },
   });
 };
@@ -372,15 +431,11 @@ export const useDeleteSubtask = (workspaceId, boardId, taskId) => {
         `/api/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/subtasks/${subtaskId}/`,
       ),
     onSuccess: (_, subtaskId) => {
-      qc.setQueryData(subtasksKey(workspaceId, boardId, taskId), (old) =>
-        old ? old.filter((s) => s.id !== subtaskId) : old,
-      );
-      qc.setQueryData(detailKey(workspaceId, boardId, taskId), (old) =>
-        old
-          ? { ...old, subtask_count: Math.max(0, (old.subtask_count || 1) - 1) }
-          : old,
-      );
-      qc.invalidateQueries({ queryKey: ["tasks", workspaceId, boardId] });
+      const next = (
+        qc.getQueryData(subtasksKey(workspaceId, boardId, taskId)) || []
+      ).filter((s) => s.id !== subtaskId);
+      qc.setQueryData(subtasksKey(workspaceId, boardId, taskId), next);
+      patchSubtaskCounts(qc, workspaceId, boardId, taskId, next);
     },
   });
 };

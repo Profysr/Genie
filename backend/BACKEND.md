@@ -28,8 +28,8 @@ workspaces/     Workspace, members, invites, inbox, API keys, webhooks, imports,
 projects/       Boards, tasks, sprints, statuses, labels, comments, wiki, forms, automations, OKRs, approvals
 integrations/   Teams + Google Chat outbound webhooks, channel routing
 analytics/      On-the-fly metrics (no models, computed from tasks/activity)
-organization/   Org structure: departments, teams, job titles, reporting lines, org profiles
-hr/             HR management: leave policies, leave balances, leave requests (Phase C vC.1)
+organization/   Org structure: departments, teams, job titles, reporting lines, org profiles, org chart
+hr/             HR management: leave (policies/balances/requests), attendance (clock + QR), employee docs/notes, HR dashboard
 ```
 
 ---
@@ -52,6 +52,28 @@ URL route kwargs use plain UUIDs — `_parse_pk()` helpers in views still accept
 | API Key | `Authorization: Bearer jcn_<raw_key>` via `APIKeyAuthentication` |
 
 Default permission: `IsAuthenticated`. Public endpoints (forms, invite detail) use `AllowAny`.
+
+---
+
+## Module System (`core/modules.py`)
+
+Product areas are gated behind workspace-level modules. `MODULE_REGISTRY` is the single source of truth:
+
+| Key | Name | Tier | always_on | depends_on |
+|-----|------|------|-----------|-----------|
+| `projects` | Project Management | free | ✅ | — |
+| `org_structure` | Org Structure | pro | — | — |
+| `hr_management` | HR Management | enterprise | — | `org_structure` |
+| `analytics_advanced` | Advanced Analytics | pro | — | — |
+
+- Views enforce access with `require_module(workspace, key)` → raises **403** with `{detail, module}` if the `WorkspaceModule` row isn't enabled. `always_on` modules short-circuit (never blocked).
+- Enabling a module with `depends_on` requires its dependencies enabled first (enforced in `WorkspaceModuleToggleView`). **hr_management therefore requires org_structure.**
+- Tier order: `free < pro < enterprise` (`TIER_ORDER`).
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/workspaces/{ws}/modules/` | List all modules with `is_enabled` resolved (always_on or row enabled) |
+| PATCH | `/api/workspaces/{ws}/modules/{module_key}/` | Enable/disable a module (admin only). Body `{ is_enabled }`. 400 if always_on or a dependency is missing. |
 
 ---
 
@@ -476,6 +498,18 @@ Available `{metric}` values:
 | `CommentReaction` | `comment` (FK), `user` (FK), `emoji` | unique: comment+user+emoji |
 | `AuditEvent` | `workspace` (FK), `actor` (FK), `action`, `resource_type`, `resource_id`, `before` (JSON), `after` (JSON) | indexes: workspace+created_at, workspace+resource_type |
 
+### organization
+
+| Model | Key Fields | Notes |
+|-------|-----------|-------|
+| `JobTitle` | `workspace` (FK), `name`, `level` (PositiveSmallInt, default 0) | unique: workspace+name; ordering: level, name |
+| `Department` | `workspace` (FK), `name`, `description`, `color`, `identifier` (max 6), `parent` (FK self, SET_NULL), `head` (FK→WorkspaceMember, SET_NULL), `created_by` (FK→User) | unique: workspace+name; index: `dept_workspace_parent_idx` (workspace+parent). `identifier` is **not** uniqueness-constrained or auto-generated. |
+| `DepartmentMember` | `department` (FK), `member` (FK→WorkspaceMember) | unique: department+member; index: `deptmember_member_idx` (member). No stored `is_head` — the serializer exposes a **computed** `is_head` derived from `Department.head` (single source of truth). |
+| `Team` | `workspace` (FK), `department` (FK, SET_NULL), `name`, `description`, `identifier` (max 6), `color`, `lead` (FK→WorkspaceMember, SET_NULL), `created_by` (FK→User) | unique: workspace+name; index: `team_workspace_dept_idx` (workspace+department) |
+| `TeamMember` | `team` (FK), `member` (FK→WorkspaceMember) | unique: team+member; index: `teammember_member_idx` (member). No stored `is_lead` — the serializer exposes a **computed** `is_lead` derived from `Team.lead` (single source of truth). |
+| `OrgProfile` | `member` (O2O→WorkspaceMember), `job_title` (FK, SET_NULL), `employment_type` (full_time/part_time/contractor/intern), `employee_id`, `start_date`, `location`, `bio` | One per member; auto-created via `get_or_create` on first GET/PATCH. `HRDashboardView` reads `start_date` (joiners/anniversaries) and `employment_type` (headcount split). |
+| `ReportingLine` | `workspace` (FK), `manager` (FK→WorkspaceMember), `report` (FK→WorkspaceMember) | unique: workspace+report (one manager per person); index: `repline_workspace_manager_idx` (workspace+manager). `ReportingLineSerializer.validate` rejects self-reference, non-members, and cycles (walks manager's ancestor chain). |
+
 ### hr
 
 | Model | Key Fields | Notes |
@@ -484,9 +518,40 @@ Available `{metric}` values:
 | `LeaveBalance` | `employee` (FK→WorkspaceMember), `policy` (FK), `year`, `total_days`, `used_days`, `pending_days` | unique: employee+policy+year; indexes: `leave_balance_employee_year_idx` |
 | `LeaveRequest` | `employee` (FK→WorkspaceMember), `policy` (FK), `start_date`, `end_date`, `reason`, `status` (pending/approved/rejected/cancelled), `approver` (FK→User), `reviewer_comment`, `reviewed_at` | indexes: `leave_request_employee_status_idx`, `leave_request_policy_dates_idx` |
 | `AttendancePolicy` | `workspace` (O2O), `work_start_time`, `work_end_time`, `grace_period_minutes`, `weekly_hours` | One per workspace; auto-created on first access with sensible defaults (09:00–17:00, 15 min grace, 40 h/week) |
-| `Attendance` | `employee` (FK→WorkspaceMember), `date`, `clock_in` (TimeField, nullable), `clock_out` (TimeField, nullable), `source` (manual/qr/api), `notes` | unique: employee+date (one row per employee per day); index: `attendance_employee_date_idx`; `clock_out=null` means still clocked in |
+| `Attendance` | `employee` (FK→WorkspaceMember), `date`, `clock_in` (TimeField, nullable), `clock_out` (TimeField, nullable), `source` (manual/qr/api), `notes` | unique: employee+date (one row per employee per day) — this unique index also serves employee + date-range lookups, so no separate index. `clock_out=null` means still clocked in. |
 | `EmployeeDocument` | `employee` (FK→WorkspaceMember), `doc_type` (contract/id/certificate/other), `file`, `original_name`, `expiry_date` (nullable), `uploaded_by` (FK→User) | files in `employee_docs/`; admin-only access; index: `edoc_employee_idx`; serializer exposes `days_until_expiry` computed field |
 | `EmployeeNote` | `employee` (FK→WorkspaceMember), `author` (FK→User), `content`, `is_private` (default True) | private manager notes; never served to the employee; index: `enot_employee_idx` |
+
+### organization — URL Reference
+
+All org endpoints require the `org_structure` module enabled (`_require_module(workspace, "org_structure")`). Mutations require workspace admin (owner or `role=admin`); reads require membership only.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/workspaces/{ws}/org/departments/` | List departments (select_related head/parent, prefetch memberships for `member_count`) |
+| POST | `/api/workspaces/{ws}/org/departments/` | Create department (admin) |
+| GET | `/api/workspaces/{ws}/org/departments/{dept_id}/` | Department detail |
+| PATCH | `/api/workspaces/{ws}/org/departments/{dept_id}/` | Update department (admin) |
+| DELETE | `/api/workspaces/{ws}/org/departments/{dept_id}/` | Delete department (admin) |
+| GET | `/api/workspaces/{ws}/org/departments/{dept_id}/members/` | List department members |
+| POST | `/api/workspaces/{ws}/org/departments/{dept_id}/members/` | Add member to department (admin); body `{ member_id }`. Headship is set via `Department.head_id`, not here — `is_head` is read-only/computed. |
+| DELETE | `/api/workspaces/{ws}/org/departments/{dept_id}/members/{membership_id}/` | Remove department member (admin) |
+| GET | `/api/workspaces/{ws}/org/teams/` | List teams (select_related lead/department, prefetch memberships) |
+| POST | `/api/workspaces/{ws}/org/teams/` | Create team (admin) |
+| GET/PATCH/DELETE | `/api/workspaces/{ws}/org/teams/{team_id}/` | Team detail / update / delete (admin for mutations) |
+| GET | `/api/workspaces/{ws}/org/teams/{team_id}/members/` | List team members |
+| POST | `/api/workspaces/{ws}/org/teams/{team_id}/members/` | Add member to team (admin); body `{ member_id }`. Lead is set via `Team.lead_id`, not here — `is_lead` is read-only/computed. |
+| DELETE | `/api/workspaces/{ws}/org/teams/{team_id}/members/{membership_id}/` | Remove team member (admin) |
+| GET | `/api/workspaces/{ws}/org/job-titles/` | List job titles (ordered by level, name) |
+| POST | `/api/workspaces/{ws}/org/job-titles/` | Create job title (admin) |
+| PATCH | `/api/workspaces/{ws}/org/job-titles/{title_id}/` | Update job title (admin) |
+| DELETE | `/api/workspaces/{ws}/org/job-titles/{title_id}/` | Delete job title (admin) |
+| GET | `/api/workspaces/{ws}/org/members/{member_id}/profile/` | Get member's org profile (auto-creates). Exposes `departments`, `teams`, `manager`, `direct_reports_count` (computed). |
+| PATCH | `/api/workspaces/{ws}/org/members/{member_id}/profile/` | Update org profile — **admin or self** (`_require_admin_or_self`) |
+| GET | `/api/workspaces/{ws}/org/reporting-lines/` | List reporting lines (manager → report) |
+| POST | `/api/workspaces/{ws}/org/reporting-lines/` | Create reporting line (admin); body `{ manager_id, report_id }` |
+| DELETE | `/api/workspaces/{ws}/org/reporting-lines/{line_id}/` | Delete reporting line (admin) |
+| GET | `/api/workspaces/{ws}/org/chart/` | Org chart tree: all members with job_title, manager_id, departments, teams. Single query via `prefetch_related(department_memberships__department, team_memberships__team, org_profile__job_title, reports_to)`. |
 
 ### hr — URL Reference
 
@@ -496,7 +561,7 @@ Available `{metric}` values:
 | POST | `/api/workspaces/{ws}/hr/leave-policies/` | Create policy (admin only) |
 | PATCH | `/api/workspaces/{ws}/hr/leave-policies/{id}/` | Update policy (admin only) |
 | DELETE | `/api/workspaces/{ws}/hr/leave-policies/{id}/` | Delete policy (admin only) |
-| GET | `/api/workspaces/{ws}/hr/leave-requests/` | List requests; employee sees own, admin sees all; `?status=pending` filter |
+| GET | `/api/workspaces/{ws}/hr/leave-requests/` | List requests; employee sees own, admin sees all; `?status=pending` filter. Defaults to the **last 24 months** (by created_at) as an unbounded-growth backstop — pass `?all=true` to override. |
 | POST | `/api/workspaces/{ws}/hr/leave-requests/` | Submit request; validates balance, updates pending_days, notifies admins |
 | POST | `/api/workspaces/{ws}/hr/leave-requests/{id}/review/` | Approve/reject (admin only); adjusts used_days/pending_days; notifies employee |
 | GET | `/api/workspaces/{ws}/hr/leave-balances/` | Current-year balances; employee sees own, admin sees all |
@@ -504,13 +569,13 @@ Available `{metric}` values:
 | GET/PATCH | `/api/workspaces/{ws}/hr/attendance-policy/` | Get or update attendance policy (PATCH: admin only) |
 | POST | `/api/workspaces/{ws}/hr/attendance/clock-in/` | Clock in current user for today; errors if already clocked in |
 | POST | `/api/workspaces/{ws}/hr/attendance/clock-out/` | Clock out current user; errors if not clocked in or already out |
-| GET | `/api/workspaces/{ws}/hr/attendance/` | Admin: all employees' records; `?employee=&date_from=&date_to=` |
-| GET | `/api/workspaces/{ws}/hr/attendance/my/` | Employee: own records; `?date_from=&date_to=` |
+| GET | `/api/workspaces/{ws}/hr/attendance/` | Admin: all employees' records; `?employee=&date_from=&date_to=`. **Bounded window** via `_parse_date_window` — defaults to last 31 days, max span 366 days (`date_to < date_from` or over-span → 400). Returns a plain array (not paginated) so the UI gets a full week/month at once. |
+| GET | `/api/workspaces/{ws}/hr/attendance/my/` | Employee: own records; `?date_from=&date_to=`. Same bounded-window rules as above. |
 | GET | `/api/workspaces/{ws}/hr/attendance/summary/` | Admin: per-employee weekly summary (total_hours, late_count, days_present); `?date_from=&date_to=` defaults to current week |
 | GET | `/api/workspaces/{ws}/hr/attendance/qr/` | Admin: generate daily HMAC-signed QR code; returns `{date, code, qr_url}` |
 | POST | `/attendance/qr/{workspace_id}/{date}/{code}/` | Validate QR code and clock in current user (date must be today) |
 | GET | `/api/workspaces/{ws}/hr/dashboard/` | Admin: headcount stats, leave overview (current month), attendance overview (rolling week), upcoming events (next 30 days) |
-| GET/POST | `/api/workspaces/{ws}/hr/members/{id}/documents/` | Admin: list or upload employee documents |
+| GET/POST | `/api/workspaces/{ws}/hr/members/{id}/documents/` | Admin: list or upload employee documents. Upload validates size (≤10 MB, `MAX_DOC_SIZE_BYTES`) and `content_type` against `ALLOWED_DOC_CONTENT_TYPES` (PDF, images, Word) → 400 otherwise. |
 | DELETE | `/api/workspaces/{ws}/hr/members/{id}/documents/{doc_id}/` | Admin: delete document (also removes file from storage) |
 | GET/POST | `/api/workspaces/{ws}/hr/members/{id}/notes/` | Admin: list or create private manager notes |
 | PATCH/DELETE | `/api/workspaces/{ws}/hr/members/{id}/notes/{note_id}/` | Admin: update or delete a note |
@@ -518,6 +583,8 @@ Available `{metric}` values:
 `AttendanceSerializer` computed fields: `status` (on_time/late/absent — compared against `AttendancePolicy.work_start_time + grace_period_minutes`), `total_hours` (float, null if no clock_out).
 
 All hr endpoints require `hr_management` module enabled (`require_module(workspace, "hr_management")`).
+
+**hr helpers (`hr/views.py`):** `_business_days(start, end)` (Mon–Fri count, inclusive; holidays not modelled); `_parse_date_window(request, default_lookback_days=31, max_span_days=366)` (bounded date-range parser used by attendance lists). Leave balance create/review wrap the balance mutation in `transaction.atomic()` + `select_for_update()`. All "today" logic uses `timezone.localdate()`.
 
 ### integrations
 
@@ -744,6 +811,21 @@ All paginated responses follow DRF's standard envelope: `{count, next, previous,
 | Analytics computed on-the-fly | `analytics/views.py` | Future: materialized views or caching |
 | `TaskTemplate` / `apply-template` included but template features deprioritized | `projects/views/tasks.py` | To be revisited in v2 |
 | No human-readable task IDs | `projects/models.py` | v2 — see Planned Features below |
+| `OrgProfileSerializer` fires 4 queries/profile (departments, teams, manager, direct_reports `.count()`) — fine for the single-object endpoint, unusable in a list | `organization/serializers.py` | Annotate/prefetch if it's ever used in a list view |
+| `OrgChartView` / `AttendanceSummary` / `HRDashboard` iterate members/records in Python — fine at SMB headcount, would need DB aggregation at scale | `organization/views.py`, `hr/views.py` | Revisit if workspaces exceed a few thousand members |
+
+> **Resolved (this pass):** ReportingLine cycle/self-ref/non-member validation; leave-balance `select_for_update` race; bounded date windows on attendance + leave-request lists (replaces unbounded lists); `EmployeeDocument` upload size/content-type validation; dropped redundant `attendance_employee_date_idx`; extracted `_business_days` + reused `MiniMemberSerializer`; `is_head`/`is_lead` now computed from FK (single source of truth); `date.today()` → `timezone.localdate()`. **Several require migrations — see below.**
+
+### ⚠️ Pending migrations (run before deploy)
+
+The model edits above changed schema. Generate and apply:
+
+```
+python manage.py makemigrations hr organization
+python manage.py migrate
+```
+
+Expected: `hr` initial migration (no migrations existed yet) reflecting the dropped `attendance_employee_date_idx`; `organization` migration dropping `DepartmentMember.is_head`, `TeamMember.is_lead`, and the stale `deptmember_dept_head_idx` / `teammember_team_lead_idx` indexes (plus the previously-uncommitted `OrgProfile.employment_type` from vB.2).
 
 ---
 

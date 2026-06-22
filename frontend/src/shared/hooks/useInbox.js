@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/lib/api";
+import { SOCKET_BACKED } from "@/shared/lib/queryClient";
 
 export const inboxKey = (workspaceId, tab, eventType, limit) =>
   ["inbox", workspaceId, tab, eventType, limit].filter(Boolean);
@@ -23,6 +24,8 @@ export function useInbox(
         .then((r) => r.data),
     enabled: enabled && !!workspaceId,
     staleTime: 30_000,
+    // Invalidated by the workspace socket on notification.created — see SOCKET_BACKED
+    ...SOCKET_BACKED,
   });
 }
 
@@ -30,6 +33,14 @@ export function useInbox(
  * Total unread count for the bell/nav badges.
  * Uses a dedicated lightweight endpoint so the full inbox list is NOT fetched
  * on load — that list loads lazily only when the notification panel opens.
+ *
+ * Fetched ONCE per session then kept fresh purely by events, never by polling:
+ *   • created  → workspace socket (`notification.created`) increments in place
+ *   • read     → useUpdateInboxItem / useBulkUpdateInbox invalidate this key
+ * Hence `staleTime: Infinity` + focus/reconnect refetch disabled — the badge no
+ * longer re-hits the backend on every window focus. Requires the workspace
+ * socket to be mounted app-wide (AppLayout) so `notification.created` lands on
+ * every page, not just the board.
  */
 export function useInboxUnreadCount(workspaceId) {
   const { data } = useQuery({
@@ -41,7 +52,9 @@ export function useInboxUnreadCount(workspaceId) {
         })
         .then((r) => r.data.count),
     enabled: !!workspaceId,
-    staleTime: 30_000,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
   return data ?? 0;
 }

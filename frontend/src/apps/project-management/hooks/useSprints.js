@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/lib/api";
+import { SOCKET_BACKED } from "@/shared/lib/queryClient";
 
 const sprintsKey = (ws, proj) => ["sprints", ws, proj];
 const sprintDetailKey = (ws, proj, sprintId) => ["sprint", ws, proj, sprintId];
@@ -26,6 +27,8 @@ export const useSprintDetail = (workspaceId, boardId, sprintId) =>
         .then((r) => r.data),
     enabled: !!workspaceId && !!boardId && !!sprintId,
     staleTime: 30_000,
+    // Counts/completion are invalidated by board socket task events — see SOCKET_BACKED
+    ...SOCKET_BACKED,
   });
 
 export const useCreateSprint = (workspaceId, boardId) => {

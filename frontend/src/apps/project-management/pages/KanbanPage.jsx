@@ -21,7 +21,7 @@ import {
   useDeleteSavedView,
 } from "@/apps/project-management/hooks/useSavedViews";
 import { useSprints } from "@/apps/project-management/hooks/useSprints";
-import { useWorkspaceSocket } from "@/shared/hooks/useWorkspaceSocket";
+import { useBoardSocket } from "@/shared/hooks/useWorkspaceSocket";
 import { useBoardPermissions } from "@/apps/project-management/hooks/useProjectPermissions";
 import { usePresence, useAnnouncePresence } from "@/shared/hooks/usePresence";
 import { useAuthStore } from "@/store/authStore";
@@ -227,7 +227,7 @@ export default function KanbanPage() {
     });
   };
 
-  useWorkspaceSocket(workspaceId);
+  useBoardSocket(workspaceId);
 
   // v3.5.0 — announce presence for this board board
   useAnnouncePresence(workspaceId, "board", boardId);
