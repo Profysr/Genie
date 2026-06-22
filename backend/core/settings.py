@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "integrations",  # Teams, Google Chat integrations (v4.3.0)
     "analytics",  # analytics metrics + report builder
     "organization",  # org structure: departments, teams, job titles, reporting lines
+    "hr",            # HR management: leave policies, balances, requests
 ]
 
 MIDDLEWARE = [
@@ -202,12 +203,13 @@ REST_AUTH = {
 }
 
 # allauth account behaviour
+# 0.63.x reads the old-style settings below; ACCOUNT_LOGIN_METHODS / ACCOUNT_SIGNUP_FIELDS
+# are the new-style equivalents but are silently ignored by this version.
 ACCOUNT_ADAPTER = "accounts.adapter.CustomAccountAdapter"
-ACCOUNT_LOGIN_METHODS = {"email"}
-ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
-ACCOUNT_USER_MODEL_USERNAME_FIELD = (
-    None  # our User model has no username field — stops allauth looking for one
-)
+ACCOUNT_AUTHENTICATION_METHOD = "email"   # 0.63.x: log in via email, not username
+ACCOUNT_EMAIL_REQUIRED = True             # required because EMAIL_VERIFICATION = mandatory
+ACCOUNT_USERNAME_REQUIRED = False         # no username field on our User model
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None  # stops allauth looking for a username column
 # Set to "none" to skip verification in local dev; "mandatory" enforces it in production.
 ACCOUNT_EMAIL_VERIFICATION = env("ACCOUNT_EMAIL_VERIFICATION", default="mandatory")
 

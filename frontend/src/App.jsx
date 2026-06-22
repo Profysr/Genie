@@ -48,6 +48,20 @@ const FormsPage = lazy(
 const DepartmentsPage = lazy(
   () => import("@/apps/org-structure/pages/DepartmentsPage"),
 );
+
+// ── HR Management pages ───────────────────────────────────────────────────────
+const HRDashboardPage = lazy(
+  () => import("@/apps/hr-management/pages/HRDashboardPage"),
+);
+const LeavePage = lazy(
+  () => import("@/apps/hr-management/pages/LeavePage"),
+);
+const AttendancePage = lazy(
+  () => import("@/apps/hr-management/pages/AttendancePage"),
+);
+const MemberDetailPage = lazy(
+  () => import("@/apps/hr-management/pages/MemberDetailPage"),
+);
 const TeamsPage = lazy(
   () => import("@/apps/org-structure/pages/TeamsPage"),
 );
@@ -159,6 +173,12 @@ export default function App() {
               <Route path="departments" element={<DepartmentsPage />} />
               <Route path="teams" element={<TeamsPage />} />
               <Route path="org-chart" element={<OrgChartPage />} />
+
+              {/* HR Management */}
+              <Route path="hr" element={<HRDashboardPage />} />
+              <Route path="hr/leave" element={<LeavePage />} />
+              <Route path="hr/attendance" element={<AttendancePage />} />
+              <Route path="members/:memberId" element={<MemberDetailPage />} />
 
               {/* Workspace */}
               {/* <Route path="roadmap" element={<RoadmapPage />} /> */}

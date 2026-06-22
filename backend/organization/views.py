@@ -4,8 +4,8 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from core.modules import MODULE_REGISTRY
-from workspaces.models import Workspace, WorkspaceMember, WorkspaceModule
+from core.modules import require_module
+from workspaces.models import Workspace, WorkspaceMember
 from .models import (
     Department,
     DepartmentMember,
@@ -31,19 +31,7 @@ def _get_workspace(workspace_id, user):
 
 
 def _require_module(workspace, module_key):
-    module_def = MODULE_REGISTRY.get(module_key, {})
-    if module_def.get("always_on"):
-        return
-    if not WorkspaceModule.objects.filter(
-        workspace=workspace, module_key=module_key, is_enabled=True
-    ).exists():
-        name = module_def.get("name", module_key)
-        raise PermissionDenied(
-            {
-                "detail": f"Module '{name}' is not enabled for this workspace.",
-                "module": module_key,
-            }
-        )
+    require_module(workspace, module_key)
 
 
 def _require_admin(workspace, user):

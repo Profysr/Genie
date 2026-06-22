@@ -13,6 +13,9 @@ import {
   Webhook,
   Upload,
   Inbox,
+  CalendarDays,
+  Timer,
+  BarChart3,
 } from "lucide-react";
 
 /**
@@ -85,6 +88,27 @@ export const NAV_ITEMS = [
     path: "org-chart",
   },
   {
+    key: "hr-dashboard",
+    icon: BarChart3,
+    label: "HR Overview",
+    desc: "Headcount, leave & attendance summary",
+    path: "hr",
+  },
+  {
+    key: "hr-leave",
+    icon: CalendarDays,
+    label: "Leave",
+    desc: "Leave requests & balances",
+    path: "hr/leave",
+  },
+  {
+    key: "hr-attendance",
+    icon: Timer,
+    label: "Attendance",
+    desc: "Clock-in/out & team hours",
+    path: "hr/attendance",
+  },
+  {
     key: "members",
     icon: Users,
     label: "Members",
@@ -150,6 +174,10 @@ export const NAV_GROUPS = [
   {
     label: "People",
     items: ["departments", "teams", "org-chart"],
+  },
+  {
+    label: "HR",
+    items: ["hr-dashboard", "hr-leave", "hr-attendance"],
   },
   {
     label: "Workspace",

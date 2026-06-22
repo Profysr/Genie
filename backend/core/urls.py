@@ -17,6 +17,7 @@ urlpatterns = [
     path("api/", include("integrations.urls")),
     path("api/", include("analytics.urls")),
     path("api/", include("organization.urls")),
+    path("api/", include("hr.urls")),
     # Global search
     path("api/search/", GlobalSearchView.as_view()),
     # API Docs

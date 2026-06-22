@@ -4,6 +4,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useThemeStore } from "@/store/themeStore";
 import { useWorkspace } from "@/shared/hooks/useWorkspace";
 import { useAnnouncePresence } from "@/shared/hooks/usePresence";
+import { ModulesContext, useModulesQuery } from "@/shared/hooks/useModules";
 import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts";
 import Sidebar from "@/shared/components/layout/Sidebar";
 
@@ -23,6 +24,13 @@ export default function AppLayout() {
   const navigate = useNavigate();
 
   const { data: workspace } = useWorkspace(workspaceId);
+  const { data: modulesData, isLoading: modulesLoading } = useModulesQuery(workspaceId);
+  const modulesCtx = {
+    isLoading: modulesLoading,
+    modules: modulesData ?? [],
+    isEnabled: (key) =>
+      Array.isArray(modulesData) && modulesData.some((m) => m.key === key && m.is_enabled),
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -74,6 +82,7 @@ export default function AppLayout() {
   });
 
   return (
+    <ModulesContext.Provider value={modulesCtx}>
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar
         workspace={workspace}
@@ -120,5 +129,6 @@ export default function AppLayout() {
         )}
       </Suspense>
     </div>
+    </ModulesContext.Provider>
   );
 }

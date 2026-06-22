@@ -46,3 +46,23 @@ MODULE_REGISTRY = {
 }
 
 TIER_ORDER = ["free", "pro", "enterprise"]
+
+
+def require_module(workspace, module_key):
+    """Raise PermissionDenied (HTTP 403) if the given module is not enabled for the workspace."""
+    from rest_framework.exceptions import PermissionDenied
+    from workspaces.models import WorkspaceModule
+
+    module_def = MODULE_REGISTRY.get(module_key, {})
+    if module_def.get("always_on"):
+        return
+    if not WorkspaceModule.objects.filter(
+        workspace=workspace, module_key=module_key, is_enabled=True
+    ).exists():
+        name = module_def.get("name", module_key)
+        raise PermissionDenied(
+            {
+                "detail": f"Module '{name}' is not enabled for this workspace.",
+                "module": module_key,
+            }
+        )

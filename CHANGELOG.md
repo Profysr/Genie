@@ -2002,7 +2002,7 @@ Mutation hooks: `useCreateDepartment`, `useUpdateDepartment`, `useDeleteDepartme
 
 ## vC.1 — Leave Management (Weeks 11–14)
 
-> Status: PLANNED 📋
+> Status: COMPLETE ✅
 
 **Backend**
 
@@ -2037,40 +2037,46 @@ Mutation hooks: `useCreateDepartment`, `useUpdateDepartment`, `useDeleteDepartme
 
 ## vC.2 — Attendance Tracking (Weeks 15–17)
 
-> Status: PLANNED 📋
+> Status: COMPLETE ✅
 > **Scope:** Manual clock-in/out + QR-code clock-in for office locations. GPS and biometric are enterprise features deferred to a later release.
 
 **Backend**
 
 | Model | Key Fields | Notes |
 |-------|-----------|-------|
-| `Attendance` | `employee` FK→WorkspaceMember, `date`, `clock_in`, `clock_out`, `source` (MANUAL/QR/API), `notes` | `clock_out` nullable = currently clocked in; one row per employee per day |
-| `AttendancePolicy` | `workspace` FK, `work_start_time`, `work_end_time`, `grace_period_minutes`, `weekly_hours` | Defines "expected" schedule for late/early detection |
+| `Attendance` | `employee` FK→WorkspaceMember, `date`, `clock_in` (TimeField, nullable), `clock_out` (TimeField, nullable), `source` (MANUAL/QR/API), `notes` | `clock_out=null` means still clocked in; unique: employee+date; index: `attendance_employee_date_idx` |
+| `AttendancePolicy` | `workspace` (O2O), `work_start_time`, `work_end_time`, `grace_period_minutes` (default 15), `weekly_hours` (default 40) | One per workspace; auto-created with defaults on first access — no manual setup required |
 
 **API surface**
-- `POST /api/workspaces/{ws}/hr/attendance/clock-in/`
-- `POST /api/workspaces/{ws}/hr/attendance/clock-out/`
-- `GET /api/workspaces/{ws}/hr/attendance/` — admin view; `?employee=&date_range=`
-- `GET /api/workspaces/{ws}/hr/attendance/my/` — own records
-- `GET /api/workspaces/{ws}/hr/attendance/summary/` — weekly hours + late count per employee; used for the admin grid
-- `GET /api/workspaces/{ws}/hr/attendance/qr/` — generates a daily QR code (admin only); scan → auto clock-in
+- `GET/PATCH /api/workspaces/{ws}/hr/attendance-policy/` — get or update policy (PATCH: admin only)
+- `POST /api/workspaces/{ws}/hr/attendance/clock-in/` — clock in current user; errors if already clocked in today
+- `POST /api/workspaces/{ws}/hr/attendance/clock-out/` — clock out; errors if not clocked in or already out
+- `GET /api/workspaces/{ws}/hr/attendance/` — admin view; `?employee=&date_from=&date_to=`
+- `GET /api/workspaces/{ws}/hr/attendance/my/` — own records; `?date_from=&date_to=`
+- `GET /api/workspaces/{ws}/hr/attendance/summary/` — per-employee weekly summary (total_hours, late_count, days_present); defaults to current week
+- `GET /api/workspaces/{ws}/hr/attendance/qr/` — admin only; returns `{date, code, qr_url}` (HMAC-SHA256 signed, expires at midnight)
+- `POST /attendance/qr/{workspace_id}/{date}/{code}/` — validate QR code and clock in (date must be today)
+
+`AttendanceSerializer` computes two derived fields: `status` (on_time/late/absent — compared against policy `work_start_time + grace_period_minutes`) and `total_hours` (float, null if no clock_out).
 
 **Frontend**
 
-- **Attendance tab** in HR section:
-  - Large clock-in/clock-out button (primary action, shows current status: "Clocked in at 9:02 AM")
-  - Daily status strip: in-time · out-time · total hours · status (On Time / Late / Absent)
-  - Personal calendar: colour-coded cells (green/amber/red/grey) with hover tooltip showing exact times
-  - Weekly hours bar chart: actual vs expected, coloured by status
-- **QR clock-in** (admin generates): daily QR code displayed on a TV or printout; employees scan with phone → auto clock-in via the mobile-optimised `/attendance/qr/{code}` page
-- **Admin attendance grid**: member × day matrix, hours per cell, weekly total column, export CSV, filter by department/team
-- **Automation trigger**: `attendance.late` → notify manager (hooks into existing automation engine)
+- **Attendance page** `/w/:ws/hr/attendance` — two tabs for admins (My Attendance / Team Grid), single view for regular members
+- **My Attendance tab**:
+  - Large clock-in/clock-out button with today's status strip (in-time · out-time · total hours · status chip)
+  - Monthly calendar — colour-coded cells (green/amber/red/grey) with hover tooltip showing exact times; pulsing green dot on cells where the user is still clocked in
+  - Weekly hours bar chart — actual vs expected (dashed reference line), colour by status, week navigator
+- **Team Grid tab** (admin only): member × day matrix for the selected week; hours per cell; status chip per day; weekly total column; export CSV; week navigator
+- **QR modal** (admin only): generates the daily HMAC-signed clock-in link; copy-to-clipboard
+- **Policy modal** (admin only): editable work start/end time, grace period, weekly hours target
+- `useAttendance.js` — hooks: `useAttendancePolicy`, `useUpdateAttendancePolicy`, `useClockIn`, `useClockOut`, `useMyAttendance`, `useAttendanceSummary`, `useAttendanceList`, `useAttendanceQR`
+- **Navigation**: "Attendance" added to HR sidebar group (`Timer` icon); route `hr/attendance`
 
 ---
 
 ## vC.3 — HR Dashboard & Employee Lifecycle (Week 18)
 
-> Status: PLANNED 📋
+> Status: COMPLETE ✅
 
 **Backend**
 

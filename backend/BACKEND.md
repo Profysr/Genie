@@ -28,6 +28,8 @@ workspaces/     Workspace, members, invites, inbox, API keys, webhooks, imports,
 projects/       Boards, tasks, sprints, statuses, labels, comments, wiki, forms, automations, OKRs, approvals
 integrations/   Teams + Google Chat outbound webhooks, channel routing
 analytics/      On-the-fly metrics (no models, computed from tasks/activity)
+organization/   Org structure: departments, teams, job titles, reporting lines, org profiles
+hr/             HR management: leave policies, leave balances, leave requests (Phase C vC.1)
 ```
 
 ---
@@ -473,6 +475,49 @@ Available `{metric}` values:
 | `UserPresence` | `user` (FK), `workspace` (FK), `resource_type`, `resource_id`, `last_seen` | unique: user+workspace+resource_type+resource_id |
 | `CommentReaction` | `comment` (FK), `user` (FK), `emoji` | unique: comment+user+emoji |
 | `AuditEvent` | `workspace` (FK), `actor` (FK), `action`, `resource_type`, `resource_id`, `before` (JSON), `after` (JSON) | indexes: workspace+created_at, workspace+resource_type |
+
+### hr
+
+| Model | Key Fields | Notes |
+|-------|-----------|-------|
+| `LeavePolicy` | `workspace` (FK), `name`, `leave_type` (annual/sick/unpaid/paternity/maternity/compassionate), `days_per_year`, `carry_over_days`, `accrual_type` (upfront/monthly) | Workspace-level policy config; multiple policies per type allowed |
+| `LeaveBalance` | `employee` (FK→WorkspaceMember), `policy` (FK), `year`, `total_days`, `used_days`, `pending_days` | unique: employee+policy+year; indexes: `leave_balance_employee_year_idx` |
+| `LeaveRequest` | `employee` (FK→WorkspaceMember), `policy` (FK), `start_date`, `end_date`, `reason`, `status` (pending/approved/rejected/cancelled), `approver` (FK→User), `reviewer_comment`, `reviewed_at` | indexes: `leave_request_employee_status_idx`, `leave_request_policy_dates_idx` |
+| `AttendancePolicy` | `workspace` (O2O), `work_start_time`, `work_end_time`, `grace_period_minutes`, `weekly_hours` | One per workspace; auto-created on first access with sensible defaults (09:00–17:00, 15 min grace, 40 h/week) |
+| `Attendance` | `employee` (FK→WorkspaceMember), `date`, `clock_in` (TimeField, nullable), `clock_out` (TimeField, nullable), `source` (manual/qr/api), `notes` | unique: employee+date (one row per employee per day); index: `attendance_employee_date_idx`; `clock_out=null` means still clocked in |
+| `EmployeeDocument` | `employee` (FK→WorkspaceMember), `doc_type` (contract/id/certificate/other), `file`, `original_name`, `expiry_date` (nullable), `uploaded_by` (FK→User) | files in `employee_docs/`; admin-only access; index: `edoc_employee_idx`; serializer exposes `days_until_expiry` computed field |
+| `EmployeeNote` | `employee` (FK→WorkspaceMember), `author` (FK→User), `content`, `is_private` (default True) | private manager notes; never served to the employee; index: `enot_employee_idx` |
+
+### hr — URL Reference
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/workspaces/{ws}/hr/leave-policies/` | List all policies |
+| POST | `/api/workspaces/{ws}/hr/leave-policies/` | Create policy (admin only) |
+| PATCH | `/api/workspaces/{ws}/hr/leave-policies/{id}/` | Update policy (admin only) |
+| DELETE | `/api/workspaces/{ws}/hr/leave-policies/{id}/` | Delete policy (admin only) |
+| GET | `/api/workspaces/{ws}/hr/leave-requests/` | List requests; employee sees own, admin sees all; `?status=pending` filter |
+| POST | `/api/workspaces/{ws}/hr/leave-requests/` | Submit request; validates balance, updates pending_days, notifies admins |
+| POST | `/api/workspaces/{ws}/hr/leave-requests/{id}/review/` | Approve/reject (admin only); adjusts used_days/pending_days; notifies employee |
+| GET | `/api/workspaces/{ws}/hr/leave-balances/` | Current-year balances; employee sees own, admin sees all |
+| GET | `/api/workspaces/{ws}/hr/whos-off/` | Approved leaves covering today + next 7 days |
+| GET/PATCH | `/api/workspaces/{ws}/hr/attendance-policy/` | Get or update attendance policy (PATCH: admin only) |
+| POST | `/api/workspaces/{ws}/hr/attendance/clock-in/` | Clock in current user for today; errors if already clocked in |
+| POST | `/api/workspaces/{ws}/hr/attendance/clock-out/` | Clock out current user; errors if not clocked in or already out |
+| GET | `/api/workspaces/{ws}/hr/attendance/` | Admin: all employees' records; `?employee=&date_from=&date_to=` |
+| GET | `/api/workspaces/{ws}/hr/attendance/my/` | Employee: own records; `?date_from=&date_to=` |
+| GET | `/api/workspaces/{ws}/hr/attendance/summary/` | Admin: per-employee weekly summary (total_hours, late_count, days_present); `?date_from=&date_to=` defaults to current week |
+| GET | `/api/workspaces/{ws}/hr/attendance/qr/` | Admin: generate daily HMAC-signed QR code; returns `{date, code, qr_url}` |
+| POST | `/attendance/qr/{workspace_id}/{date}/{code}/` | Validate QR code and clock in current user (date must be today) |
+| GET | `/api/workspaces/{ws}/hr/dashboard/` | Admin: headcount stats, leave overview (current month), attendance overview (rolling week), upcoming events (next 30 days) |
+| GET/POST | `/api/workspaces/{ws}/hr/members/{id}/documents/` | Admin: list or upload employee documents |
+| DELETE | `/api/workspaces/{ws}/hr/members/{id}/documents/{doc_id}/` | Admin: delete document (also removes file from storage) |
+| GET/POST | `/api/workspaces/{ws}/hr/members/{id}/notes/` | Admin: list or create private manager notes |
+| PATCH/DELETE | `/api/workspaces/{ws}/hr/members/{id}/notes/{note_id}/` | Admin: update or delete a note |
+
+`AttendanceSerializer` computed fields: `status` (on_time/late/absent — compared against `AttendancePolicy.work_start_time + grace_period_minutes`), `total_hours` (float, null if no clock_out).
+
+All hr endpoints require `hr_management` module enabled (`require_module(workspace, "hr_management")`).
 
 ### integrations
 
