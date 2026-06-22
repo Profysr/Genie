@@ -5,7 +5,7 @@ import {
   Eye,
   Trash2,
   Crown,
-  Link,
+  Link as LinkIcon,
   Clock,
   X,
   Briefcase,
@@ -130,7 +130,7 @@ export function PendingInviteItem({ invite, onCopy, copiedToken, onCancel }) {
               : "text-muted-foreground hover:text-foreground hover:bg-accent",
           )}
         >
-          <Link className="w-3 h-3" />
+          <LinkIcon className="w-3 h-3" />
           {copiedToken === invite.token ? "Copied!" : "Copy link"}
         </button>
         <button

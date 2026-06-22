@@ -69,14 +69,6 @@ export const WORKSPACE_NAV_ITEMS = [
     path: "members",
   },
   {
-    key: "settings",
-    icon: Settings,
-    label: "Settings",
-    desc: "Workspace settings",
-    path: "settings",
-    end: true,
-  },
-  {
     key: "integrations",
     icon: Plug,
     label: "Integrations",
@@ -97,17 +89,24 @@ export const WORKSPACE_NAV_ITEMS = [
     desc: "Outbound event webhooks",
     path: "settings/webhooks",
   },
+  {
+    key: "settings",
+    icon: Settings,
+    label: "Settings",
+    desc: "Workspace settings",
+    path: "settings",
+    end: true,
+  },
 ];
 
 const WORKSPACE_NAV_GROUPS = [
   {
     label: "Workspace",
-    items: ["members", "settings", "integrations", "api-keys", "webhooks"],
+    items: ["members", "integrations", "api-keys", "webhooks", "settings"],
   },
 ];
 
-// ── Aggregated exports (backward compat — command palette, search, etc.) ──────
-
+// ── Aggregated nav registry ────────────────────────────────────────────────────
 export const NAV_ITEMS = [
   ...PM_NAV_ITEMS,
   ...ORG_NAV_ITEMS,

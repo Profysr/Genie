@@ -1,14 +1,9 @@
 import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { cn } from "@/shared/lib/utils";
-import { ChevronDown, Search, ChevronsLeft } from "lucide-react";
+import { ChevronDown, Search, ChevronsLeft, ChevronsRight } from "lucide-react";
 import BoardTypeIcon from "@/shared/components/ui/BoardTypeIcon";
-import {
-  resolvedNavGroups,
-  workspaceUrl,
-  APP_DEFS,
-  APP_LANDING,
-} from "@/shared/lib/navLinks";
+import { resolvedNavGroups, workspaceUrl } from "@/shared/lib/navLinks";
 import { usePermission } from "@/contexts/PermissionsContext";
 import { useModules } from "@/shared/hooks/useModules";
 import { useInboxUnreadCount } from "@/shared/hooks/useInbox";
@@ -40,10 +35,6 @@ export default function Sidebar({
   const { isEnabled, isLoading: modulesLoading } = useModules();
   const activeApp = useActiveApp();
   const navigate = useNavigate();
-
-  const enabledApps = APP_DEFS.filter(
-    (app) => !app.moduleKey || modulesLoading || isEnabled(app.moduleKey),
-  );
 
   const toggleSection = (key) =>
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -85,13 +76,11 @@ export default function Sidebar({
     }))
     .filter((group) => group.items.length > 0);
 
-  // In expanded mode, show active app's groups; launcher shows only workspace group.
-  // In collapsed mode, show all (icon-only view — no app context needed).
-  const navGroups = collapsed
-    ? allNavGroups
-    : activeApp === "launcher"
-    ? allNavGroups.filter((g) => g.app === "workspace")
-    : allNavGroups.filter((g) => g.app === activeApp);
+  // Always show only the current app's groups — collapsed or not.
+  // Launcher maps to workspace-level links; all other apps show their own groups.
+  const navGroups = allNavGroups.filter(
+    (g) => g.app === (activeApp === "launcher" ? "workspace" : activeApp)
+  );
 
   return (
     <aside
@@ -102,73 +91,60 @@ export default function Sidebar({
       style={{ background: "hsl(var(--sidebar-bg))" }}
     >
       {collapsed ? (
-        /* ── Collapsed header — just the workspace logo / expand button ── */
-        <button
-          onClick={onToggleCollapse}
-          title={`Expand — ${workspace?.name}`}
-          className="flex items-center justify-center w-full border-b border-border/40 hover:bg-accent/50 transition-colors py-3"
-        >
-          <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs flex-shrink-0 overflow-hidden">
-            {workspace?.logo ? (
-              <img src={workspace.logo} className="w-full h-full object-cover" alt="" />
-            ) : (
-              (workspace?.name?.[0]?.toUpperCase() ?? "W")
-            )}
-          </div>
-        </button>
-      ) : (
-        /* ── Expanded header — app switcher + workspace row ── */
-        <div className="border-b border-border/40">
-          {/* Workspace row — doubles as collapse toggle */}
+        /* ── Collapsed header — logo navigates home, hover reveals expand button ── */
+        <div className="relative group border-b border-border/40 py-3 flex items-center justify-center">
           <button
-            onClick={onToggleCollapse}
-            title="Collapse sidebar"
-            className="flex items-center gap-2 w-full px-3 pt-2 pb-1.5 hover:bg-accent/50 transition-colors group"
+            onClick={() => navigate(workspaceUrl(workspaceId, "apps"))}
+            title={workspace?.name}
+            className="flex items-center justify-center"
           >
-            <div className="w-5 h-5 rounded bg-primary flex items-center justify-center text-primary-foreground font-bold text-[10px] flex-shrink-0 overflow-hidden">
+            <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs flex-shrink-0 overflow-hidden">
               {workspace?.logo ? (
                 <img src={workspace.logo} className="w-full h-full object-cover" alt="" />
               ) : (
-                (workspace?.name?.[0]?.toUpperCase() ?? "W")
+                workspace?.name?.[0]?.toUpperCase() ?? "W"
               )}
             </div>
-            <span className="flex-1 text-xs text-muted-foreground truncate text-left">
-              {workspace?.name ?? "Workspace"}
-            </span>
-            <ChevronsLeft className="w-3 h-3 text-muted-foreground/40 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
           </button>
 
-          {/* App switcher — tabs on regular pages, dropdown on launcher */}
-          {activeApp === "launcher" ? (
-            <AppSwitcherDropdown workspaceId={workspaceId} />
-          ) : (
-            <div className="flex items-center gap-0.5 px-1.5 pb-1">
-              {enabledApps.map((app) => {
-                const Icon = app.icon;
-                const isActive = activeApp === app.key;
-                return (
-                  <Tooltip key={app.key} content={app.label} side="bottom" delayDuration={400}>
-                    <button
-                      onClick={() =>
-                        navigate(workspaceUrl(workspaceId, APP_LANDING[app.key]))
-                      }
-                      className={cn(
-                        "flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-md text-xs font-medium transition-colors flex-1 min-w-0",
-                        isActive
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                      )}
-                    >
-                      <div className="flex items-center gap-1">
-                        <Icon className="w-3.5 h-3.5 flex-shrink-0" />
-                        <span className="truncate">{app.shortLabel}</span>
-                      </div>
-                    </button>
-                  </Tooltip>
-                );
-              })}
-            </div>
-          )}
+          {/* Expand button — floats on the right edge, appears on hover */}
+          <button
+            onClick={onToggleCollapse}
+            title="Expand sidebar"
+            className="absolute -right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-background border border-border shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-accent"
+          >
+            <ChevronsRight className="w-3 h-3 text-muted-foreground" />
+          </button>
+        </div>
+      ) : (
+        /* ── Expanded header — name navigates home, chevron collapses ── */
+        <div className="border-b border-border/40">
+          <div className="flex items-center gap-2 w-full px-3 py-2.5 group">
+            <button
+              onClick={() => navigate(workspaceUrl(workspaceId, "apps"))}
+              title={`Go to ${workspace?.name ?? "home"}`}
+              className="flex items-center gap-2 flex-1 min-w-0 hover:opacity-80 transition-opacity text-left"
+            >
+              <div className="w-7 h-7 rounded bg-primary flex items-center justify-center text-primary-foreground font-bold text-[10px] flex-shrink-0 overflow-hidden">
+                {workspace?.logo ? (
+                  <img src={workspace.logo} className="w-full h-full object-cover" alt="" />
+                ) : (
+                  workspace?.name?.[0]?.toUpperCase() ?? "W"
+                )}
+              </div>
+              <span className="flex-1 text-sm font-semibold text-foreground truncate">
+                {workspace?.name ?? "Workspace"}
+              </span>
+            </button>
+
+            <button
+              onClick={onToggleCollapse}
+              title="Collapse sidebar"
+              className="p-1 rounded hover:bg-accent transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100"
+            >
+              <ChevronsLeft className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+          </div>
         </div>
       )}
 
@@ -329,6 +305,9 @@ export default function Sidebar({
           ))
         )}
       </nav>
+
+      {/* App switcher — always visible, collapsed or not */}
+      <AppSwitcherDropdown workspaceId={workspaceId} collapsed={collapsed} />
 
       {/* User panel */}
       <UserPanel
