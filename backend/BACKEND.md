@@ -515,8 +515,8 @@ Available `{metric}` values:
 | Model | Key Fields | Notes |
 |-------|-----------|-------|
 | `LeavePolicy` | `workspace` (FK), `name`, `leave_type` (annual/sick/unpaid/paternity/maternity/compassionate), `days_per_year`, `carry_over_days`, `accrual_type` (upfront/monthly) | Workspace-level policy config; multiple policies per type allowed |
-| `LeaveBalance` | `employee` (FK→WorkspaceMember), `policy` (FK), `year`, `total_days`, `used_days`, `pending_days` | unique: employee+policy+year; indexes: `leave_balance_employee_year_idx` |
-| `LeaveRequest` | `employee` (FK→WorkspaceMember), `policy` (FK), `start_date`, `end_date`, `reason`, `status` (pending/approved/rejected/cancelled), `approver` (FK→User), `reviewer_comment`, `reviewed_at` | indexes: `leave_request_employee_status_idx`, `leave_request_policy_dates_idx` |
+| `LeaveBalance` | `employee` (FK→WorkspaceMember), `policy` (FK), `year`, `total_days`, `used_days`, `pending_days` | unique: employee+policy+year; indexes: `lb_employee_year_idx` |
+| `LeaveRequest` | `employee` (FK→WorkspaceMember), `policy` (FK), `start_date`, `end_date`, `reason`, `status` (pending/approved/rejected/cancelled), `approver` (FK→User), `reviewer_comment`, `reviewed_at` | indexes: `lr_employee_status_idx`, `leave_request_policy_dates_idx` |
 | `AttendancePolicy` | `workspace` (O2O), `work_start_time`, `work_end_time`, `grace_period_minutes`, `weekly_hours` | One per workspace; auto-created on first access with sensible defaults (09:00–17:00, 15 min grace, 40 h/week) |
 | `Attendance` | `employee` (FK→WorkspaceMember), `date`, `clock_in` (TimeField, nullable), `clock_out` (TimeField, nullable), `source` (manual/qr/api), `notes` | unique: employee+date (one row per employee per day) — this unique index also serves employee + date-range lookups, so no separate index. `clock_out=null` means still clocked in. |
 | `EmployeeDocument` | `employee` (FK→WorkspaceMember), `doc_type` (contract/id/certificate/other), `file`, `original_name`, `expiry_date` (nullable), `uploaded_by` (FK→User) | files in `employee_docs/`; admin-only access; index: `edoc_employee_idx`; serializer exposes `days_until_expiry` computed field |

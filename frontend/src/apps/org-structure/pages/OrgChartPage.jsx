@@ -188,10 +188,12 @@ function OrgNode({ node, x, y, zoom, isSelected, onSelect, onDragStart, isAdmin,
           isSelected ? "stroke-primary" : "hover:stroke-primary/40",
         )}
         strokeWidth={1}
-        style={{ filter: isSelected ? "drop-shadow(0 0 6px hsl(var(--primary)/0.3))" : undefined }}
+        style={{
+          filter: isSelected ? "drop-shadow(0 0 6px hsl(var(--primary)/0.3))" : undefined,
+          cursor: isAdmin ? "grab" : "pointer",
+        }}
         onClick={() => onSelect(node)}
         onMouseDown={(e) => isAdmin && e.button === 0 && onDragStart(e, node)}
-        style={{ cursor: isAdmin ? "grab" : "pointer" }}
       />
       <foreignObject width={NODE_W} height={NODE_H} style={{ pointerEvents: "none" }}>
         <div className={cn("flex items-center gap-2.5 h-full px-3", compact ? "py-2" : "py-3")}>

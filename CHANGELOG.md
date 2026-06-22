@@ -2173,7 +2173,135 @@ report.view       settings.manage   api_keys.manage
 
 ## ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-## PHASE E — PLATFORM & LAUNCH (Weeks 23–26)
+## PHASE E — ECOSYSTEM SHELL & APP PLATFORM (Weeks 22–24)
+
+## ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+> **Goal:** Transform the current flat-sidebar, single-URL frontend into a true app platform — each product module (Projects, Org Structure, HR) gets its own gated shell, independent navigation, and per-app membership. The workspace foundation (members + roles) remains the single source of truth.
+>
+> ⚠️ **Phase D integration note:** The per-app access flags (`project.view`, `hr.view`, `org.view`) that this phase enforces are the same `CustomRole` permission flags introduced in Phase D. Do NOT build a separate `AppMembership` model — this phase is a view over the RBAC system, not an additional access layer.
+
+---
+
+## vE.1 — Frontend Module Gating (Week 22)
+
+> Status: PLANNED 📋
+> **Intent:** The sidebar and routes should only show what a user's workspace has licensed and what their role permits.
+
+**Frontend**
+
+- `ModulesContext` + `useModules()` hook already fetches `/api/workspaces/:id/modules/` — extend it to gate nav links and route access
+- `ProtectedModuleRoute` component: wraps any route with a module key; renders `<ModuleUnavailablePage>` if the module is disabled for this workspace
+- `AppLayout` sidebar: each nav group (People, HR, etc.) hidden entirely when the workspace does not have that module enabled — not greyed out, fully absent
+- `ModuleUnavailablePage`: upgrade prompt explaining what the module does; CTA to the billing page; visible to all roles (even if user has access, a workspace-level module-off blocks it)
+- System roles `Admin`, `Member`, `Viewer` from Phase D now carry `hr.view`, `org.view` flags — sidebar visibility respects these in addition to module enablement
+
+---
+
+## vE.2 — App Switcher & Per-App Shell (Week 22–23)
+
+> Status: PLANNED 📋
+> **Intent:** Make the multi-app nature of JCN visible and navigable — not a flat list of links, but distinct apps a user switches between.
+
+**Frontend**
+
+- **App switcher** in the sidebar header (replaces the current workspace name + chevron area):
+  - Lists enabled apps: `Projects`, `Org Structure`, `HR Management`; icon + name per app
+  - Active app highlighted; clicking switches the sidebar context to that app's nav group
+  - Workspace switcher moved to a secondary popover (workspace name still visible, less prominent)
+- Each app context has its own sidebar nav section — switching app collapses the previous app's links and expands the selected app's links
+- URL structure stays `/w/:ws/...` — the app switcher is a UX layer only, no subdomain changes at this stage
+
+---
+
+## vE.3 — Per-App Membership & Roles (Week 23)
+
+> Status: PLANNED 📋
+> **Intent:** App-level access is already encoded in `CustomRole` permission flags from Phase D. This sub-phase makes that visible and manageable in the UI.
+>
+> ⚠️ **Architecture:** This is NOT a new `AppMembership` model. It is a filtered view of Phase D's `RoleAssignment`. A member's access to an app is determined entirely by whether their `CustomRole` has the `<app>.view` permission flag set. The admin UI simply surfaces this clearly.
+
+**Frontend — Workspace Settings → Members → App Access tab**
+
+- Per-member app access summary: which apps each member can reach, derived from their assigned `CustomRole`
+- Inline toggle per app per member (admin only): toggling off `hr.view` for a member switches them to a role without that flag (or prompts admin to create a restricted role)
+- Bulk assignment: select multiple members → set app access in one action
+- "App members" count shown on each app card in the app switcher
+
+---
+
+## vE.4 — App Setup Flows & Cross-App Roster Import (Week 24)
+
+> Status: PLANNED 📋
+> **Intent:** When an admin enables a new app, give them a guided setup flow that seeds the app with the right members in one action — not a manual re-invite process. This is the headline convenience feature of the ecosystem.
+
+**Frontend — App Setup Wizard (shown on first visit to a newly-enabled app)**
+
+- Step 1: Welcome screen — what this app does, what setup is needed
+- Step 2: **"Import members from another app"** — admin picks a source app (e.g. "Projects") and a role mapping: "Projects Admin → HR Manager, Projects Member → HR Member, Projects Viewer → HR Viewer"; preview shows who will be added with which role
+- Step 3: Confirm & apply — backend bulk-creates `RoleAssignment` records scoped to the target app's permission set
+- Step 4: Done — links to the app's main page
+
+**Backend**
+
+- `POST /api/workspaces/{ws}/apps/{app_key}/setup/seed-from-app/` — payload: `{source_app, role_mapping: [{source_role_id, target_role_id}]}`; reads existing `RoleAssignment` records for the source app's permission scope; bulk-creates `RoleAssignment` rows scoped to the target app; returns `{seeded: N, skipped: N}`
+- Idempotent: members who already have the target app's access are skipped, not duplicated
+
+---
+
+## ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+## PHASE F — WORKSPACE FEDERATION (Weeks 25–26)
+
+## ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+> **Goal:** Once a workspace is fully configured — members added, roles defined, app access assigned — an admin can carry that configuration into a new JCN workspace with a single action. "Set up once, deploy everywhere."
+>
+> **What this is NOT:** App-to-app live data sync. Projects tasks do not flow into HR records. HR leave data does not appear in project boards. This phase is purely about user identity and access configuration — not operational data integration between apps.
+
+---
+
+## vF.1 — Cross-Workspace Member Seeding (Week 25)
+
+> Status: PLANNED 📋
+> **Intent:** An organization running multiple JCN workspaces (e.g. one per client account, one per subsidiary) can onboard a new workspace's member roster from an existing one in one click — no manual re-inviting of every person.
+
+**Backend**
+
+- `FederationLink` model: `source_workspace` FK, `target_workspace` FK, `created_by` FK, `role_mapping` JSONField (`[{source_role_id, target_role_id}]`), `created_at` — records which workspace was seeded from which
+- `POST /api/workspaces/{ws}/federation/seed/` — payload: `{source_workspace_slug, role_mapping}`; reads `WorkspaceMember` roster from the source workspace (caller must be admin of both); bulk-creates `WorkspaceInvite` rows (or direct `WorkspaceMember` if user already has a JCN account) in the target; fires invite emails for new users; returns `{seeded: N, invited: N, skipped: N}`
+- Permission gate: caller must be admin of both source and target workspace — a non-admin cannot pull a roster they don't manage
+
+**Frontend — Workspace Settings → Members → Import from workspace**
+
+- "Import members" button in the members page header
+- Modal: workspace picker (lists workspaces the admin manages), role mapping table (source roles left, target role dropdowns right), preview of members to be added with their mapped role, confirm button
+- Progress toast: "Seeding 47 members…" with live count update
+
+---
+
+## vF.2 — Federation Dashboard & Audit (Week 26)
+
+> Status: PLANNED 📋
+> **Intent:** Give admins visibility into which workspaces are federated, when the last seed happened, and what the role mapping looks like — so cross-workspace access is manageable and auditable.
+
+**Backend**
+
+- `GET /api/workspaces/{ws}/federation/` — returns `FederationLink` records where this workspace is source or target; includes `member_count`, `last_seeded_at`, `role_mapping`
+- `DELETE /api/workspaces/{ws}/federation/{id}/` — removes the link record (does NOT remove already-added members; this is a record-keeping action, not a sync revocation)
+- All seed operations logged to `AuditEvent` (already exists from v2.1.0) with action `federation.seed`
+
+**Frontend — Workspace Settings → Federation tab**
+
+- Federation card per linked workspace: name, direction (source / target), member count seeded, last seed date, role mapping summary, "Re-seed" button (adds any new members that joined the source since last seed), "Remove link" button
+- Audit log: filter `AuditEvent` by `federation.*` to see full seeding history with actor + timestamp
+- Empty state: "No federated workspaces yet" with explanation and "Import members from another workspace" CTA
+
+---
+
+## ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+## PHASE G — PLATFORM & LAUNCH (Weeks 27–30)
 
 ## ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -2181,7 +2309,7 @@ report.view       settings.manage   api_keys.manage
 
 ---
 
-## vE.1 — Mobile PWA (Week 23)
+## vG.1 — Mobile PWA (Week 27)
 
 > Status: PLANNED 📋
 > **Scope:** The highest-value mobile flows only — not full feature parity. Full feature parity is a separate milestone.
@@ -2196,7 +2324,7 @@ report.view       settings.manage   api_keys.manage
 
 ---
 
-## vE.2 — Billing & Plans (Week 24)
+## vG.2 — Billing & Plans (Week 28)
 
 > Status: PLANNED 📋
 
@@ -2222,7 +2350,7 @@ report.view       settings.manage   api_keys.manage
 
 ---
 
-## vE.3 — Public Landing Page (Week 25)
+## vG.3 — Public Landing Page (Week 29)
 
 > Status: PLANNED 📋
 > **Why now and not earlier:** The landing page ships here because the ecosystem is complete — Projects, Org Structure, and HR are all live. The pitch is no longer "another project management tool" but "replace your entire tool stack." Three apps in an ecosystem is a story worth telling. One app is not.
@@ -2247,7 +2375,7 @@ report.view       settings.manage   api_keys.manage
 
 ---
 
-## vE.4 — Launch Prep (Week 26)
+## vG.4 — Launch Prep (Week 30)
 
 > Status: PLANNED 📋
 
@@ -2266,6 +2394,7 @@ report.view       settings.manage   api_keys.manage
 
 ---
 
+
 ## Ecosystem v2 — 6-Month Summary
 
 | Phase | Weeks | What Ships | Why It Matters |
@@ -2274,7 +2403,9 @@ report.view       settings.manage   api_keys.manage
 | **B — Org Structure** | 3–9 | Departments, teams, employee profiles, org chart | Company skeleton every team needs daily |
 | **C — HR Management** | 10–17 | Leave management, attendance tracking, HR dashboard | Replaces BambooHR for small businesses |
 | **D — Custom RBAC** | 18–21 | Role builder, granular permission flags, role assignment UI | Secure three apps properly with one permission layer |
-| **E — Platform & Launch** | 22–26 | Mobile PWA, billing & plans, **ecosystem landing page**, performance, public launch | Build the story last — once there's a full ecosystem to tell it |
+| **E — Ecosystem Shell** | 22–24 | Module gating, app switcher, per-app access, cross-app roster import | Transform the flat sidebar into a true app platform |
+| **F — Workspace Federation** | 25–26 | Cross-workspace member seeding, role mapping, federation audit | Set up once, deploy everywhere — reuse your configured workspace across apps |
+| **G — Platform & Launch** | 27–30 | Mobile PWA, billing & plans, **ecosystem landing page**, performance, public launch | Ship when the ecosystem story is complete |
 
 > **After these 6 months JCN will be:**
 >
@@ -2295,7 +2426,7 @@ report.view       settings.manage   api_keys.manage
 
 ## ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-## PHASE F — AUTOMATION ENGINE REBUILD
+## PHASE H — AUTOMATION ENGINE REBUILD
 
 ## ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -2307,7 +2438,7 @@ report.view       settings.manage   api_keys.manage
 
 ---
 
-## vF.1 — Async Execution Engine (Backend)
+## vH.1 — Async Execution Engine (Backend)
 
 > Status: PLANNED 📋
 
@@ -2393,7 +2524,7 @@ stop_execution     # early exit with optional notification
 
 ---
 
-## vF.2 — Visual Flow Builder (Frontend)
+## vH.2 — Visual Flow Builder (Frontend)
 
 > Status: PLANNED 📋
 
@@ -2413,7 +2544,7 @@ stop_execution     # early exit with optional notification
 
 ## ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-## PHASE G — RECRUITMENT & ATS
+## PHASE I — RECRUITMENT & ATS
 
 ## ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -2425,7 +2556,7 @@ stop_execution     # early exit with optional notification
 
 ---
 
-## vG.1 — Job Postings & Candidate Pipeline (Backend)
+## vI.1 — Job Postings & Candidate Pipeline (Backend)
 
 > Status: PLANNED 📋
 
@@ -2464,7 +2595,7 @@ stop_execution     # early exit with optional notification
 
 ---
 
-## vG.2 — Recruitment Frontend
+## vI.2 — Recruitment Frontend
 
 > Status: PLANNED 📋
 
@@ -2509,6 +2640,5 @@ stop_execution     # early exit with optional notification
 
 | Phase | Name | App | Status |
 |-------|------|-----|--------|
-| F | Automation Engine Rebuild | `automations/` | 📋 Planned |
-| G | Recruitment & ATS | `recruitment/` | 📋 Planned |
-| H | Workspace Federation | `workspaces/` | 🔮 Future |
+| H | Automation Engine Rebuild | `automations/` | 📋 Planned |
+| I | Recruitment & ATS | `recruitment/` | 📋 Planned |

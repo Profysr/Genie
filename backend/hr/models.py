@@ -51,7 +51,7 @@ class LeaveBalance(models.Model):
     class Meta:
         unique_together = ["employee", "policy", "year"]
         indexes = [
-            models.Index(fields=["employee", "year"], name="leave_balance_employee_year_idx"),
+            models.Index(fields=["employee", "year"], name="lb_employee_year_idx"),
         ]
 
     def __str__(self):
@@ -88,7 +88,7 @@ class LeaveRequest(models.Model):
     class Meta:
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["employee", "status"], name="leave_request_employee_status_idx"),
+            models.Index(fields=["employee", "status"], name="lr_employee_status_idx"),
             models.Index(fields=["policy", "start_date", "end_date"], name="leave_request_policy_dates_idx"),
         ]
 
