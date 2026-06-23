@@ -1,12 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { X, Plus, Check } from "lucide-react";
-import {
-  PRIORITIES,
-  LABEL_COLORS as LABEL_COLOR_PALETTE,
-} from "@/shared/lib/constants";
+import { PRIORITIES, LABEL_COLORS } from "@/shared/lib/constants";
 import { cn } from "@/shared/lib/utils";
-
-export const LABEL_COLORS = LABEL_COLOR_PALETTE;
 
 export const PRIORITY_OPTIONS = PRIORITIES.map((p) => ({
   value: p.value,

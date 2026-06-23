@@ -241,7 +241,7 @@ function Edge({ fromPos, toPos }) {
 
 // ── Profile popover ───────────────────────────────────────────────────────────
 function NodePopover({ node, onClose, isAdmin, workspaceId, members }) {
-  const member = members.find((m) => m.id === node.id);
+  // const member = members.find((m) => m.id === node.id);
 
   return (
     <div

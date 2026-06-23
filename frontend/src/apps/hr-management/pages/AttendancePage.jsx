@@ -348,7 +348,7 @@ function WeeklyChart({ records, expectedHours, weekOffset, setWeekOffset }) {
 
 // ── Admin Attendance Grid ─────────────────────────────────────────────────────
 
-function AdminGrid({ workspaceId, isAdmin }) {
+function AdminGrid({ workspaceId }) {
   const [weekOffset, setWeekOffset] = useState(0);
   const { from, to, mon } = weekRange(weekOffset);
 
