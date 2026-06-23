@@ -4,6 +4,7 @@ import api from "@/shared/lib/api";
 
 const ModuleContext = createContext({ modules: [], isLoaded: false });
 
+//‼️ Change the slate time to infinity because it's gonna change only when user toggle on/off modules through the settings. if needed create a hook useModules, define all of these functions into one file
 export function ModuleProvider({ workspaceId, children }) {
   const { data: modules = [], isSuccess } = useQuery({
     queryKey: ["workspace-modules", workspaceId],

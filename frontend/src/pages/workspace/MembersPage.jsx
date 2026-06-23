@@ -18,9 +18,6 @@ import {
   CheckSquare,
   Square,
   UserCheck,
-  FolderKanban,
-  Network,
-  Users2,
   Check,
   Minus,
 } from "lucide-react";
@@ -36,6 +33,7 @@ import {
 } from "@/shared/hooks/useMembers";
 import { useRoles, useAssignRole, useBulkAssignRole } from "@/shared/hooks/useRoles";
 import { useModules } from "@/shared/hooks/useModules";
+import { APP_DEFS } from "@/shared/lib/navLinks";
 import { useWorkspace } from "@/shared/hooks/useWorkspace";
 import { useAuthStore } from "@/store/authStore";
 import api from "@/shared/lib/api";
@@ -82,12 +80,10 @@ const EMPLOYMENT_TYPES = [
   { value: "intern", label: "Intern", color: "bg-violet-100 text-violet-700" },
 ];
 
-/** App definitions used in the App Access tab. */
-const APP_ACCESS_DEFS = [
-  { key: "projects", label: "Projects", icon: FolderKanban, permKey: null, moduleKey: null, color: "text-blue-500" },
-  { key: "org_structure", label: "Org Structure", icon: Network, permKey: "org.view", moduleKey: "org_structure", color: "text-indigo-500" },
-  { key: "hr_management", label: "HR", icon: Users2, permKey: "hr.view", moduleKey: "hr_management", color: "text-purple-500" },
-];
+/** App definitions used in the App Access tab — derived from the central APP_DEFS registry. */
+const APP_ACCESS_DEFS = APP_DEFS
+  .filter((a) => a.key !== "workspace")
+  .map((a) => ({ ...a, label: a.shortLabel }));
 
 /* ==========================================
    INVITE FORM WORKSPACE HEADER
@@ -477,8 +473,9 @@ function getMemberRole(member, roles) {
 }
 
 /** Returns true if the member's role grants access to an app. */
-function memberHasAppAccess(member, appDef, roles) {
-  if (!appDef.permKey) return true; // projects — always_on
+function memberHasAppAccess(member, appDef, roles, isWorkspaceOwner) {
+  if (isWorkspaceOwner || member.role === "Admin") return true;
+  if (!appDef.permKey) return true;
   const role = getMemberRole(member, roles);
   return role?.permissions?.[appDef.permKey] === true;
 }
@@ -525,7 +522,6 @@ function AppAccessCell({ hasAccess, appDef, isInteractive, onToggle }) {
 }
 
 function AppAccessTab({ workspaceId, members, roles, isAdmin, user, workspace }) {
-  const { workspaceId: wsId } = useParams();
   const { isEnabled } = useModules();
   const assignRole = useAssignRole(workspaceId);
   const bulkAssignRole = useBulkAssignRole(workspaceId);
@@ -596,7 +592,7 @@ function AppAccessTab({ workspaceId, members, roles, isAdmin, user, workspace })
   const appMemberCounts = Object.fromEntries(
     visibleApps.map((app) => [
       app.key,
-      members.filter((m) => memberHasAppAccess(m, app, roles)).length,
+      members.filter((m) => memberHasAppAccess(m, app, roles, workspace?.owner?.email === m.user?.email)).length,
     ]),
   );
 
@@ -750,8 +746,7 @@ function AppAccessTab({ workspaceId, members, roles, isAdmin, user, workspace })
 
                 {/* App access cells */}
                 {visibleApps.map((app) => {
-                  const hasAccess = memberHasAppAccess(member, app, roles);
-                  // Projects is always_on — cells are display-only
+                  const hasAccess = memberHasAppAccess(member, app, roles, isWorkspaceOwner);
                   const interactive = isAdmin && !!app.permKey && !isSelf && !isWorkspaceOwner;
                   return (
                     <div key={app.key} className="px-2 py-3">
@@ -908,7 +903,7 @@ export default function MembersPage() {
   return (
     <div className="flex h-full">
       {/* Main content */}
-      <div className={cn("flex-1 overflow-y-auto p-8 space-y-6", selectedMember && "max-w-3xl")}>
+      <div className="flex-1 overflow-y-auto p-8 space-y-6">
         {/* Page header */}
         <div className="flex items-center justify-between">
           <div>

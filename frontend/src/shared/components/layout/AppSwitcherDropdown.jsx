@@ -2,19 +2,12 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/shared/lib/utils";
 import { LayoutGrid } from "lucide-react";
-import { APP_DEFS, APP_LANDING, workspaceUrl } from "@/shared/lib/navLinks";
+import { APP_DEFS, workspaceUrl } from "@/shared/lib/navLinks";
 import { useModules } from "@/shared/hooks/useModules";
 import { useActiveApp } from "@/shared/hooks/useActiveApp";
 import { Tooltip } from "@/shared/components/ui/tooltip";
 
-const APP_COLORS = {
-  projects:      { bg: "bg-violet-500/15",  text: "text-violet-500",  dot: "bg-violet-500" },
-  org_structure: { bg: "bg-blue-500/15",    text: "text-blue-500",    dot: "bg-blue-500" },
-  hr_management: { bg: "bg-emerald-500/15", text: "text-emerald-500", dot: "bg-emerald-500" },
-  workspace:     { bg: "bg-slate-500/15",   text: "text-slate-400",   dot: "bg-slate-400" },
-};
-
-function AppList({ workspaceId, activeApp, visibleApps, onNavigate }) {
+function AppList({ activeApp, visibleApps, onNavigate }) {
   return (
     <div className="py-1">
       <p className="px-3 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50 select-none">
@@ -23,7 +16,7 @@ function AppList({ workspaceId, activeApp, visibleApps, onNavigate }) {
       {visibleApps.map((app) => {
         const Icon = app.icon;
         const isActive = activeApp === app.key;
-        const c = APP_COLORS[app.key] ?? APP_COLORS.projects;
+        const c = app.colors;
         return (
           <button
             key={app.key}
@@ -43,7 +36,7 @@ function AppList({ workspaceId, activeApp, visibleApps, onNavigate }) {
               {app.label}
             </span>
             {isActive && (
-              <div className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", c.dot)} />
+              <div className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", c.solid)} />
             )}
           </button>
         );
@@ -66,7 +59,7 @@ export default function AppSwitcherDropdown({ workspaceId, collapsed }) {
   );
 
   const currentApp = APP_DEFS.find((a) => a.key === activeApp);
-  const colors = APP_COLORS[currentApp?.key] ?? APP_COLORS.projects;
+  const colors = currentApp?.colors ?? APP_DEFS[0].colors;
   const CurrentIcon = currentApp?.icon ?? LayoutGrid;
 
   useEffect(() => {
@@ -79,7 +72,7 @@ export default function AppSwitcherDropdown({ workspaceId, collapsed }) {
   }, [open]);
 
   const handleNavigate = (app) => {
-    navigate(workspaceUrl(workspaceId, APP_LANDING[app.key]));
+    navigate(workspaceUrl(workspaceId, app.landing));
     setOpen(false);
   };
 
@@ -105,7 +98,6 @@ export default function AppSwitcherDropdown({ workspaceId, collapsed }) {
         {open && (
           <div className="absolute left-full bottom-0 ml-2 z-50 w-56 bg-popover border border-border rounded-lg shadow-lg overflow-hidden animate-scale-in origin-bottom-left">
             <AppList
-              workspaceId={workspaceId}
               activeApp={activeApp}
               visibleApps={visibleApps}
               onNavigate={handleNavigate}
@@ -143,7 +135,6 @@ export default function AppSwitcherDropdown({ workspaceId, collapsed }) {
       {open && (
         <div className="absolute left-3 right-3 bottom-full mb-1 z-50 bg-popover border border-border rounded-lg shadow-lg overflow-hidden animate-scale-in origin-bottom">
           <AppList
-            workspaceId={workspaceId}
             activeApp={activeApp}
             visibleApps={visibleApps}
             onNavigate={handleNavigate}

@@ -1,33 +1,85 @@
 # ── vD.1 — Custom RBAC ───────────────────────────────────────────────────────
 # All permission keys recognised by the system.
 # Each entry: key → human-readable description (shown in the role builder UI).
+# Each entry: key → {group, label}.
+# This is the single source of truth for permission keys, human-readable labels,
+# and display grouping. The roles API exposes this dict as `permission_definitions`
+# so the frontend can build the role editor dynamically — add a permission here
+# and it appears everywhere automatically, with no frontend changes required.
+#
+# Group order follows Python dict insertion order (3.7+), which is preserved
+# through JSON serialisation, so the frontend uses the same order without extra config.
 PERMISSIONS = {
-    # ── Projects / Boards ────────────────────────────────────────────────────
-    "project.create":       "Create new projects / boards",
-    "project.delete":       "Delete projects / boards",
-    "project.admin":        "Manage project settings, members, and statuses",
-    # ── Kanban / Tasks (checked per-action in has_project_permission) ────────
-    "task.view":            "View tasks and board content",
-    "task.create":          "Create tasks",
-    "task.edit":            "Edit task fields (title, assignee, due date, etc.)",
-    "task.delete":          "Delete tasks",
-    "task.move":            "Move tasks between statuses (drag-and-drop)",
-    "task.comment":         "Post and edit comments on tasks",
-    "sprint.manage":        "Create, start, and complete sprints",
-    "automation.manage":    "Create and edit automation rules",
-    # ── People & HR ──────────────────────────────────────────────────────────
-    "member.invite":        "Invite new members to the workspace",
-    "member.remove":        "Remove members from the workspace",
-    "member.view_profile":  "View member org profiles and contact info",
-    "hr.view":              "View HR section (leave balances, attendance)",
-    "hr.manage_leave":      "Approve or reject leave requests",
-    "hr.manage_attendance": "Manage attendance records and policies",
-    "org.view":             "View org chart, departments, and teams",
-    "org.manage":           "Create and edit departments, teams, and reporting lines",
-    # ── Workspace ────────────────────────────────────────────────────────────
-    "report.view":          "View analytics and reports",
-    "settings.manage":      "Manage workspace settings and integrations",
-    "api_keys.manage":      "Create and revoke API keys",
+    # ── App Access ────────────────────────────────────────────────────────────
+    "projects.view": {
+        "group": "App Access",
+        "label": "Access the Projects app (boards, tasks, sprints)",
+    },
+    "org.view": {
+        "group": "App Access",
+        "label": "View org chart, departments, and teams",
+    },
+    "hr.view": {
+        "group": "App Access",
+        "label": "View HR section (leave balances, attendance)",
+    },
+    # ── Boards ─────────────────────────────────────────────────────
+    "project.create": {
+        "group": "Boards",
+        "label": "Create new boards",
+    },
+    "project.delete": {
+        "group": "Boards",
+        "label": "Delete boards",
+    },
+    "project.admin": {
+        "group": "Boards",
+        "label": "Manage project settings, members, and statuses",
+    },
+    # ── Tasks ─────────────────────────────────────────────────────────────────
+    "task.view": {"group": "Tasks", "label": "View tasks and board content"},
+    "task.create": {"group": "Tasks", "label": "Create tasks"},
+    "task.edit": {
+        "group": "Tasks",
+        "label": "Edit task fields (title, assignee, due date, etc.)",
+    },
+    "task.delete": {"group": "Tasks", "label": "Delete tasks"},
+    "task.move": {
+        "group": "Tasks",
+        "label": "Move tasks between statuses (drag-and-drop)",
+    },
+    "task.comment": {"group": "Tasks", "label": "Post and edit comments on tasks"},
+    "sprint.manage": {"group": "Tasks", "label": "Create, start, and complete sprints"},
+    "automation.manage": {
+        "group": "Tasks",
+        "label": "Create and edit automation rules",
+    },
+    # ── People ────────────────────────────────────────────────────────────────
+    "member.invite": {
+        "group": "People",
+        "label": "Invite new members to the workspace",
+    },
+    "member.remove": {"group": "People", "label": "Remove members from the workspace"},
+    "member.view_profile": {
+        "group": "People",
+        "label": "View member org profiles and contact info",
+    },
+    "hr.manage_leave": {"group": "People", "label": "Approve or reject leave requests"},
+    "hr.manage_attendance": {
+        "group": "People",
+        "label": "Manage attendance records and policies",
+    },
+    "org.manage": {
+        "group": "People",
+        "label": "Create and edit departments, teams, and reporting lines",
+    },
+    # ── Workspace ─────────────────────────────────────────────────────────────
+    "report.view": {"group": "Workspace", "label": "View analytics and reports"},
+    "settings.manage": {
+        "group": "Workspace",
+        "label": "Manage workspace settings and integrations",
+    },
+    "api_keys.manage": {"group": "Workspace", "label": "Create and revoke API keys"},
 }
 
 # Any key NOT in PERMISSIONS is still accepted by the API — PERMISSIONS is a
@@ -43,52 +95,54 @@ _ALL_KEYS = list(PERMISSIONS.keys())
 SYSTEM_ROLE_PERMISSIONS = {
     "Admin": {key: True for key in _ALL_KEYS},
     "Member": {
-        "project.create":       True,
-        "project.delete":       False,
-        "project.admin":        False,
-        "task.view":            True,
-        "task.create":          True,
-        "task.edit":            True,
-        "task.delete":          False,
-        "task.move":            True,
-        "task.comment":         True,
-        "sprint.manage":        True,
-        "automation.manage":    False,
-        "member.invite":        True,
-        "member.remove":        False,
-        "member.view_profile":  True,
-        "hr.view":              True,
-        "hr.manage_leave":      False,
+        "projects.view": True,
+        "project.create": True,
+        "project.delete": False,
+        "project.admin": False,
+        "task.view": True,
+        "task.create": True,
+        "task.edit": True,
+        "task.delete": False,
+        "task.move": True,
+        "task.comment": True,
+        "sprint.manage": True,
+        "automation.manage": False,
+        "member.invite": True,
+        "member.remove": False,
+        "member.view_profile": True,
+        "hr.view": True,
+        "hr.manage_leave": False,
         "hr.manage_attendance": False,
-        "org.view":             True,
-        "org.manage":           False,
-        "report.view":          True,
-        "settings.manage":      False,
-        "api_keys.manage":      False,
+        "org.view": True,
+        "org.manage": False,
+        "report.view": True,
+        "settings.manage": False,
+        "api_keys.manage": False,
     },
     "Viewer": {
-        "project.create":       False,
-        "project.delete":       False,
-        "project.admin":        False,
-        "task.view":            True,
-        "task.create":          False,
-        "task.edit":            False,
-        "task.delete":          False,
-        "task.move":            False,
-        "task.comment":         False,
-        "sprint.manage":        False,
-        "automation.manage":    False,
-        "member.invite":        False,
-        "member.remove":        False,
-        "member.view_profile":  True,
-        "hr.view":              True,
-        "hr.manage_leave":      False,
+        "projects.view": True,
+        "project.create": False,
+        "project.delete": False,
+        "project.admin": False,
+        "task.view": True,
+        "task.create": False,
+        "task.edit": False,
+        "task.delete": False,
+        "task.move": False,
+        "task.comment": False,
+        "sprint.manage": False,
+        "automation.manage": False,
+        "member.invite": False,
+        "member.remove": False,
+        "member.view_profile": True,
+        "hr.view": True,
+        "hr.manage_leave": False,
         "hr.manage_attendance": False,
-        "org.view":             True,
-        "org.manage":           False,
-        "report.view":          True,
-        "settings.manage":      False,
-        "api_keys.manage":      False,
+        "org.view": True,
+        "org.manage": False,
+        "report.view": True,
+        "settings.manage": False,
+        "api_keys.manage": False,
     },
 }
 

@@ -25,9 +25,6 @@ import {
   Webhook,
   Upload,
   LayoutGrid,
-  Building2,
-  UsersRound,
-  BarChart2,
   Lock,
   ShieldCheck,
   Plus,
@@ -36,48 +33,39 @@ import {
   Save,
   ChevronDown,
 } from "lucide-react";
+import { APP_DEFS } from "@/shared/lib/navLinks";
 import { Link } from "react-router-dom";
 
-// ── Permission groups (mirrors constants.py comment headers) ─────────────────
-const PERMISSION_GROUPS = [
-  {
-    label: "Projects / Boards",
-    keys: ["project.create", "project.delete", "project.admin"],
-  },
-  {
-    label: "Kanban / Tasks",
-    keys: [
-      "task.view", "task.create", "task.edit", "task.delete",
-      "task.move", "task.comment", "sprint.manage", "automation.manage",
-    ],
-  },
-  {
-    label: "People & HR",
-    keys: [
-      "member.invite", "member.remove", "member.view_profile",
-      "hr.view", "hr.manage_leave", "hr.manage_attendance",
-      "org.view", "org.manage",
-    ],
-  },
-  {
-    label: "Workspace",
-    keys: ["report.view", "settings.manage", "api_keys.manage"],
-  },
-];
-
-// Auto-enable required permissions when toggling on a dependent one
+// Auto-enable required permissions when toggling on a dependent one.
+// This is a UX convenience — kept on the frontend intentionally since it's
+// about interaction behaviour, not permission enforcement.
 const REQUIRES = {
-  "hr.manage_leave": ["hr.view"],
+  "hr.manage_leave":      ["hr.view"],
   "hr.manage_attendance": ["hr.view"],
-  "org.manage": ["org.view"],
+  "org.manage":           ["org.view"],
 };
+
+/**
+ * Derive ordered groups from permission_definitions returned by the roles API.
+ * Shape: { [key]: { group: string, label: string } }
+ * Group order follows the insertion order from the backend (constants.py).
+ */
+function buildPermissionGroups(defs) {
+  const grouped = {};
+  for (const [key, def] of Object.entries(defs)) {
+    const group = def?.group ?? "Other";
+    if (!grouped[group]) grouped[group] = [];
+    grouped[group].push(key);
+  }
+  return Object.entries(grouped).map(([label, keys]) => ({ label, keys }));
+}
 
 // ── Permission Preview Card ───────────────────────────────────────────────────
 function PermissionPreview({ perms, defs }) {
   const [open, setOpen] = useState(false);
   const enabled = Object.entries(perms)
     .filter(([, v]) => v)
-    .map(([k]) => defs[k] ?? k);
+    .map(([k]) => defs[k]?.label ?? k);
 
   return (
     <div className="rounded-md border bg-muted/30">
@@ -213,7 +201,7 @@ function RoleEditor({ role, workspaceId, onClose }) {
       </div>
 
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
-        {PERMISSION_GROUPS.map((group) => (
+        {buildPermissionGroups(defs).map((group) => (
           <div key={group.label}>
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
               {group.label}
@@ -223,7 +211,7 @@ function RoleEditor({ role, workspaceId, onClose }) {
                 <PermissionToggle
                   key={key}
                   permKey={key}
-                  label={defs[key] ?? key}
+                  label={defs[key]?.label ?? key}
                   checked={!!perms[key]}
                   onChange={(val) => handleToggle(key, val)}
                   disabled={isSystem}
@@ -406,13 +394,7 @@ function RolesSection({ workspaceId, isAdmin }) {
   );
 }
 
-// ── Module icon map ───────────────────────────────────────────────────────────
-const MODULE_ICONS = {
-  projects:          LayoutGrid,
-  org_structure:     Building2,
-  hr_management:     UsersRound,
-  analytics_advanced: BarChart2,
-};
+const _appByKey = Object.fromEntries(APP_DEFS.map((a) => [a.key, a]));
 
 const TIER_STYLES = {
   free:       "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
@@ -467,7 +449,7 @@ function ModuleCard({ mod, allModules, workspaceId, isAdmin }) {
   });
   const canToggle = isAdmin && !mod.always_on && unmetDeps.length === 0;
 
-  const Icon = MODULE_ICONS[mod.key] ?? LayoutGrid;
+  const Icon = _appByKey[mod.key]?.icon ?? LayoutGrid;
 
   const handleToggle = async (next) => {
     setError("");
@@ -692,7 +674,7 @@ export default function SettingsPage() {
           <div
             className="grid gap-2"
             style={{
-              gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
             }}
           >
             {OtherPages.map((item) => {

@@ -1,48 +1,10 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { WORKSPACE_NAV_ITEMS, workspaceUrl } from "@/shared/lib/navLinks";
+import { APP_DEFS, WORKSPACE_NAV_ITEMS, workspaceUrl } from "@/shared/lib/navLinks";
 import { useModules } from "@/shared/hooks/useModules";
-import {
-  FolderKanban,
-  Network,
-  Users2,
-  BarChart2,
-  Lock,
-  ArrowUpRight,
-} from "lucide-react";
+import { Lock, ArrowUpRight } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
-/**
- * Frontend-only visual metadata per module key.
- * Name and description come from the API — only icon, color, and landing route live here.
- * The API also returns an `icon` string field which we destructure out before spreading
- * so it doesn't overwrite our Lucide component reference.
- */
-const MODULE_VISUAL = {
-  projects: {
-    Icon: FolderKanban,
-    landing: "boards",
-    iconBg: "bg-violet-500/15",
-    iconColor: "text-violet-500",
-  },
-  org_structure: {
-    Icon: Network,
-    landing: "departments",
-    iconBg: "bg-blue-500/15",
-    iconColor: "text-blue-500",
-  },
-  hr_management: {
-    Icon: Users2,
-    landing: "hr",
-    iconBg: "bg-emerald-500/15",
-    iconColor: "text-emerald-500",
-  },
-  analytics_advanced: {
-    Icon: BarChart2,
-    landing: "analytics",
-    iconBg: "bg-amber-500/15",
-    iconColor: "text-amber-500",
-  },
-};
+const _appByKey = Object.fromEntries(APP_DEFS.map((a) => [a.key, a]));
 
 const WORKSPACE_PAGES = WORKSPACE_NAV_ITEMS;
 
@@ -51,9 +13,11 @@ export default function AppLauncherPage() {
   const navigate = useNavigate();
   const { modules, isLoading: modulesLoading } = useModules();
 
+  // API returns name/description/tier; APP_DEFS supplies icon, landing, colors.
+  // Discard the API's string `icon` field so it doesn't shadow the Lucide component.
   const apps = modules
-    .filter((m) => MODULE_VISUAL[m.key])
-    .map(({ icon: _apiIcon, ...m }) => ({ ...MODULE_VISUAL[m.key], ...m }));
+    .filter((m) => _appByKey[m.key])
+    .map(({ icon: _apiIcon, ...m }) => ({ ...m, ..._appByKey[m.key] }));
 
   return (
     <div className="flex-1 overflow-auto">
@@ -75,7 +39,7 @@ export default function AppLauncherPage() {
                 />
               ))
             : apps.map((app) => {
-                const { Icon } = app;
+                const Icon = app.icon;
                 const locked = !app.is_enabled;
 
                 return (
@@ -95,10 +59,10 @@ export default function AppLauncherPage() {
                     <div
                       className={cn(
                         "w-11 h-11 rounded-xl flex items-center justify-center mb-4",
-                        app.iconBg,
+                        app.colors.bg,
                       )}
                     >
-                      <Icon className={cn("w-5 h-5", app.iconColor)} />
+                      <Icon className={cn("w-5 h-5", app.colors.text)} />
                     </div>
 
                     <div className="flex items-center gap-1.5 mb-1.5">
