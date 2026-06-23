@@ -1,5 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/lib/api";
+import { useInvalidatingMutation } from "@/shared/hooks/useInvalidatingMutation";
 
 export const useBoards = (workspaceId) =>
   useQuery({
@@ -23,40 +24,28 @@ export const useBoard = (workspaceId, boardId) =>
     retry: false, // don't retry 403/404 — they won't change
   });
 
-export const useCreateBoard = (workspaceId) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data) =>
+export const useCreateBoard = (workspaceId) =>
+  useInvalidatingMutation(
+    (data) =>
       api
         .post(`/api/workspaces/${workspaceId}/boards/`, data)
         .then((r) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["boards", workspaceId] });
-      qc.invalidateQueries({ queryKey: ["portfolio", workspaceId] });
-    },
-  });
-};
+    ["boards", workspaceId],
+    ["portfolio", workspaceId],
+  );
 
-export const useUpdateBoard = (workspaceId, boardId) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data) =>
+export const useUpdateBoard = (workspaceId, boardId) =>
+  useInvalidatingMutation(
+    (data) =>
       api
         .patch(`/api/workspaces/${workspaceId}/boards/${boardId}/`, data)
         .then((r) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["board", workspaceId, boardId] });
-      qc.invalidateQueries({ queryKey: ["portfolio", workspaceId] });
-    },
-  });
-};
+    ["board", workspaceId, boardId],
+    ["portfolio", workspaceId],
+  );
 
-export const useDeleteBoard = (workspaceId) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (boardId) =>
-      api.delete(`/api/workspaces/${workspaceId}/boards/${boardId}/`),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["portfolio", workspaceId] }),
-  });
-};
+export const useDeleteBoard = (workspaceId) =>
+  useInvalidatingMutation(
+    (boardId) => api.delete(`/api/workspaces/${workspaceId}/boards/${boardId}/`),
+    ["portfolio", workspaceId],
+  );

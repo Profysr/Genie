@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/lib/api";
 import { SOCKET_BACKED } from "@/shared/lib/queryClient";
+import { useInvalidatingMutation } from "@/shared/hooks/useInvalidatingMutation";
 
 const sprintsKey = (ws, proj) => ["sprints", ws, proj];
 const sprintDetailKey = (ws, proj, sprintId) => ["sprint", ws, proj, sprintId];
@@ -31,17 +32,14 @@ export const useSprintDetail = (workspaceId, boardId, sprintId) =>
     ...SOCKET_BACKED,
   });
 
-export const useCreateSprint = (workspaceId, boardId) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data) =>
+export const useCreateSprint = (workspaceId, boardId) =>
+  useInvalidatingMutation(
+    (data) =>
       api
         .post(`/api/workspaces/${workspaceId}/boards/${boardId}/sprints/`, data)
         .then((r) => r.data),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: sprintsKey(workspaceId, boardId) }),
-  });
-};
+    sprintsKey(workspaceId, boardId),
+  );
 
 export const useUpdateSprint = (workspaceId, boardId) => {
   const qc = useQueryClient();
@@ -62,17 +60,14 @@ export const useUpdateSprint = (workspaceId, boardId) => {
   });
 };
 
-export const useDeleteSprint = (workspaceId, boardId) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (sprintId) =>
+export const useDeleteSprint = (workspaceId, boardId) =>
+  useInvalidatingMutation(
+    (sprintId) =>
       api.delete(
         `/api/workspaces/${workspaceId}/boards/${boardId}/sprints/${sprintId}/`,
       ),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: sprintsKey(workspaceId, boardId) }),
-  });
-};
+    sprintsKey(workspaceId, boardId),
+  );
 
 export const useSprintBurndown = (workspaceId, boardId, sprintId) =>
   useQuery({

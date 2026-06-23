@@ -1,9 +1,12 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import api from "@/shared/lib/api";
+import { useInvalidatingMutation } from "@/shared/hooks/useInvalidatingMutation";
+
+const webhooksKey = (workspaceId) => ["webhooks", workspaceId];
 
 export function useWebhooks(workspaceId) {
   return useQuery({
-    queryKey: ["webhooks", workspaceId],
+    queryKey: webhooksKey(workspaceId),
     queryFn: () =>
       api.get(`/api/workspaces/${workspaceId}/webhooks/`).then((r) => r.data),
     enabled: !!workspaceId,
@@ -12,37 +15,30 @@ export function useWebhooks(workspaceId) {
 }
 
 export function useCreateWebhook(workspaceId) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data) =>
+  return useInvalidatingMutation(
+    (data) =>
       api
         .post(`/api/workspaces/${workspaceId}/webhooks/`, data)
         .then((r) => r.data),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["webhooks", workspaceId] }),
-  });
+    webhooksKey(workspaceId),
+  );
 }
 
 export function useUpdateWebhook(workspaceId) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ hookId, ...data }) =>
+  return useInvalidatingMutation(
+    ({ hookId, ...data }) =>
       api
         .patch(`/api/workspaces/${workspaceId}/webhooks/${hookId}/`, data)
         .then((r) => r.data),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["webhooks", workspaceId] }),
-  });
+    webhooksKey(workspaceId),
+  );
 }
 
 export function useDeleteWebhook(workspaceId) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (hookId) =>
-      api.delete(`/api/workspaces/${workspaceId}/webhooks/${hookId}/`),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["webhooks", workspaceId] }),
-  });
+  return useInvalidatingMutation(
+    (hookId) => api.delete(`/api/workspaces/${workspaceId}/webhooks/${hookId}/`),
+    webhooksKey(workspaceId),
+  );
 }
 
 export function useTestWebhook(workspaceId) {

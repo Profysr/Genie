@@ -1,5 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/lib/api";
+import { useInvalidatingMutation } from "@/shared/hooks/useInvalidatingMutation";
 
 const objectivesKey = (workspaceId, timePeriod) =>
   ["objectives", workspaceId, timePeriod].filter(Boolean);
@@ -24,72 +25,60 @@ export function useObjectives(workspaceId, timePeriod) {
 }
 
 export function useCreateObjective(workspaceId) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data) =>
+  return useInvalidatingMutation(
+    (data) =>
       api
         .post(`/api/workspaces/${workspaceId}/objectives/`, data)
         .then((r) => r.data),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["objectives", workspaceId] }),
-  });
+    ["objectives", workspaceId],
+  );
 }
 
 export function useUpdateObjective(workspaceId) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, ...data }) =>
+  return useInvalidatingMutation(
+    ({ id, ...data }) =>
       api
         .patch(`/api/workspaces/${workspaceId}/objectives/${id}/`, data)
         .then((r) => r.data),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["objectives", workspaceId] }),
-  });
+    ["objectives", workspaceId],
+  );
 }
 
 export function useDeleteObjective(workspaceId) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (id) =>
-      api.delete(`/api/workspaces/${workspaceId}/objectives/${id}/`),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["objectives", workspaceId] }),
-  });
+  return useInvalidatingMutation(
+    (id) => api.delete(`/api/workspaces/${workspaceId}/objectives/${id}/`),
+    ["objectives", workspaceId],
+  );
 }
 
 // ── Key Results ───────────────────────────────────────────────────────────────
 
 export function useCreateKeyResult(workspaceId, objectiveId) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data) =>
+  return useInvalidatingMutation(
+    (data) =>
       api
         .post(
           `/api/workspaces/${workspaceId}/objectives/${objectiveId}/key-results/`,
           data,
         )
         .then((r) => r.data),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["objectives", workspaceId] }),
-  });
+    ["objectives", workspaceId],
+  );
 }
 
 export function useDeleteKeyResult(workspaceId, objectiveId) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (krId) =>
+  return useInvalidatingMutation(
+    (krId) =>
       api.delete(
         `/api/workspaces/${workspaceId}/objectives/${objectiveId}/key-results/${krId}/`,
       ),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["objectives", workspaceId] }),
-  });
+    ["objectives", workspaceId],
+  );
 }
 
 export function useLinkTasks(workspaceId, objectiveId, krId) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (taskIds) =>
+  return useInvalidatingMutation(
+    (taskIds) =>
       api
         .put(
           `/api/workspaces/${workspaceId}/objectives/${objectiveId}/key-results/${krId}/tasks/`,
@@ -98,9 +87,8 @@ export function useLinkTasks(workspaceId, objectiveId, krId) {
           },
         )
         .then((r) => r.data),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["objectives", workspaceId] }),
-  });
+    ["objectives", workspaceId],
+  );
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

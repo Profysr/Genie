@@ -1,9 +1,12 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/lib/api";
+import { useInvalidatingMutation } from "@/shared/hooks/useInvalidatingMutation";
+
+const apiKeysKey = (workspaceId) => ["api-keys", workspaceId];
 
 export function useAPIKeys(workspaceId) {
   return useQuery({
-    queryKey: ["api-keys", workspaceId],
+    queryKey: apiKeysKey(workspaceId),
     queryFn: () =>
       api.get(`/api/workspaces/${workspaceId}/api-keys/`).then((r) => r.data),
     enabled: !!workspaceId,
@@ -12,23 +15,18 @@ export function useAPIKeys(workspaceId) {
 }
 
 export function useCreateAPIKey(workspaceId) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data) =>
+  return useInvalidatingMutation(
+    (data) =>
       api
         .post(`/api/workspaces/${workspaceId}/api-keys/`, data)
         .then((r) => r.data),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["api-keys", workspaceId] }),
-  });
+    apiKeysKey(workspaceId),
+  );
 }
 
 export function useRevokeAPIKey(workspaceId) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (keyId) =>
-      api.delete(`/api/workspaces/${workspaceId}/api-keys/${keyId}/`),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["api-keys", workspaceId] }),
-  });
+  return useInvalidatingMutation(
+    (keyId) => api.delete(`/api/workspaces/${workspaceId}/api-keys/${keyId}/`),
+    apiKeysKey(workspaceId),
+  );
 }

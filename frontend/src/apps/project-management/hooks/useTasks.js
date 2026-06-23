@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-query";
 import api from "@/shared/lib/api";
 import { SOCKET_BACKED } from "@/shared/lib/queryClient";
+import { useInvalidatingMutation } from "@/shared/hooks/useInvalidatingMutation";
 
 // ── Query key factories ───────────────────────────────────────────────────────
 
@@ -114,25 +115,17 @@ export const useTaskActivities = (workspaceId, boardId, taskId) =>
 
 // ── Task CRUD ─────────────────────────────────────────────────────────────────
 
-export const useCreateTask = (workspaceId, boardId) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data) =>
+export const useCreateTask = (workspaceId, boardId) =>
+  useInvalidatingMutation(
+    (data) =>
       api
         .post(`/api/workspaces/${workspaceId}/boards/${boardId}/tasks/`, data)
         .then((r) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["tasks", workspaceId, boardId] });
-      qc.invalidateQueries({ queryKey: ["sprint", workspaceId, boardId] });
-    },
-  });
-};
+    ["tasks", workspaceId, boardId],
+    ["sprint", workspaceId, boardId],
+  );
 
 // ── Cache-merge helpers ─────────────────────────────────────────────────────
-// Patch the server response into the task list / children / detail caches in
-// place instead of refetching. The PATCH/move endpoints return the full updated
-// task, so we never need a follow-up GET of the whole board (backend-expensive).
-// Mirrors useMoveTask. Other clients are reconciled by the board socket.
 const mergeTaskInLists = (qc, workspaceId, boardId, task) => {
   qc.setQueriesData({ queryKey: ["tasks", workspaceId, boardId] }, (old) =>
     Array.isArray(old)

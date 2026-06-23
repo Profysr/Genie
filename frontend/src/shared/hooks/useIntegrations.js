@@ -1,11 +1,15 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import api from "@/shared/lib/api";
+import { useInvalidatingMutation } from "@/shared/hooks/useInvalidatingMutation";
+
+const integrationsKey = (workspaceId) => ["integrations", workspaceId];
+const mappingsKey = (workspaceId) => ["integrations", workspaceId, "mappings"];
 
 // ── Status (all platforms) ────────────────────────────────────────────────────
 
 export function useIntegrationStatus(workspaceId) {
   return useQuery({
-    queryKey: ["integrations", workspaceId],
+    queryKey: integrationsKey(workspaceId),
     queryFn: () =>
       api
         .get(`/api/workspaces/${workspaceId}/integrations/`)
@@ -18,25 +22,20 @@ export function useIntegrationStatus(workspaceId) {
 
 // ── Teams ─────────────────────────────────────────────────────────────────────
 export function useSaveTeams(workspaceId) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data) =>
+  return useInvalidatingMutation(
+    (data) =>
       api
         .put(`/api/workspaces/${workspaceId}/integrations/teams/`, data)
         .then((r) => r.data),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["integrations", workspaceId] }),
-  });
+    integrationsKey(workspaceId),
+  );
 }
 
 export function useDisconnectTeams(workspaceId) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: () =>
-      api.delete(`/api/workspaces/${workspaceId}/integrations/teams/`),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["integrations", workspaceId] }),
-  });
+  return useInvalidatingMutation(
+    () => api.delete(`/api/workspaces/${workspaceId}/integrations/teams/`),
+    integrationsKey(workspaceId),
+  );
 }
 
 export function useTestTeams(workspaceId) {
@@ -50,25 +49,20 @@ export function useTestTeams(workspaceId) {
 
 // ── Google Chat ───────────────────────────────────────────────────────────────
 export function useSaveGoogleChat(workspaceId) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data) =>
+  return useInvalidatingMutation(
+    (data) =>
       api
         .put(`/api/workspaces/${workspaceId}/integrations/google-chat/`, data)
         .then((r) => r.data),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["integrations", workspaceId] }),
-  });
+    integrationsKey(workspaceId),
+  );
 }
 
 export function useDisconnectGoogleChat(workspaceId) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: () =>
-      api.delete(`/api/workspaces/${workspaceId}/integrations/google-chat/`),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["integrations", workspaceId] }),
-  });
+  return useInvalidatingMutation(
+    () => api.delete(`/api/workspaces/${workspaceId}/integrations/google-chat/`),
+    integrationsKey(workspaceId),
+  );
 }
 
 export function useTestGoogleChat(workspaceId) {
@@ -96,46 +90,34 @@ export function useChannelMappings(workspaceId, { platform } = {}) {
 }
 
 export function useCreateChannelMapping(workspaceId) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data) =>
+  return useInvalidatingMutation(
+    (data) =>
       api
         .post(`/api/workspaces/${workspaceId}/integrations/mappings/`, data)
         .then((r) => r.data),
-    onSuccess: () =>
-      qc.invalidateQueries({
-        queryKey: ["integrations", workspaceId, "mappings"],
-      }),
-  });
+    mappingsKey(workspaceId),
+  );
 }
 
 export function useUpdateChannelMapping(workspaceId) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ mappingId, ...data }) =>
+  return useInvalidatingMutation(
+    ({ mappingId, ...data }) =>
       api
         .patch(
           `/api/workspaces/${workspaceId}/integrations/mappings/${mappingId}/`,
           data,
         )
         .then((r) => r.data),
-    onSuccess: () =>
-      qc.invalidateQueries({
-        queryKey: ["integrations", workspaceId, "mappings"],
-      }),
-  });
+    mappingsKey(workspaceId),
+  );
 }
 
 export function useDeleteChannelMapping(workspaceId) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (mappingId) =>
+  return useInvalidatingMutation(
+    (mappingId) =>
       api.delete(
         `/api/workspaces/${workspaceId}/integrations/mappings/${mappingId}/`,
       ),
-    onSuccess: () =>
-      qc.invalidateQueries({
-        queryKey: ["integrations", workspaceId, "mappings"],
-      }),
-  });
+    mappingsKey(workspaceId),
+  );
 }

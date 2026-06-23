@@ -1,5 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/lib/api";
+import { useInvalidatingMutation } from "@/shared/hooks/useInvalidatingMutation";
 
 const labelsKey = (workspaceId, boardId) => ["labels", workspaceId, boardId];
 
@@ -14,26 +15,20 @@ export const useLabels = (workspaceId, boardId) =>
     staleTime: Infinity,
   });
 
-export const useCreateLabel = (workspaceId, boardId) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data) =>
+export const useCreateLabel = (workspaceId, boardId) =>
+  useInvalidatingMutation(
+    (data) =>
       api
         .post(`/api/workspaces/${workspaceId}/boards/${boardId}/labels/`, data)
         .then((r) => r.data),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: labelsKey(workspaceId, boardId) }),
-  });
-};
+    labelsKey(workspaceId, boardId),
+  );
 
-export const useDeleteLabel = (workspaceId, boardId) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (labelId) =>
+export const useDeleteLabel = (workspaceId, boardId) =>
+  useInvalidatingMutation(
+    (labelId) =>
       api.delete(
         `/api/workspaces/${workspaceId}/boards/${boardId}/labels/${labelId}/`,
       ),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: labelsKey(workspaceId, boardId) }),
-  });
-};
+    labelsKey(workspaceId, boardId),
+  );

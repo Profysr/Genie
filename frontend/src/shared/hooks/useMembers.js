@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/lib/api";
+import { useInvalidatingMutation } from "@/shared/hooks/useInvalidatingMutation";
 
 const membersKey = (workspaceId) => ["workspace-members", workspaceId];
 
@@ -14,39 +15,29 @@ export const useMembers = (workspaceId) =>
     staleTime: Infinity, // members only change via mutations — each one already invalidates this key
   });
 
-export const useInviteMember = (workspaceId) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data) =>
+export const useInviteMember = (workspaceId) =>
+  useInvalidatingMutation(
+    (data) =>
       api
         .post(`/api/workspaces/${workspaceId}/invites/`, data)
         .then((r) => r.data),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: membersKey(workspaceId) }),
-  });
-};
+    membersKey(workspaceId),
+  );
 
-export const useUpdateMemberRole = (workspaceId) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ memberId, role }) =>
+export const useUpdateMemberRole = (workspaceId) =>
+  useInvalidatingMutation(
+    ({ memberId, role }) =>
       api
         .patch(`/api/workspaces/${workspaceId}/members/${memberId}/`, { role })
         .then((r) => r.data),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: membersKey(workspaceId) }),
-  });
-};
+    membersKey(workspaceId),
+  );
 
-export const useRemoveMember = (workspaceId) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (memberId) =>
-      api.delete(`/api/workspaces/${workspaceId}/members/${memberId}/`),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: membersKey(workspaceId) }),
-  });
-};
+export const useRemoveMember = (workspaceId) =>
+  useInvalidatingMutation(
+    (memberId) => api.delete(`/api/workspaces/${workspaceId}/members/${memberId}/`),
+    membersKey(workspaceId),
+  );
 
 // Accepts an invite by token. Invalidates workspaces + member list on success.
 // UI callbacks (navigate, setAccepted, setError) are passed at call-site via mutate's second arg.
@@ -83,12 +74,8 @@ export const usePendingInvites = (workspaceId, { refetchInterval } = {}) =>
     refetchInterval,
   });
 
-export const useCancelInvite = (workspaceId) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (token) =>
-      api.delete(`/api/workspaces/${workspaceId}/invites/${token}/`),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["workspace-invites", workspaceId] }),
-  });
-};
+export const useCancelInvite = (workspaceId) =>
+  useInvalidatingMutation(
+    (token) => api.delete(`/api/workspaces/${workspaceId}/invites/${token}/`),
+    ["workspace-invites", workspaceId],
+  );

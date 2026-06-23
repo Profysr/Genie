@@ -1,5 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/lib/api";
+import { useInvalidatingMutation } from "@/shared/hooks/useInvalidatingMutation";
 
 // ── Key factories ─────────────────────────────────────────────────────────────
 const policiesKey  = (ws)        => ["hr-leave-policies",  ws];
@@ -18,32 +19,26 @@ export const useLeavePolicies = (workspaceId) =>
     refetchOnWindowFocus: false,
   });
 
-export const useCreateLeavePolicy = (workspaceId) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data) =>
+export const useCreateLeavePolicy = (workspaceId) =>
+  useInvalidatingMutation(
+    (data) =>
       api.post(`/api/workspaces/${workspaceId}/hr/leave-policies/`, data).then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: policiesKey(workspaceId) }),
-  });
-};
+    policiesKey(workspaceId),
+  );
 
-export const useUpdateLeavePolicy = (workspaceId) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ policyId, ...data }) =>
+export const useUpdateLeavePolicy = (workspaceId) =>
+  useInvalidatingMutation(
+    ({ policyId, ...data }) =>
       api.patch(`/api/workspaces/${workspaceId}/hr/leave-policies/${policyId}/`, data).then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: policiesKey(workspaceId) }),
-  });
-};
+    policiesKey(workspaceId),
+  );
 
-export const useDeleteLeavePolicy = (workspaceId) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (policyId) =>
+export const useDeleteLeavePolicy = (workspaceId) =>
+  useInvalidatingMutation(
+    (policyId) =>
       api.delete(`/api/workspaces/${workspaceId}/hr/leave-policies/${policyId}/`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: policiesKey(workspaceId) }),
-  });
-};
+    policiesKey(workspaceId),
+  );
 
 // ── Leave Requests ────────────────────────────────────────────────────────────
 export const useLeaveRequests = (workspaceId, statusFilter) =>
@@ -57,31 +52,23 @@ export const useLeaveRequests = (workspaceId, statusFilter) =>
     staleTime: 30_000,
   });
 
-export const useCreateLeaveRequest = (workspaceId) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data) =>
+export const useCreateLeaveRequest = (workspaceId) =>
+  useInvalidatingMutation(
+    (data) =>
       api.post(`/api/workspaces/${workspaceId}/hr/leave-requests/`, data).then((r) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: requestsKey(workspaceId) });
-      qc.invalidateQueries({ queryKey: balancesKey(workspaceId) });
-    },
-  });
-};
+    requestsKey(workspaceId),
+    balancesKey(workspaceId),
+  );
 
-export const useReviewLeaveRequest = (workspaceId) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ requestId, status, comment }) =>
+export const useReviewLeaveRequest = (workspaceId) =>
+  useInvalidatingMutation(
+    ({ requestId, status, comment }) =>
       api
         .post(`/api/workspaces/${workspaceId}/hr/leave-requests/${requestId}/review/`, { status, comment })
         .then((r) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: requestsKey(workspaceId) });
-      qc.invalidateQueries({ queryKey: balancesKey(workspaceId) });
-    },
-  });
-};
+    requestsKey(workspaceId),
+    balancesKey(workspaceId),
+  );
 
 // ── Leave Balances ────────────────────────────────────────────────────────────
 export const useLeaveBalances = (workspaceId) =>

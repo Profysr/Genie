@@ -1,7 +1,9 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/lib/api";
+import { useInvalidatingMutation } from "@/shared/hooks/useInvalidatingMutation";
 
 const rolesKey = (workspaceId) => ["workspace-roles", workspaceId];
+const membersKey = (workspaceId) => ["workspace-members", workspaceId];
 
 export const useRoles = (workspaceId) =>
   useQuery({
@@ -14,66 +16,49 @@ export const useRoles = (workspaceId) =>
     staleTime: Infinity,
   });
 
-export const useCreateRole = (workspaceId) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data) =>
+export const useCreateRole = (workspaceId) =>
+  useInvalidatingMutation(
+    (data) =>
       api
         .post(`/api/workspaces/${workspaceId}/roles/`, data)
         .then((r) => r.data),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: rolesKey(workspaceId) }),
-  });
-};
+    rolesKey(workspaceId),
+  );
 
-export const useUpdateRole = (workspaceId) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ roleId, ...data }) =>
+export const useUpdateRole = (workspaceId) =>
+  useInvalidatingMutation(
+    ({ roleId, ...data }) =>
       api
         .patch(`/api/workspaces/${workspaceId}/roles/${roleId}/`, data)
         .then((r) => r.data),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: rolesKey(workspaceId) }),
-  });
-};
+    rolesKey(workspaceId),
+  );
 
-export const useDeleteRole = (workspaceId) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (roleId) =>
-      api.delete(`/api/workspaces/${workspaceId}/roles/${roleId}/`),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: rolesKey(workspaceId) }),
-  });
-};
+export const useDeleteRole = (workspaceId) =>
+  useInvalidatingMutation(
+    (roleId) => api.delete(`/api/workspaces/${workspaceId}/roles/${roleId}/`),
+    rolesKey(workspaceId),
+  );
 
-export const useAssignRole = (workspaceId) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ memberId, roleId }) =>
+export const useAssignRole = (workspaceId) =>
+  useInvalidatingMutation(
+    ({ memberId, roleId }) =>
       api
-        .post(
-          `/api/workspaces/${workspaceId}/members/${memberId}/assign-role/`,
-          { role: roleId },
-        )
+        .post(`/api/workspaces/${workspaceId}/members/${memberId}/assign-role/`, {
+          role: roleId,
+        })
         .then((r) => r.data),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["workspace-members", workspaceId] }),
-  });
-};
+    membersKey(workspaceId),
+  );
 
-export const useBulkAssignRole = (workspaceId) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ roleId, memberIds }) =>
+export const useBulkAssignRole = (workspaceId) =>
+  useInvalidatingMutation(
+    ({ roleId, memberIds }) =>
       api
         .post(`/api/workspaces/${workspaceId}/members/bulk-assign-role/`, {
           role: roleId,
           member_ids: memberIds,
         })
         .then((r) => r.data),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["workspace-members", workspaceId] }),
-  });
-};
+    membersKey(workspaceId),
+  );

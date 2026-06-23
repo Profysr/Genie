@@ -1,5 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/lib/api";
+import { useInvalidatingMutation } from "@/shared/hooks/useInvalidatingMutation";
 
 const key = (ws, proj) => ["saved-views", ws, proj];
 
@@ -14,29 +15,23 @@ export const useSavedViews = (workspaceId, boardId) =>
     staleTime: Infinity, // only changes via create/delete — both already invalidate this key
   });
 
-export const useCreateSavedView = (workspaceId, boardId) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data) =>
+export const useCreateSavedView = (workspaceId, boardId) =>
+  useInvalidatingMutation(
+    (data) =>
       api
         .post(
           `/api/workspaces/${workspaceId}/boards/${boardId}/saved-views/`,
           data,
         )
         .then((r) => r.data),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: key(workspaceId, boardId) }),
-  });
-};
+    key(workspaceId, boardId),
+  );
 
-export const useDeleteSavedView = (workspaceId, boardId) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (viewId) =>
+export const useDeleteSavedView = (workspaceId, boardId) =>
+  useInvalidatingMutation(
+    (viewId) =>
       api.delete(
         `/api/workspaces/${workspaceId}/boards/${boardId}/saved-views/${viewId}/`,
       ),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: key(workspaceId, boardId) }),
-  });
-};
+    key(workspaceId, boardId),
+  );
