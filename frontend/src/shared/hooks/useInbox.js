@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/lib/api";
 import { SOCKET_BACKED } from "@/shared/lib/queryClient";
 
-export const inboxKey = (workspaceId, tab, eventType, limit) =>
+const inboxKey = (workspaceId, tab, eventType, limit) =>
   ["inbox", workspaceId, tab, eventType, limit].filter(Boolean);
 
 export function useInbox(
@@ -84,7 +84,7 @@ export function useBulkUpdateInbox(workspaceId) {
 }
 
 /** Snooze presets → ISO strings relative to now. */
-export function snoozeUntil(preset) {
+function snoozeUntil(preset) {
   const d = new Date();
   if (preset === "1h") {
     d.setHours(d.getHours() + 1);

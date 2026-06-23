@@ -24,7 +24,7 @@ export const useInviteMember = (workspaceId) =>
     membersKey(workspaceId),
   );
 
-export const useUpdateMemberRole = (workspaceId) =>
+const useUpdateMemberRole = (workspaceId) =>
   useInvalidatingMutation(
     ({ memberId, role }) =>
       api

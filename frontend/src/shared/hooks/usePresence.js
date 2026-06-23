@@ -25,7 +25,7 @@ export function usePresence(workspaceId, resourceType, resourceId) {
 }
 
 /** Fetch all users online in a workspace (any resource, active in last 90s). */
-export function useWorkspaceOnlineUsers(workspaceId) {
+function useWorkspaceOnlineUsers(workspaceId) {
   return useQuery({
     queryKey: ["presence", workspaceId, "all"],
     queryFn: () =>

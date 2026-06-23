@@ -43,7 +43,7 @@ export function addDays(d, n) {
 }
 
 // ── Comparisons ───────────────────────────────────────────────────────────────
-export function isSameDay(a, b) {
+function isSameDay(a, b) {
   return (
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&

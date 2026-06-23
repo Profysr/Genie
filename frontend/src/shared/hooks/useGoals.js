@@ -34,7 +34,7 @@ export function useCreateObjective(workspaceId) {
   );
 }
 
-export function useUpdateObjective(workspaceId) {
+function useUpdateObjective(workspaceId) {
   return useInvalidatingMutation(
     ({ id, ...data }) =>
       api

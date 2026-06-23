@@ -80,9 +80,7 @@ export const PRIORITIES = [
   },
 ];
 
-/** value → full priority config. Use for keyed lookups instead of redefining
- *  `Object.fromEntries(PRIORITIES.map(...))` in components. */
-export const PRIORITY_MAP = Object.fromEntries(
+const PRIORITY_MAP = Object.fromEntries(
   PRIORITIES.map((p) => [p.value, p]),
 );
 
@@ -186,7 +184,7 @@ export const getTaskType = (value) =>
   TASK_TYPES.find((t) => t.value === value) || TASK_TYPES[0];
 
 // ── Sprint statuses ───────────────────────────────────────────────────────────
-export const SPRINT_STATUSES = {
+const SPRINT_STATUSES = {
   planning: {
     value: "planning",
     label: "Planning",
@@ -263,25 +261,45 @@ export const ACTION_MIN = { view: 2, edit: 3, delete: 4, admin: 4 };
 
 // Ordered role list consumed by dropdowns, badges, and the permissions matrix.
 export const PROJECT_ROLES = [
-  { value: "admin",  label: "Admin",  desc: "Full access, manage members",  badge: "default"   },
-  { value: "editor", label: "Editor", desc: "Create and edit tasks",        badge: "secondary" },
-  { value: "viewer", label: "Viewer", desc: "View only, no edits",          badge: "muted"     },
-  { value: "guest",  label: "Guest",  desc: "Read-only via share link",     badge: "outline"   },
+  {
+    value: "admin",
+    label: "Admin",
+    desc: "Full access, manage members",
+    badge: "default",
+  },
+  {
+    value: "editor",
+    label: "Editor",
+    desc: "Create and edit tasks",
+    badge: "secondary",
+  },
+  {
+    value: "viewer",
+    label: "Viewer",
+    desc: "View only, no edits",
+    badge: "muted",
+  },
+  {
+    value: "guest",
+    label: "Guest",
+    desc: "Read-only via share link",
+    badge: "outline",
+  },
 ];
 
 // Badge variant per role — derived from PROJECT_ROLES, never edit directly.
 export const ROLE_BADGE_VARIANT = Object.fromEntries(
-  PROJECT_ROLES.map((r) => [r.value, r.badge])
+  PROJECT_ROLES.map((r) => [r.value, r.badge]),
 );
 
 // Columns shown in the permissions matrix tab.
 // actionKey maps to ACTION_MIN — change the threshold there to affect both the
 // hook (canEdit / canDelete / etc.) and the matrix display automatically.
 export const PERMISSION_MATRIX_ACTIONS = [
-  { label: "Create", actionKey: "edit"   },
-  { label: "Edit",   actionKey: "edit"   },
+  { label: "Create", actionKey: "edit" },
+  { label: "Edit", actionKey: "edit" },
   { label: "Delete", actionKey: "delete" },
-  { label: "Admin",  actionKey: "admin"  },
+  { label: "Admin", actionKey: "admin" },
 ];
 
 // Derived permissions matrix — never hand-edit this; change ACTION_MIN above.
@@ -289,24 +307,48 @@ export const ROLE_PERMS = Object.fromEntries(
   PROJECT_ROLES.map((r) => [
     r.value,
     PERMISSION_MATRIX_ACTIONS.map(
-      (a) => PROJECT_ROLE_WEIGHT[r.value] >= ACTION_MIN[a.actionKey]
+      (a) => PROJECT_ROLE_WEIGHT[r.value] >= ACTION_MIN[a.actionKey],
     ),
-  ])
+  ]),
 );
 
 // ── Member employment types ───────────────────────────────────────────────────
 export const EMPLOYMENT_TYPES = [
-  { value: "full_time",   label: "Full-time",  color: "bg-emerald-100 text-emerald-700" },
-  { value: "part_time",   label: "Part-time",  color: "bg-blue-100 text-blue-700"       },
-  { value: "contractor",  label: "Contractor", color: "bg-amber-100 text-amber-700"     },
-  { value: "intern",      label: "Intern",     color: "bg-violet-100 text-violet-700"   },
+  {
+    value: "full_time",
+    label: "Full-time",
+    color: "bg-emerald-100 text-emerald-700",
+  },
+  {
+    value: "part_time",
+    label: "Part-time",
+    color: "bg-blue-100 text-blue-700",
+  },
+  {
+    value: "contractor",
+    label: "Contractor",
+    color: "bg-amber-100 text-amber-700",
+  },
+  { value: "intern", label: "Intern", color: "bg-violet-100 text-violet-700" },
 ];
 
 // ── Workspace member role display config ──────────────────────────────────────
-export const WORKSPACE_ROLE_CONFIG = {
-  Admin:  { label: "Admin",  icon: Shield, className: "text-primary bg-primary/10 border-primary/20"       },
-  Member: { label: "Member", icon: User,   className: "text-foreground bg-secondary border-border"         },
-  Viewer: { label: "Viewer", icon: Eye,    className: "text-muted-foreground bg-secondary border-border"   },
+const WORKSPACE_ROLE_CONFIG = {
+  Admin: {
+    label: "Admin",
+    icon: Shield,
+    className: "text-primary bg-primary/10 border-primary/20",
+  },
+  Member: {
+    label: "Member",
+    icon: User,
+    className: "text-foreground bg-secondary border-border",
+  },
+  Viewer: {
+    label: "Viewer",
+    icon: Eye,
+    className: "text-muted-foreground bg-secondary border-border",
+  },
 };
 
 export function getWorkspaceRoleConfig(roleName) {
