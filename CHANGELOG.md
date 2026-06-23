@@ -2648,6 +2648,47 @@ stop_execution     # early exit with optional notification
 
 ---
 
+---
+
+## Security — Rate Limiting & Brute-Force Protection
+
+> Status: RESEARCH NEEDED 🔬
+>
+> **Context:** During auth flow fixes (invite + email verification bug) we identified a gap — no protection against brute-force login, inbox flooding (resend verification / password reset spam), or simultaneous duplicate requests. A partial implementation was started but paused because the right approach needs more thought before committing backend infrastructure.
+
+### What needs solving
+
+**1. Login brute-force**
+Prevent an attacker from trying thousands of passwords against a single account. Current state: no limit — unlimited attempts allowed.
+
+Candidate approach: per-user Redis counter with exponential backoff (`3^n` seconds: 3 → 9 → 27 → 81) and account blocking after 5 consecutive failures. Only a workspace admin can unblock. Needs research: how do we handle shared IPs (office NAT), VPNs, and the unblock UX for admins?
+
+**2. Email flooding (password reset + resend verification)**
+Prevent an attacker from hammering `POST /api/auth/password/reset/` or `POST /api/auth/registration/resend-email/` to flood a user's inbox. Current state: no limit.
+
+Candidate approach: DRF `ScopedRateThrottle` backed by Redis cache (e.g. 3–5 requests/hour per IP). Needs research: right threshold so legitimate users (who may be behind a shared IP) aren't blocked.
+
+**3. Duplicate / simultaneous request prevention**
+Prevent a user double-clicking a button or a script from firing the same mutating request twice in rapid succession. Often called "idempotency". Current state: no deduplication — two simultaneous `POST /invites/` calls for the same email both go through.
+
+Candidate approach: Redis-based per-user-per-endpoint lock (`SET NX EX`). Needs research: correct TTL, how to distinguish intentional retries from accidental duplicates, and whether this belongs in middleware vs per-view.
+
+### Questions to resolve before implementing
+
+- Which package to use for Redis-backed DRF throttling — `django-redis` + `DEFAULT_THROTTLE_CLASSES`, or a standalone solution?
+- How granular should the lockout be — IP only, email only, or both?
+- What is the admin unblock UX — a button on `MembersPage`, or a separate blocked-accounts list?
+- Does idempotency belong at the middleware level or should individual views opt in?
+- Frontend: should the cooldown timer be shown to the user during a backoff window, and how does that interact with the existing error state in `LoginPage`?
+
+### Files that will be touched when this is implemented
+
+**Backend:** `accounts/models.py` (`is_blocked` field), `accounts/throttles.py` (new), `accounts/views.py` (`CustomLoginView`), `core/settings.py` (`CACHES` + `REST_FRAMEWORK` throttle config), `core/urls.py` (prepend custom login URL), `workspaces/views.py` + `urls.py` (unblock endpoint)
+
+**Frontend:** `LoginPage.jsx` (cooldown timer + blocked message), `MembersPage.jsx` (blocked badge + unblock button for admins)
+
+---
+
 ## Beyond Phase G
 
 | Phase | Name | App | Status |
