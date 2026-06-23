@@ -62,6 +62,16 @@ export const useAcceptInvite = (token) => {
   });
 };
 
+// Public invite lookup by token (used on the accept-invite landing page).
+// `retry: false` so an invalid/expired token surfaces immediately.
+export const useInviteDetails = (token) =>
+  useQuery({
+    queryKey: ["invite", token],
+    queryFn: () => api.get(`/api/invites/${token}/`).then((r) => r.data),
+    enabled: !!token,
+    retry: false,
+  });
+
 export const usePendingInvites = (workspaceId, { refetchInterval } = {}) =>
   useQuery({
     queryKey: ["workspace-invites", workspaceId],

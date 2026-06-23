@@ -38,7 +38,6 @@ const ProjectsPage = lazy(
 const KanbanPage = lazy(
   () => import("@/apps/project-management/pages/KanbanPage"),
 );
-// ‼️ Merged this view into Timeline view - const RoadmapPage = lazy(() => import("@/pages/projects/RoadmapPage"));
 const WikiPage = lazy(() => import("@/apps/project-management/pages/WikiPage"));
 const FormsPage = lazy(
   () => import("@/apps/project-management/pages/FormsPage"),
@@ -185,7 +184,6 @@ export default function App() {
               </Route>
 
               {/* Workspace */}
-              {/* <Route path="roadmap" element={<RoadmapPage />} /> */}
               <Route path="dashboards" element={<DashboardsPage />} handle={{ app: "projects" }} />
               <Route path="analytics" element={<AnalyticsPage />} handle={{ app: "projects" }} />
               <Route path="goals" element={<GoalsPage />} handle={{ app: "projects" }} />

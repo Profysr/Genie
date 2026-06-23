@@ -3,6 +3,24 @@ import api from "@/shared/lib/api";
 
 const formBase = (ws, proj) => `/api/workspaces/${ws}/boards/${proj}/forms/`;
 
+// ── Public (unauthenticated) form endpoints ──────────────────────────────────
+// Token-scoped, no workspace/board. Used by the standalone PublicFormPage.
+
+export function usePublicForm(formToken) {
+  return useQuery({
+    queryKey: ["public-form", formToken],
+    queryFn: () => api.get(`/api/forms/${formToken}/`).then((r) => r.data),
+    enabled: !!formToken,
+  });
+}
+
+export function useSubmitPublicForm(formToken) {
+  return useMutation({
+    mutationFn: (payload) =>
+      api.post(`/api/forms/${formToken}/submit/`, payload).then((r) => r.data),
+  });
+}
+
 export function useForms(workspaceId, boardId) {
   return useQuery({
     queryKey: ["forms", workspaceId, boardId],

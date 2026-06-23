@@ -13,9 +13,7 @@ import {
   Clock,
 } from "lucide-react";
 import { useUpdateOnboarding } from "@/shared/hooks/useOnboarding";
-import { useMutation } from "@tanstack/react-query";
-import { usePendingInvites } from "@/shared/hooks/useMembers";
-import api from "@/shared/lib/api";
+import { usePendingInvites, useInviteMember } from "@/shared/hooks/useMembers";
 import { Button } from "@/shared/components/ui/button";
 import { cn } from "@/shared/lib/utils";
 
@@ -392,10 +390,7 @@ export default function SetupWizard() {
   const fireConfetti = useConfetti();
   const updateOnboarding = useUpdateOnboarding(workspaceId);
 
-  const inviteMutation = useMutation({
-    mutationFn: ({ email, role }) =>
-      api.post(`/api/workspaces/${workspaceId}/invites/`, { email, role }),
-  });
+  const inviteMutation = useInviteMember(workspaceId);
 
   const handleFinish = async () => {
     setSentCount(emails.length);

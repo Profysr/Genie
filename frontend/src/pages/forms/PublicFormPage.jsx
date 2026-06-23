@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Loader } from "@/shared/components/ui/Loader";
 import { useParams } from "react-router-dom";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import api from "@/shared/lib/api";
+import {
+  usePublicForm,
+  useSubmitPublicForm,
+} from "@/apps/project-management/hooks/useForms";
 import { Button } from "@/shared/components/ui/button";
 import { CheckCircle } from "lucide-react";
 
@@ -13,21 +15,8 @@ export default function PublicFormPage() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState(null);
 
-  const {
-    data: form,
-    isLoading,
-    isError,
-  } = useQuery({
-    queryKey: ["public-form", formToken],
-    queryFn: () => api.get(`/api/forms/${formToken}/`).then((r) => r.data),
-  });
-
-  const submit = useMutation({
-    mutationFn: (payload) =>
-      api.post(`/api/forms/${formToken}/submit/`, payload).then((r) => r.data),
-    onSuccess: () => setSubmitted(true),
-    onError: () => setError("Something went wrong. Please try again."),
-  });
+  const { data: form, isLoading, isError } = usePublicForm(formToken);
+  const submit = useSubmitPublicForm(formToken);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -40,7 +29,13 @@ export default function PublicFormPage() {
         return;
       }
     }
-    submit.mutate({ answers, email });
+    submit.mutate(
+      { answers, email },
+      {
+        onSuccess: () => setSubmitted(true),
+        onError: () => setError("Something went wrong. Please try again."),
+      },
+    );
   };
 
   if (isLoading)

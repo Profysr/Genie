@@ -10,30 +10,19 @@ import {
 import { useUpdateTask } from "@/apps/project-management/hooks/useTasks";
 import { cn } from "@/shared/lib/utils";
 import { getPriority } from "@/shared/lib/constants";
+import {
+  MONTH_NAMES,
+  MONTH_NAMES_SHORT as SHORT_MONTHS,
+  DAY_LABELS,
+  isToday,
+  dateKey,
+  addDays,
+} from "@/shared/lib/dateUtils";
 
-// ── Date helpers ──────────────────────────────────────────────────────────────
-function isSameDay(a, b) {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
-}
-function isToday(d) {
-  return isSameDay(d, new Date());
-}
+// ── Date helpers (calendar-grid specific; shared primitives live in dateUtils) ──
 function isCurrentMonth(d, m, y) {
   return d.getMonth() === m && d.getFullYear() === y;
 }
-function dateKey(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-function addDays(d, n) {
-  const r = new Date(d);
-  r.setDate(r.getDate() + n);
-  return r;
-}
-
 function buildMonthGrid(year, month) {
   const firstDay = new Date(year, month, 1).getDay();
   const start = new Date(year, month, 1 - firstDay);
@@ -45,44 +34,6 @@ function buildWeekGrid(date) {
   d.setHours(0, 0, 0, 0);
   return Array.from({ length: 7 }, (_, i) => addDays(d, i));
 }
-
-const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTH_NAMES = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-const SHORT_MONTHS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
-
-// ── Priority dot ──────────────────────────────────────────────────────────────
-const PRI_DOT = Object.fromEntries(
-  ["urgent", "high", "medium", "low", "no_priority"].map((v) => [
-    v,
-    getPriority(v).dotCls,
-  ]),
-);
 
 // ── Task chip (used inside date cells) ───────────────────────────────────────
 function TaskChip({
@@ -214,7 +165,7 @@ function UnscheduledRow({
   canEdit,
 }) {
   const status = statuses.find((s) => s.id === task.status_id);
-  const dot = PRI_DOT[task.priority] || PRI_DOT.no_priority;
+  const dot = getPriority(task.priority).dotCls;
 
   return (
     <div

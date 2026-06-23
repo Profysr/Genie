@@ -26,10 +26,11 @@ import { Button } from "@/shared/components/ui/button";
 import { cn } from "@/shared/lib/utils";
 import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   useMembers,
   useRemoveMember,
+  usePendingInvites,
+  useCancelInvite,
 } from "@/shared/hooks/useMembers";
 import { useRoles, useAssignRole, useBulkAssignRole } from "@/shared/hooks/useRoles";
 import { useModules } from "@/shared/hooks/useModules";
@@ -37,7 +38,6 @@ import { APP_DEFS } from "@/shared/lib/navLinks";
 import { useWorkspace } from "@/shared/hooks/useWorkspace";
 import { useAuthStore } from "@/store/authStore";
 import { usePermission } from "@/contexts/PermissionsContext";
-import api from "@/shared/lib/api";
 import InviteModal from "@/shared/components/workspace/InviteModal";
 import { ConfirmModal } from "@/shared/components/ui/ConfirmModal";
 import {
@@ -837,29 +837,16 @@ function AppAccessTab({ workspaceId, members, roles, isAdmin, user, workspace })
 export default function MembersPage() {
   const { workspaceId } = useParams();
   const { user } = useAuthStore();
-  const qc = useQueryClient();
 
   const { data: members = [], isLoading } = useMembers(workspaceId);
   const { data: workspace } = useWorkspace(workspaceId);
   const { data: roles = [] } = useRoles(workspaceId);
-
-  const { data: pendingInvites = [] } = useQuery({
-    queryKey: ["workspace-invites", workspaceId],
-    queryFn: () =>
-      api.get(`/api/workspaces/${workspaceId}/invites/pending/`).then((r) => r.data),
-    enabled: !!workspaceId,
-  });
+  const { data: pendingInvites = [] } = usePendingInvites(workspaceId);
 
   const assignRole = useAssignRole(workspaceId);
   const bulkAssignRole = useBulkAssignRole(workspaceId);
   const removeMember = useRemoveMember(workspaceId);
-
-  const cancelInvite = useMutation({
-    mutationFn: (token) =>
-      api.delete(`/api/workspaces/${workspaceId}/invites/${token}/`),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["workspace-invites", workspaceId] }),
-  });
+  const cancelInvite = useCancelInvite(workspaceId);
 
   const [activeTab, setActiveTab] = useState("members");
   const [inviteOpen, setInviteOpen] = useState(false);

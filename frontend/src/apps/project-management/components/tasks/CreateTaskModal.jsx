@@ -8,11 +8,6 @@ import Modal from "@/shared/components/ui/Modal";
 import { PRIORITIES, TASK_TYPES } from "@/shared/lib/constants";
 import { cn } from "@/shared/lib/utils";
 
-// Map priority value → button CSS classes for the modal pill buttons
-const PRIORITY_COLORS = Object.fromEntries(
-  PRIORITIES.map((p) => [p.value, p.modalBtnCls]),
-);
-
 export default function CreateTaskModal({
   open,
   onClose,
@@ -183,7 +178,7 @@ export default function CreateTaskModal({
                     className={cn(
                       "px-2 py-0.5 rounded text-xs font-medium border transition-colors",
                       priority === p.value
-                        ? PRIORITY_COLORS[p.value]
+                        ? p.modalBtnCls
                         : "border-input text-muted-foreground hover:bg-accent",
                     )}
                   >

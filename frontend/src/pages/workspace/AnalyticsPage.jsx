@@ -20,7 +20,7 @@ import {
   useEstimationAccuracy,
 } from "@/shared/hooks/useAnalyticsV2";
 import { useBoards } from "@/apps/project-management/hooks/useProjects";
-import { PRIORITIES } from "@/shared/lib/constants";
+import { getPriority } from "@/shared/lib/constants";
 import VelocityChart from "@/shared/components/charts/VelocityChart";
 import CFDChart from "@/shared/components/charts/CFDChart";
 import CycleTimeChart from "@/shared/components/charts/CycleTimeChart";
@@ -30,10 +30,6 @@ import BurnupChart from "@/shared/components/charts/BurnupChart";
 import WorkloadHeatmap from "@/shared/components/charts/WorkloadHeatmap";
 
 // ── Shared primitives ─────────────────────────────────────────────────────────
-
-const PRI_COLOR = Object.fromEntries(
-  PRIORITIES.map((p) => [p.value, { label: p.label, color: p.hex }]),
-);
 
 const PRIORITY_BADGE = {
   urgent: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
@@ -232,14 +228,14 @@ function TaskBreakdownSection({ workspaceId, boardId }) {
         ) : (
           <div className="space-y-2.5">
             {byPriority.map((p) => {
-              const cfg = PRI_COLOR[p.priority] || PRI_COLOR.no_priority;
+              const cfg = getPriority(p.priority);
               return (
                 <HBar
                   key={p.priority}
-                  label={cfg?.label || p.priority}
+                  label={cfg.label || p.priority}
                   value={p.count}
                   max={maxP}
-                  color={cfg?.color}
+                  color={cfg.hex}
                 />
               );
             })}
@@ -429,7 +425,7 @@ function OverdueAgingSection({ workspaceId, boardId }) {
                     PRIORITY_BADGE[t.priority] || PRIORITY_BADGE.no_priority,
                   )}
                 >
-                  {PRI_COLOR[t.priority]?.label || t.priority}
+                  {getPriority(t.priority).label || t.priority}
                 </span>
                 <div className="flex-1 min-w-0">
                   <p className="truncate font-medium">{t.title}</p>

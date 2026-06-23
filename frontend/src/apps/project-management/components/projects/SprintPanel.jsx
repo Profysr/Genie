@@ -23,22 +23,10 @@ import {
 import BurndownChart from "@/apps/project-management/components/projects/BurndownChart";
 import { Button } from "@/shared/components/ui/button";
 import { cn } from "@/shared/lib/utils";
-import { SPRINT_STATUSES } from "@/shared/lib/constants";
+import { getSprintStatus } from "@/shared/lib/constants";
+import { formatShortDate } from "@/shared/lib/dateUtils";
 
 // ── HELPERS & CONFIG ──
-const STATUS_CONFIG = Object.fromEntries(
-  Object.values(SPRINT_STATUSES).map((s) => [
-    s.value,
-    { label: s.label, color: s.badgeCls },
-  ]),
-);
-
-const fmtDate = (d) =>
-  new Date(d + "T00:00:00").toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
-
 const getProgressPct = (completed, total) =>
   total > 0 ? Math.round((completed / total) * 100) : 0;
 
@@ -188,8 +176,7 @@ function SprintDropdown({
             </p>
           ) : (
             sprints.map((sprint) => {
-              const cfg =
-                STATUS_CONFIG[sprint.status] || STATUS_CONFIG.planning;
+              const cfg = getSprintStatus(sprint.status);
               const pct = getProgressPct(
                 sprint.completed_count,
                 sprint.task_count,
@@ -220,7 +207,7 @@ function SprintDropdown({
                   <span
                     className={cn(
                       "text-[10px] px-1.5 py-0.5 rounded-full border font-medium flex-shrink-0",
-                      cfg.color,
+                      cfg.badgeCls,
                     )}
                   >
                     {cfg.label}
@@ -284,10 +271,10 @@ function SprintDetails({
       <span
         className={cn(
           "text-[10px] px-2 py-0.5 rounded-full border font-semibold flex-shrink-0",
-          STATUS_CONFIG[activeSprint.status]?.color,
+          getSprintStatus(activeSprint.status).badgeCls,
         )}
       >
-        {STATUS_CONFIG[activeSprint.status]?.label}
+        {getSprintStatus(activeSprint.status).label}
       </span>
 
       {/* Goal */}
@@ -304,8 +291,8 @@ function SprintDetails({
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-shrink-0">
           <Calendar className="w-3 h-3" />
           <span>
-            {fmtDate(activeSprint.start_date)} –{" "}
-            {fmtDate(activeSprint.end_date)}
+            {formatShortDate(activeSprint.start_date)} –{" "}
+            {formatShortDate(activeSprint.end_date)}
           </span>
           {daysLeft !== null && activeSprint.status === "active" && (
             <span

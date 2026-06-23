@@ -1,5 +1,9 @@
 import { useState, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useUpdateProfile,
+  useChangePassword,
+  useRequestPasswordReset,
+} from "@/shared/hooks/useAccount";
 import {
   User,
   Lock,
@@ -26,7 +30,6 @@ import {
   DENSITIES,
   FOCUS_DURATIONS,
 } from "@/shared/lib/constants";
-import api from "@/shared/lib/api";
 
 // ── Shared <kbd> badge ────────────────────────────────────────────────────────
 function Key({ label }) {
@@ -83,20 +86,15 @@ const AVATAR_ICONS = [
 
 function AvatarPicker({ user }) {
   const [mode, setMode] = useState(user?.avatar_type || "initials");
-  const [saving, setSaving] = useState(false);
+  const updateProfile = useUpdateProfile();
+  const saving = updateProfile.isPending;
 
   const hasGoogle = Boolean(user?.avatar);
 
-  const applyAvatar = async (payload) => {
-    setSaving(true);
-    try {
-      const { data } = await api.patch("/api/users/me/", payload);
-      useAuthStore.setState((s) => ({ ...s, user: { ...s.user, ...data } }));
-      setMode(data.avatar_type);
-    } finally {
-      setSaving(false);
-    }
-  };
+  const applyAvatar = (payload) =>
+    updateProfile.mutate(payload, {
+      onSuccess: (data) => setMode(data.avatar_type),
+    });
 
   const selectMode = (m) => {
     if (m === mode) return;
@@ -212,7 +210,6 @@ function AvatarPicker({ user }) {
 // ── Me tab ────────────────────────────────────────────────────────────────────
 function MeTab() {
   const { user } = useAuthStore();
-  const qc = useQueryClient();
   const [form, setForm] = useState({ full_name: "" });
   const [success, setSuccess] = useState(false);
 
@@ -220,15 +217,17 @@ function MeTab() {
     if (user) setForm({ full_name: user.full_name || "" });
   }, [user?.id]);
 
-  const save = useMutation({
-    mutationFn: (data) => api.patch("/api/users/me/", data).then((r) => r.data),
-    onSuccess: (updated) => {
-      qc.setQueryData(["me"], updated);
-      useAuthStore.setState((s) => ({ ...s, user: { ...s.user, ...updated } }));
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-    },
-  });
+  const save = useUpdateProfile();
+
+  const handleProfileSave = (e) => {
+    e.preventDefault();
+    save.mutate(form, {
+      onSuccess: () => {
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 3000);
+      },
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -238,10 +237,7 @@ function MeTab() {
       <div className="border-t border-border" />
 
       <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          save.mutate(form);
-        }}
+        onSubmit={handleProfileSave}
         className="space-y-4"
       >
         <div className="space-y-1.5">
@@ -327,37 +323,8 @@ function PasswordTab() {
   const [serverError, setError] = useState("");
   const [resetSent, setResetSent] = useState(false);
 
-  // Uses dj_rest_auth's built-in endpoint: POST /api/auth/password/change/
-  const change = useMutation({
-    mutationFn: (data) =>
-      api.post("/api/auth/password/change/", data).then((r) => r.data),
-    onSuccess: () => {
-      setForm({ old_password: "", new_password1: "", new_password2: "" });
-      setError("");
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 4000);
-    },
-    onError: (err) => {
-      const data = err?.response?.data || {};
-      const msg =
-        data.old_password?.[0] ||
-        data.new_password1?.[0] ||
-        data.new_password2?.[0] ||
-        data.detail ||
-        data.non_field_errors?.[0] ||
-        "Failed to change password.";
-      setError(msg);
-    },
-  });
-
-  const reset = useMutation({
-    mutationFn: () =>
-      api.post("/api/auth/password/reset/", { email: user?.email }).then((r) => r.data),
-    onSuccess: () => {
-      setResetSent(true);
-      setTimeout(() => setResetSent(false), 6000);
-    },
-  });
+  const change = useChangePassword();
+  const reset = useRequestPasswordReset();
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -366,7 +333,25 @@ function PasswordTab() {
       setError("New passwords do not match.");
       return;
     }
-    change.mutate(form);
+    change.mutate(form, {
+      onSuccess: () => {
+        setForm({ old_password: "", new_password1: "", new_password2: "" });
+        setError("");
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 4000);
+      },
+      onError: (err) => {
+        const data = err?.response?.data || {};
+        const msg =
+          data.old_password?.[0] ||
+          data.new_password1?.[0] ||
+          data.new_password2?.[0] ||
+          data.detail ||
+          data.non_field_errors?.[0] ||
+          "Failed to change password.";
+        setError(msg);
+      },
+    });
   };
 
   const PASSWORD_FIELDS = [
@@ -432,7 +417,14 @@ function PasswordTab() {
             variant="outline"
             size="sm"
             disabled={reset.isPending || resetSent}
-            onClick={() => reset.mutate()}
+            onClick={() =>
+              reset.mutate(user?.email, {
+                onSuccess: () => {
+                  setResetSent(true);
+                  setTimeout(() => setResetSent(false), 6000);
+                },
+              })
+            }
           >
             {reset.isPending ? "Sending…" : "Send reset link"}
           </Button>

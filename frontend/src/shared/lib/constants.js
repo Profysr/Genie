@@ -4,7 +4,6 @@
  */
 
 import {
-  AlertCircle,
   ChevronUp,
   ArrowDown,
   Minus,
@@ -78,9 +77,15 @@ export const PRIORITIES = [
   },
 ];
 
+/** value → full priority config. Use for keyed lookups instead of redefining
+ *  `Object.fromEntries(PRIORITIES.map(...))` in components. */
+export const PRIORITY_MAP = Object.fromEntries(
+  PRIORITIES.map((p) => [p.value, p]),
+);
+
 /** Look up a priority config by value. Always returns a valid object. */
 export function getPriority(value) {
-  return PRIORITIES.find((p) => p.value === value) ?? PRIORITIES[0];
+  return PRIORITY_MAP[value] ?? PRIORITIES[0];
 }
 
 /** Sort order map — use for array.sort comparisons. */

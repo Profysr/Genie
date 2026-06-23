@@ -4,14 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { useMyWork } from "@/shared/hooks/useMyWork";
 import { Calendar, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
-import { PRIORITIES, pickColor } from "@/shared/lib/constants";
-
-const PRI = Object.fromEntries(
-  PRIORITIES.map((p) => [
-    p.value,
-    { icon: p.icon, cls: p.textCls, dot: p.dotCls },
-  ]),
-);
+import { getPriority, pickColor } from "@/shared/lib/constants";
+import { formatShortDate } from "@/shared/lib/dateUtils";
 
 // ── Urgency bucketing ─────────────────────────────────────────────────────────
 export function sectionFor(task) {
@@ -60,15 +54,9 @@ const SECTIONS = [
   },
 ];
 
-function formatDate(str) {
-  if (!str) return null;
-  const d = new Date(str + "T00:00:00");
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
 // ── Task row ──────────────────────────────────────────────────────────────────
 function TaskRow({ task, sectionId, onOpen }) {
-  const p = PRI[task.priority] || PRI.no_priority;
+  const p = getPriority(task.priority);
   const Icon = p.icon;
   const color = pickColor(task.project_name);
   const status = task.status_detail;
@@ -80,7 +68,7 @@ function TaskRow({ task, sectionId, onOpen }) {
       className="group flex items-center gap-3 px-4 py-2.5 hover:bg-accent/50 cursor-pointer transition-colors rounded-lg"
     >
       {/* Priority icon */}
-      <Icon className={cn("w-3.5 h-3.5 flex-shrink-0", p.cls)} />
+      <Icon className={cn("w-3.5 h-3.5 flex-shrink-0", p.textCls)} />
 
       {/* Task title */}
       <span className="flex-1 text-sm text-foreground truncate group-hover:text-primary transition-colors">
@@ -116,7 +104,7 @@ function TaskRow({ task, sectionId, onOpen }) {
           )}
         >
           <Calendar className="w-3 h-3" />
-          {formatDate(task.due_date)}
+          {formatShortDate(task.due_date)}
         </span>
       )}
     </div>

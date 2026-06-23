@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
 import { Loader } from "@/shared/components/ui/Loader";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/authStore";
-import { useAcceptInvite } from "@/shared/hooks/useMembers";
-import api from "@/shared/lib/api";
+import { useAcceptInvite, useInviteDetails } from "@/shared/hooks/useMembers";
 import { Button } from "@/shared/components/ui/button";
 import {
   CheckCircle,
@@ -39,15 +37,7 @@ export default function AcceptInvitePage() {
   const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState("");
 
-  const {
-    data: invite,
-    isLoading,
-    isError,
-  } = useQuery({
-    queryKey: ["invite", token],
-    queryFn: () => api.get(`/api/invites/${token}/`).then((r) => r.data),
-    retry: false,
-  });
+  const { data: invite, isLoading, isError } = useInviteDetails(token);
 
   const acceptMutation = useAcceptInvite(token);
 

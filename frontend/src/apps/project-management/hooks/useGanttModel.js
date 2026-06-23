@@ -4,23 +4,16 @@ import { useMemo } from "react";
 export const GROUP_H = 40;
 export const ROW_H = 36;
 
-// ── Date helpers (exported so GanttCanvas can reuse without duplication) ──────
-export function parseDate(s) {
-  if (!s) return null;
-  const [y, m, d] = s.split("-").map(Number);
-  return new Date(y, m - 1, d);
-}
-export function dateKey(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-export function daysBetween(a, b) {
-  return Math.round((b.getTime() - a.getTime()) / 86_400_000);
-}
-export function addDays(d, n) {
-  const r = new Date(d);
-  r.setDate(r.getDate() + n);
-  return r;
-}
+// ── Date helpers ──────────────────────────────────────────────────────────────
+// Re-exported from the shared dateUtils so GanttCanvas (which imports them from
+// here) keeps working without each file redefining the same primitives.
+export {
+  parseDate,
+  dateKey,
+  daysBetween,
+  addDays,
+} from "@/shared/lib/dateUtils";
+import { parseDate, daysBetween, addDays } from "@/shared/lib/dateUtils";
 
 // ── Range covers all task + sprint dates with padding ─────────────────────────
 export function computeRange(tasks, sprints) {

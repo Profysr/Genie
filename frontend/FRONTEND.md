@@ -37,7 +37,7 @@ src/apps/hr-management/        — HR: leave, attendance, HR dashboard, employee
 src/shared/                    — cross-app primitives
    ├── components/   layout/ (AppLayout, Sidebar), CommandPalette, ui/*
    ├── hooks/        useWorkspace, useMembers, useModules, useWorkspaceSocket, usePresence, …
-   └── lib/          api.js, env.js, navLinks.js, queryClient.js
+   └── lib/          api.js, env.js, navLinks.js, queryClient.js, constants.js, dateUtils.js, utils.js, boardTypes.js
 src/store/                     — Zustand stores (authStore, themeStore) — NOT under shared/
 ```
 
@@ -97,13 +97,12 @@ JCN's product areas are licensed as modules. The system spans backend + frontend
 - `useToggleModule(ws)` — `PATCH /api/workspaces/:id/modules/:key/ { is_enabled }`; invalidates the modules query.
 - `useModules()` — reads `ModulesContext`; call `isEnabled("org_structure")` anywhere under `AppLayout`.
 
-### ⚠️ Gating gap (frontend does not yet consume `isEnabled`)
-The infrastructure exists and the **backend enforces** module access, but the **frontend does not gate on it yet**:
-- `Sidebar` renders `resolvedNavGroups()` unconditionally — the **People** and **HR** nav groups show even when `org_structure` / `hr_management` are disabled.
-- `App.jsx` routes (`departments`, `teams`, `org-chart`, `hr`, `hr/leave`, `hr/attendance`) are **not** wrapped in a module guard.
-- `navLinks.js` items carry **no `module` key**, so there is no nav-item → module mapping to drive gating.
-
-**Result today:** a user in a workspace with HR disabled still sees HR nav + can route to it, then hits a raw 403 from the API. To close this: (1) add a `module` field to the relevant `NAV_ITEMS`, (2) filter `resolvedNavGroups()` / groups in `Sidebar` by `isEnabled(item.module)`, (3) wrap the routes in a `<ModuleGate module="…">` element that redirects/– shows an upsell instead of a 403. `analytics_advanced` is registered but the Analytics nav/route is likewise ungated.
+### Frontend module gating (implemented)
+The earlier "gating gap" is **closed** — the frontend now consumes `isEnabled` at both the nav and route layers:
+- **Nav items carry a `moduleKey`.** Each per-app `nav.js` (`apps/<module>/nav.js`) tags its items with `moduleKey` (e.g. HR items → `"hr_management"`). Items without one are always shown.
+- **`Sidebar` filters by it** — `useModules()` → `isEnabled`; an item renders only when `!item.moduleKey || modulesLoading || isEnabled(item.moduleKey)`. (`modulesLoading` keeps items visible during the first fetch, then they resolve once modules load.)
+- **Routes are wrapped in `<ProtectedModuleRoute moduleKey="…">`** (`shared/components/layout/ProtectedModuleRoute.jsx`). When the module is disabled it renders `ModuleUnavailablePage` (an upsell, not a raw 403); on first visit after enabling it shows `AppWelcomeScreen` once (persisted per workspace+module in `localStorage`).
+- **App metadata** lives in `navLinks.js → APP_DEFS` (`moduleKey`, `permKey`, `icon`, `landing`, `colors`, `welcome`, `locked`) — the single source consumed by AppSwitcher, AppLauncher, SettingsPage, AppWelcomeScreen, and ModuleUnavailablePage.
 
 ---
 
@@ -125,6 +124,30 @@ State: `user`, `accessToken`, `refreshToken`
 Methods: `login()`, `register()`, `logout()`, `fetchMe()`, `setTokens()`, `setUser()`
 - `login` / `register` / `logout` all call `queryClient.clear()` to wipe the entire React Query cache.
 - `register()` checks `data.access` before calling `setTokens` — when `ACCOUNT_EMAIL_VERIFICATION=mandatory` the response has no tokens, only `{"detail": "Verification e-mail sent."}`. Callers check `data.access` to decide whether to navigate to the app or to `/verify-email-sent`.
+
+---
+
+## Shared constants & helpers (DRY — never redefine locally)
+
+> Rule: a value/derivation used by 2+ files lives in `shared/lib` and is **imported**, never re-derived per component. Changing it in one place must propagate everywhere.
+
+### `src/shared/lib/constants.js`
+Single source for cross-app config. Each entry ships a getter that always returns a valid object:
+- **Priority** — `PRIORITIES` (array w/ `value, label, order, icon, textCls, dotCls, hex, filterActiveCls, modalBtnCls`), `PRIORITY_MAP` (value→object, for keyed lookups), `getPriority(value)`, `PRIORITY_ORDER`. **Do not** build `Object.fromEntries(PRIORITIES.map(...))` in a component — use `getPriority()` / `PRIORITY_MAP`.
+- **Task types** — `TASK_TYPES`, `getTaskType(value)`.
+- **Sprint status** — `SPRINT_STATUSES`, `getSprintStatus(value)` (returns `{ value, label, badgeCls }`).
+- **Colours** — `APP_COLORS` (8-colour palette for projects/roadmap/labels/avatars), `pickColor(str)` (deterministic hash), `LABEL_COLORS`.
+- **Project roles / permission matrix** — `PROJECT_ROLES`, `PROJECT_ROLE_WEIGHT`, `ACTION_MIN`, `ROLE_BADGE_VARIANT`, `ROLE_PERMS`, `PERMISSION_MATRIX_ACTIONS` (all derived — edit `ACTION_MIN`, never the matrix).
+- **Appearance / focus** — `THEMES`, `ACCENT_COLORS`, `DENSITIES`, `FOCUS_DURATIONS`.
+
+### `src/shared/lib/dateUtils.js`
+Shared date primitives (previously duplicated across `useGanttModel`, `CalendarView`, the deleted `RoadmapPage`):
+- Labels: `MONTH_NAMES`, `MONTH_NAMES_SHORT`, `DAY_LABELS`.
+- Parsing/keys: `parseDate("YYYY-MM-DD")` (TZ-safe, null-safe), `dateKey(date)`.
+- Arithmetic: `addDays(date, n)`, `daysBetween(a, b)`.
+- Comparisons: `isSameDay(a, b)`, `isToday(date)`.
+- Formatting: `formatShortDate(value)` → `"Jun 23"` (accepts string or Date, null-safe).
+> `useGanttModel.js` re-exports `parseDate/dateKey/daysBetween/addDays` from here so `GanttCanvas` (which imports them from the model) keeps working without redefining them.
 
 ---
 
@@ -484,6 +507,12 @@ Members list only changes via explicit mutations. Every mutation invalidates the
 
 `useAcceptInvite(token)` invalidates both `["workspaces"]` and `["workspace-members"]` (prefix only, no workspaceId — affects all workspaces in cache).
 
+**Invite hooks** (all live here — do **not** re-query invite endpoints inline in pages):
+- `useInviteMember(ws)` — `POST …/invites/` (used by InviteModal **and** SetupWizard).
+- `usePendingInvites(ws, { refetchInterval? })` — `GET …/invites/pending/`, key `["workspace-invites", ws]` (MembersPage).
+- `useCancelInvite(ws)` — `DELETE …/invites/:token/`; invalidates the pending-invites key (MembersPage).
+- `useInviteDetails(token)` — public `GET /api/invites/:token/`, key `["invite", token]`, `retry: false`, `enabled: !!token` (AcceptInvitePage landing).
+
 ---
 
 ### `useLabels.js`
@@ -627,6 +656,19 @@ All mutations invalidate this key.
 ```
 
 `useUpdateForm` invalidates both the list and the single form. `useUpdateFormFields` (PUT, replaces fields array) invalidates only the single form. `useUpdateSubmissionStatus` invalidates submissions only.
+
+**Public (unauthenticated) form hooks** — token-scoped, no workspace/board. Used by `PublicFormPage`:
+- `usePublicForm(formToken)` — `GET /api/forms/:token/`, key `["public-form", token]`.
+- `useSubmitPublicForm(formToken)` — `POST /api/forms/:token/submit/`. Success/error UI is handled at the call site via `mutate`'s second-arg callbacks.
+
+---
+
+### `useAccount.js`  *(src/shared/hooks/)*
+
+Current-user account mutations (profile, avatar, password). UI feedback is left to the call site; these own the data layer only. Consumed by `UserSettingsModal`.
+- `useUpdateProfile()` — `PATCH /api/users/me/`; syncs `["me"]` cache **and** the Zustand auth store. Used by both the profile form and the avatar picker.
+- `useChangePassword()` — `POST /api/auth/password/change/` (dj_rest_auth).
+- `useRequestPasswordReset()` — `POST /api/auth/password/reset/`; pass the email as the mutate arg.
 
 ---
 
@@ -1274,20 +1316,8 @@ What it does: full automation rule builder — triggers (task created/status cha
 
 ---
 
-#### `src/pages/projects/RoadmapPage.jsx`
-**Status:** Superseded — import and route both commented out in `App.jsx`.
-
-```js
-// App.jsx line 23
-// ‼️ Merged this view into Timeline view - const RoadmapPage = lazy(() => import("@/pages/projects/RoadmapPage"));
-
-// App.jsx line 118
-{/* <Route path="roadmap" element={<RoadmapPage />} /> */}
-```
-
-What it does: sprint-centric timeline — horizontal bar chart of sprints with tasks as rows, drag to reschedule. This functionality was merged into `GanttView` (the Timeline tab in KanbanPage).
-
-**Safe to delete?** Yes. GanttView covers this use case.
+#### `RoadmapPage.jsx` — **DELETED**
+Superseded by `GanttView` (the Timeline tab in KanbanPage) and removed. The commented-out import/route in `App.jsx` were also removed. Its sprint-centric timeline (horizontal sprint bars, drag to reschedule) lives in `GanttView` now.
 
 ---
 
@@ -1331,7 +1361,7 @@ Query key: `["automations", workspaceId, boardId]`
 | File | Type | Status | Safe to delete |
 |---|---|---|---|
 | `pages/projects/AutomationsPage.jsx` | Page | Disabled (commented route) | Yes (with hook) |
-| `pages/projects/RoadmapPage.jsx` | Page | Superseded by GanttView | Yes |
+| ~~`RoadmapPage.jsx`~~ | Page | **Deleted** — superseded by GanttView | Done |
 | `pages/workspace/InboxPage.jsx` | Page | Built, no route | Only if not planning inbox route |
 | `pages/projects/AccessDeniedPage.jsx` | Page | Orphaned, duplicate of inline UI | Yes |
 | `hooks/useAutomations.js` | Hook | Only used by dead AutomationsPage | Yes (with page) |
