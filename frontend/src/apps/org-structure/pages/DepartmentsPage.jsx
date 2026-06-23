@@ -6,6 +6,7 @@ import { Input } from "@/shared/components/ui/input";
 import { EmptyState } from "@/shared/components/ui/empty-state";
 import { Loader } from "@/shared/components/ui/Loader";
 import { Avatar } from "@/shared/components/ui/avatar";
+import { useToast } from "@/shared/components/ui/toast";
 import Modal from "@/shared/components/ui/Modal";
 import { cn } from "@/shared/lib/utils";
 import { useMembers } from "@/shared/hooks/useMembers";
@@ -104,14 +105,16 @@ function DeptNode({ node, depth, onEdit, onDelete }) {
           <button
             onClick={() => onEdit(node)}
             className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-            title="Edit"
+            title="Edit department"
+            aria-label="Edit department"
           >
             <Pencil className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => onDelete(node)}
             className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-            title="Delete"
+            title="Delete department"
+            aria-label="Delete department"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -323,6 +326,7 @@ export default function DepartmentsPage() {
   const { data: depts = [], isLoading } = useDepartments(workspaceId);
   const { data: members = [] } = useMembers(workspaceId);
   const deleteDept = useDeleteDepartment(workspaceId);
+  const { toast } = useToast();
 
   const [modal, setModal] = useState(null); // null | { mode: 'create' } | { mode: 'edit', dept }
   const [confirmDelete, setConfirmDelete] = useState(null); // null | dept
@@ -335,8 +339,16 @@ export default function DepartmentsPage() {
 
   const handleDelete = async () => {
     if (!confirmDelete) return;
-    await deleteDept.mutateAsync(confirmDelete.id);
-    setConfirmDelete(null);
+    try {
+      await deleteDept.mutateAsync(confirmDelete.id);
+      toast.success("Department deleted");
+      setConfirmDelete(null);
+    } catch (err) {
+      toast.error(
+        "Couldn't delete department",
+        err?.response?.data?.detail ?? "Please try again.",
+      );
+    }
   };
 
   return (

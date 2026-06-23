@@ -66,7 +66,10 @@ export default function CreateProjectModal({ workspaceId, open, onClose }) {
         <form onSubmit={handleSubmit} className="space-y-5">
           {error && (
             <p className="text-sm text-destructive">
-              {error.response?.data?.name?.[0] || "Something went wrong."}
+              {error.response?.data?.name?.[0] ||
+                error.response?.data?.detail ||
+                error.response?.data?.non_field_errors?.[0] ||
+                "Something went wrong. Please try again."}
             </p>
           )}
 

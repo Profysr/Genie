@@ -8,6 +8,7 @@ import { Input } from "@/shared/components/ui/input";
 import { EmptyState } from "@/shared/components/ui/empty-state";
 import { Loader } from "@/shared/components/ui/Loader";
 import { Avatar, AvatarGroup } from "@/shared/components/ui/avatar";
+import { useToast } from "@/shared/components/ui/toast";
 import Modal from "@/shared/components/ui/Modal";
 import { cn } from "@/shared/lib/utils";
 import { useMembers } from "@/shared/hooks/useMembers";
@@ -240,6 +241,7 @@ function TeamDetail({ team, workspaceId, allMembers, onEdit, onClose }) {
                     onClick={() => removeTeamMember.mutate(m.id)}
                     className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all"
                     title="Remove from team"
+                    aria-label="Remove from team"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -483,6 +485,7 @@ export default function TeamsPage() {
   const { data: departments = [] } = useDepartments(workspaceId);
   const { data: members = [] } = useMembers(workspaceId);
   const deleteTeam = useDeleteTeam(workspaceId);
+  const { toast } = useToast();
 
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [modal, setModal] = useState(null); // null | { mode: 'create' } | { mode: 'edit', team }
@@ -505,9 +508,17 @@ export default function TeamsPage() {
 
   const handleDelete = async () => {
     if (!confirmDelete) return;
-    await deleteTeam.mutateAsync(confirmDelete.id);
-    if (selectedTeam?.id === confirmDelete.id) setSelectedTeam(null);
-    setConfirmDelete(null);
+    try {
+      await deleteTeam.mutateAsync(confirmDelete.id);
+      if (selectedTeam?.id === confirmDelete.id) setSelectedTeam(null);
+      setConfirmDelete(null);
+      toast.success("Team deleted");
+    } catch (err) {
+      toast.error(
+        "Couldn't delete team",
+        err?.response?.data?.detail ?? "Please try again.",
+      );
+    }
   };
 
   const handleCloseDetail = () => setSelectedTeam(null);

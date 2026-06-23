@@ -8,6 +8,7 @@ import {
 import { Avatar } from "@/shared/components/ui/avatar";
 import { Button } from "@/shared/components/ui/button";
 import { Loader } from "@/shared/components/ui/Loader";
+import { EmptyState } from "@/shared/components/ui/empty-state";
 import { cn } from "@/shared/lib/utils";
 import { useMembers } from "@/shared/hooks/useMembers";
 import { usePermission } from "@/contexts/PermissionsContext";
@@ -320,7 +321,10 @@ function DocumentsTab({ workspaceId, memberId }) {
 
       {/* List */}
       {docs.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-8">No documents uploaded</p>
+        <EmptyState
+          title="No documents yet"
+          description="Uploaded employee documents will appear here."
+        />
       ) : (
         <div className="divide-y border rounded-lg">
           {docs.map((doc) => (
@@ -369,7 +373,11 @@ function LeaveHistoryTab({ workspaceId, memberId }) {
 
   if (requests.length === 0)
     return (
-      <p className="text-sm text-muted-foreground text-center py-8">No leave requests</p>
+      <EmptyState
+        illustration="notifications"
+        title="No leave requests"
+        description="This employee hasn't submitted any leave requests."
+      />
     );
 
   return (
@@ -453,7 +461,10 @@ function NotesTab({ workspaceId, memberId }) {
 
       {/* List */}
       {notes.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-6">No notes yet</p>
+        <EmptyState
+          title="No notes yet"
+          description="Private HR notes about this employee will appear here."
+        />
       ) : (
         <div className="space-y-3">
           {notes.map((note) => (

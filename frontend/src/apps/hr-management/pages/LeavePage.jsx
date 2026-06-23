@@ -8,6 +8,7 @@ import {
 import { Button } from "@/shared/components/ui/button";
 import { Loader } from "@/shared/components/ui/Loader";
 import { Avatar } from "@/shared/components/ui/avatar";
+import { useToast } from "@/shared/components/ui/toast";
 import Modal from "@/shared/components/ui/Modal";
 import { cn } from "@/shared/lib/utils";
 import { useModules } from "@/shared/hooks/useModules";
@@ -284,10 +285,10 @@ function TeamCalendar({ workspaceId }) {
           {MONTH_NAMES[month]} {year}
         </h3>
         <div className="flex gap-1">
-          <Button variant="outline" size="icon" className="h-7 w-7" onClick={prev}>
+          <Button variant="outline" size="icon" className="h-7 w-7" onClick={prev} aria-label="Previous month">
             <ChevronLeft className="w-3.5 h-3.5" />
           </Button>
-          <Button variant="outline" size="icon" className="h-7 w-7" onClick={next}>
+          <Button variant="outline" size="icon" className="h-7 w-7" onClick={next} aria-label="Next month">
             <ChevronRight className="w-3.5 h-3.5" />
           </Button>
         </div>
@@ -523,12 +524,21 @@ function PolicyFormModal({ workspaceId, open, onClose, existing }) {
 function PoliciesTab({ workspaceId }) {
   const { data: policies = [], isLoading } = useLeavePolicies(workspaceId);
   const deletePolicy = useDeleteLeavePolicy(workspaceId);
+  const { toast } = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
 
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this policy? Employees with this policy assigned will lose their balances.")) return;
-    await deletePolicy.mutateAsync(id);
+    try {
+      await deletePolicy.mutateAsync(id);
+      toast.success("Leave policy deleted");
+    } catch (err) {
+      toast.error(
+        "Couldn't delete policy",
+        err?.response?.data?.detail ?? "Please try again.",
+      );
+    }
   };
 
   if (isLoading) return <Loader className="h-32" />;
@@ -588,6 +598,7 @@ function PoliciesTab({ workspaceId }) {
                           variant="ghost" size="icon"
                           className="h-7 w-7 text-muted-foreground hover:text-foreground"
                           onClick={() => { setEditing(policy); setFormOpen(true); }}
+                          aria-label="Edit leave policy"
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </Button>
@@ -596,6 +607,7 @@ function PoliciesTab({ workspaceId }) {
                           className="h-7 w-7 text-muted-foreground hover:text-destructive"
                           onClick={() => handleDelete(policy.id)}
                           disabled={deletePolicy.isPending}
+                          aria-label="Delete leave policy"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
