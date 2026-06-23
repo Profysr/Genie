@@ -11,8 +11,7 @@ import { Avatar } from "@/shared/components/ui/avatar";
 import Modal from "@/shared/components/ui/Modal";
 import { cn } from "@/shared/lib/utils";
 import { useModules } from "@/shared/hooks/useModules";
-import { useWorkspace } from "@/shared/hooks/useWorkspace";
-import { useAuthStore } from "@/store/authStore";
+import { usePermission } from "@/contexts/PermissionsContext";
 import {
   useLeaveBalances,
   useLeavePolicies,
@@ -631,12 +630,11 @@ const TABS = [
 export default function LeavePage() {
   const { workspaceId } = useParams();
   const { isEnabled } = useModules();
-  const { user } = useAuthStore();
-  const { data: workspace } = useWorkspace(workspaceId);
+  const { isOwner, can } = usePermission();
   const [tab, setTab] = useState("my-leave");
   const [requestOpen, setRequestOpen] = useState(false);
 
-  const isAdmin = workspace?.my_role === "admin" || workspace?.owner?.email === user?.email;
+  const isAdmin = isOwner || can("hr.manage_leave");
   const visibleTabs = TABS.filter((t) => !t.adminOnly || isAdmin);
 
   const { data: balances = [], isLoading: balancesLoading } = useLeaveBalances(workspaceId);

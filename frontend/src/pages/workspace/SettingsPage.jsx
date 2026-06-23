@@ -12,7 +12,7 @@ import {
   useUpdateRole,
   useDeleteRole,
 } from "@/shared/hooks/useRoles";
-import { useAuthStore } from "@/store/authStore";
+import { usePermission } from "@/contexts/PermissionsContext";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
@@ -514,7 +514,7 @@ function ModuleCard({ mod, allModules, workspaceId, isAdmin }) {
 export default function SettingsPage() {
   const { workspaceId } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { isOwner, can } = usePermission();
 
   const { data: workspace, isLoading } = useWorkspace(workspaceId);
   const updateWorkspace = useUpdateWorkspace(workspaceId);
@@ -533,8 +533,7 @@ export default function SettingsPage() {
       });
   }, [workspace]);
 
-  const isOwner = workspace?.owner?.email === user?.email;
-  const isAdmin = isOwner || workspace?.my_role?.toLowerCase() === "admin";
+  const isAdmin = isOwner || can("settings.manage");
 
   const handleSave = (e) => {
     e.preventDefault();

@@ -36,6 +36,7 @@ import { useModules } from "@/shared/hooks/useModules";
 import { APP_DEFS } from "@/shared/lib/navLinks";
 import { useWorkspace } from "@/shared/hooks/useWorkspace";
 import { useAuthStore } from "@/store/authStore";
+import { usePermission } from "@/contexts/PermissionsContext";
 import api from "@/shared/lib/api";
 import InviteModal from "@/shared/components/workspace/InviteModal";
 import { ConfirmModal } from "@/shared/components/ui/ConfirmModal";
@@ -605,7 +606,7 @@ function AppAccessTab({ workspaceId, members, roles, isAdmin, user, workspace })
           return (
             <div key={app.key} className="rounded-lg border bg-card px-4 py-3 flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                <Icon className={cn("w-4 h-4", app.color)} />
+                <Icon className={cn("w-4 h-4", app.colors?.text)} />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">{app.label}</p>
@@ -668,7 +669,7 @@ function AppAccessTab({ workspaceId, members, roles, isAdmin, user, workspace })
             const Icon = app.icon;
             return (
               <div key={app.key} className="flex flex-col items-center justify-center py-2.5 gap-1">
-                <Icon className={cn("w-3.5 h-3.5", app.color)} />
+                <Icon className={cn("w-3.5 h-3.5", app.colors?.text)} />
                 <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                   {app.label === "Org Structure" ? "Org" : app.label}
                 </span>
@@ -885,12 +886,8 @@ export default function MembersPage() {
     );
   };
 
-  const isOwner = workspace?.owner?.email === user?.email;
-  const currentMember = members.find((m) => m.user?.email === user?.email);
-  const isAdmin =
-    isOwner ||
-    currentMember?.role?.toLowerCase() === "admin" ||
-    workspace?.my_role?.toLowerCase() === "admin";
+  const { isOwner, can } = usePermission();
+  const isAdmin = isOwner || can("settings.manage");
 
   const selectedMember = members.find((m) => m.id === selectedMemberId);
 

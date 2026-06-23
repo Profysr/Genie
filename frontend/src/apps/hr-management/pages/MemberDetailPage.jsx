@@ -9,8 +9,8 @@ import { Avatar } from "@/shared/components/ui/avatar";
 import { Button } from "@/shared/components/ui/button";
 import { Loader } from "@/shared/components/ui/Loader";
 import { cn } from "@/shared/lib/utils";
-import { useAuthStore } from "@/store/authStore";
 import { useMembers } from "@/shared/hooks/useMembers";
+import { usePermission } from "@/contexts/PermissionsContext";
 import { useLeaveRequests } from "@/apps/hr-management/hooks/useLeave";
 import {
   useEmployeeDocs,
@@ -522,7 +522,7 @@ const TABS = [
 export default function MemberDetailPage() {
   const { workspaceId, memberId } = useParams();
   const navigate = useNavigate();
-  const currentUser = useAuthStore((s) => s.user);
+  const { isOwner, can } = usePermission();
   const { data: members = [], isLoading } = useMembers(workspaceId);
   const [activeTab, setActiveTab] = useState("profile");
 
@@ -534,8 +534,7 @@ export default function MemberDetailPage() {
       <div className="p-8 text-center text-muted-foreground">Member not found.</div>
     );
 
-  const currentMember = members.find((m) => m.user?.id === currentUser?.id);
-  const isAdmin = currentMember?.role === "admin";
+  const isAdmin = isOwner || can("member.view_profile");
 
   return (
     <div className="p-6 max-w-4xl mx-auto">

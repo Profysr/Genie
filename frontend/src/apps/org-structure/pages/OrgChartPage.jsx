@@ -17,9 +17,8 @@ import { EmptyState } from "@/shared/components/ui/empty-state";
 import { Avatar } from "@/shared/components/ui/avatar";
 import { cn } from "@/shared/lib/utils";
 import { useOrgChart } from "@/apps/org-structure/hooks/useOrg";
-import { useWorkspace } from "@/shared/hooks/useWorkspace";
-import { useAuthStore } from "@/store/authStore";
 import { useMembers } from "@/shared/hooks/useMembers";
+import { usePermission } from "@/contexts/PermissionsContext";
 import api from "@/shared/lib/api";
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -308,13 +307,11 @@ function DragOverlay({ node, x, y }) {
 export default function OrgChartPage() {
   const { workspaceId } = useParams();
   const { data, isLoading } = useOrgChart(workspaceId);
-  const { data: workspace } = useWorkspace(workspaceId);
   const { data: members = [] } = useMembers(workspaceId);
-  const { user } = useAuthStore();
+  const { isOwner, can } = usePermission();
   const nodes = data?.nodes ?? [];
 
-  const currentMember = members.find((m) => m.user?.email === user?.email);
-  const isAdmin = currentMember?.role === "admin" || workspace?.owner?.email === user?.email;
+  const isAdmin = isOwner || can("org.manage");
 
   // Pan / zoom state
   const [pan, setPan] = useState({ x: 0, y: 0 });

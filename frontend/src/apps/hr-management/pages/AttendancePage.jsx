@@ -11,8 +11,7 @@ import { Avatar } from "@/shared/components/ui/avatar";
 import Modal from "@/shared/components/ui/Modal";
 import { cn } from "@/shared/lib/utils";
 import { useModules } from "@/shared/hooks/useModules";
-import { useWorkspace } from "@/shared/hooks/useWorkspace";
-import { useAuthStore } from "@/store/authStore";
+import { usePermission } from "@/contexts/PermissionsContext";
 import {
   useAttendancePolicy,
   useUpdateAttendancePolicy,
@@ -597,16 +596,15 @@ const TABS = [
 
 export default function AttendancePage() {
   const { workspaceId } = useParams();
-  const { workspace } = useWorkspace(workspaceId);
-  const { isEnabled } = useModules(workspaceId);
-  const user = useAuthStore((s) => s.user);
+  const { isEnabled } = useModules();
+  const { isOwner, can } = usePermission();
 
   const [tab, setTab] = useState("my");
   const [chartWeekOffset, setChartWeekOffset] = useState(0);
   const [showQR, setShowQR] = useState(false);
   const [showPolicy, setShowPolicy] = useState(false);
 
-  const isAdmin = workspace?.my_role === "admin";
+  const isAdmin = isOwner || can("hr.manage_attendance");
 
   // Fetch policy
   const { data: policy } = useAttendancePolicy(workspaceId);
