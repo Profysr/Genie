@@ -7,93 +7,116 @@
       body {
         margin: 0;
         padding: 0;
-        background: #f4f4f5;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #fafafa;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
       }
       .wrap {
-        max-width: 520px;
-        margin: 40px auto;
-        background: #fff;
-        border-radius: 10px;
+        max-width: 460px;
+        margin: 32px auto;
+        background: #ffffff;
+        border-radius: 16px;
         overflow: hidden;
-        border: 1px solid #e4e4e7;
+        border: 1px solid #f0f0f3;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
       }
-      .top {
-        background: #18181b;
-        padding: 28px;
-        text-align: center;
+      .header {
+        background: #f4f4f5;
+        border-bottom: 1px solid #e8e8eb;
+        padding: 28px 32px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
       }
       .logo {
-        display: inline-block;
         width: 48px;
         height: 48px;
-        background: #3b82f6;
-        border-radius: 10px;
-        font-size: 22px;
-        font-weight: 700;
-        color: #fff;
         line-height: 48px;
-        text-align: center;
-      }
-      .body {
-        padding: 36px 36px 28px;
-      }
-      h1 {
-        margin: 0 0 12px;
+        background: #2563eb;
+        border-radius: 10px;
         font-size: 20px;
         font-weight: 700;
-        color: #18181b;
+        color: #ffffff;
+        text-align: center;
+        flex-shrink: 0;
+      }
+      .header-text h1 {
+        margin: 0 0 2px;
+        font-size: 18px;
+        font-weight: 700;
+        color: #09090b;
+        letter-spacing: -0.02em;
+      }
+      .header-text p {
+        margin: 0;
+        font-size: 13px;
+        color: #71717a;
+      }
+      .body {
+        padding: 24px 32px 32px;
       }
       p {
-        margin: 0 0 20px;
+        margin: 0 0 16px;
         color: #52525b;
         font-size: 15px;
         line-height: 1.6;
       }
       .btn {
         display: block;
-        background: #3b82f6;
-        color: #fff;
+        background: #2563eb;
+        color: #ffffff !important;
         text-decoration: none;
         border-radius: 8px;
-        padding: 14px 24px;
+        padding: 13px 24px;
         font-size: 15px;
         font-weight: 600;
         text-align: center;
-        margin-bottom: 20px;
+        margin: 4px 0 20px;
+        box-shadow: 0 2px 4px rgba(37, 99, 235, 0.18);
       }
       .link-fallback {
-        font-size: 13px;
+        font-size: 12px;
         color: #71717a;
         word-break: break-all;
+        background: #f8f8f9;
+        padding: 12px;
+        border-radius: 8px;
+        line-height: 1.5;
       }
       .link-fallback a {
-        color: #3b82f6;
+        color: #2563eb;
+        text-decoration: none;
       }
       .foot {
-        padding: 20px 36px;
-        border-top: 1px solid #f4f4f5;
+        padding: 16px 32px;
+        background: #fafafa;
+        border-top: 1px solid #f0f0f3;
         font-size: 12px;
         color: #a1a1aa;
-        line-height: 1.6;
       }
     </style>
   </head>
   <body>
     <div class="wrap">
-      <div class="top"><div class="logo">J</div></div>
+      <div class="header">
+        <div class="logo">J</div>
+        <div class="header-text">
+          <h1>Confirm your email</h1>
+          <p>One step to activate your account</p>
+        </div>
+      </div>
+
       <div class="body">
-        <h1>Confirm your email address</h1>
         <p>
-          Thanks for signing up for JCN! Please confirm your email address
-          <strong>{{email}}</strong> to activate your account.
+          Thanks for signing up for JCN! Please confirm your email address <strong>{{email}}</strong> to activate your account.
         </p>
         <a href="{{confirm_url}}" class="btn">Confirm email address →</a>
         <p class="link-fallback">
-          If the button doesn't work, copy and paste this link into your browser:<br />
+          <strong>Button not working?</strong> Copy and paste this link into your browser:<br />
           <a href="{{confirm_url}}">{{confirm_url}}</a>
         </p>
       </div>
+
       <div class="foot">
         If you didn't create a JCN account, you can safely ignore this email.
       </div>

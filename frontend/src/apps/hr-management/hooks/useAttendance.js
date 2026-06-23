@@ -88,7 +88,7 @@ export const useAttendanceList = (workspaceId, { employee, dateFrom, dateTo } = 
   });
 
 // ── Admin: Summary ────────────────────────────────────────────────────────────
-const useAttendanceSummary = (workspaceId, dateFrom, dateTo) =>
+export const useAttendanceSummary = (workspaceId, dateFrom, dateTo) =>
   useQuery({
     queryKey: summaryKey(workspaceId, dateFrom, dateTo),
     queryFn: () => {

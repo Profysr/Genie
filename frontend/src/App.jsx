@@ -133,7 +133,7 @@ export default function App() {
             path="/reset-password/:uid/:token"
             element={<ResetPasswordConfirmPage />}
           />
-          <Route path="/verify-email-sent" element={<VerifyEmailSentPage />} />
+          <Route path="/verify-email" element={<VerifyEmailSentPage />} />
           <Route
             path="/verify-email/:key"
             element={<EmailVerifyConfirmPage />}

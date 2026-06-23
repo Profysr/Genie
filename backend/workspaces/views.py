@@ -256,7 +256,7 @@ class AcceptInviteView(APIView):
         member, created = WorkspaceMember.objects.get_or_create(
             workspace=invite.workspace,
             user=request.user,
-            defaults={"role": invite.role, "invited_by": invite.invited_by},
+            defaults={"invited_by": invite.invited_by},
         )
         if created:
             # Assign the matching system role to put the new member in the RBAC system.

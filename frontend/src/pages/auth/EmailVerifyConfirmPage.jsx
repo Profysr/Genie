@@ -20,11 +20,16 @@ export default function EmailVerifyConfirmPage() {
   const { key } = useParams();
   const [status, setStatus] = useState("verifying"); // "verifying" | "success" | "error"
   const [errorMsg, setErrorMsg] = useState("");
+  const [loginTo, setLoginTo] = useState("/login");
 
   useEffect(() => {
     async function verify() {
       try {
         await api.post("/api/auth/registration/verify-email/", { key });
+        const pendingInvite = localStorage.getItem("pendingInvite");
+        if (pendingInvite) {
+          setLoginTo(`/login?next=${encodeURIComponent(`/invites/${pendingInvite}`)}`);
+        }
         setStatus("success");
       } catch (err) {
         const data = err?.response?.data || {};
@@ -36,6 +41,7 @@ export default function EmailVerifyConfirmPage() {
         setStatus("error");
       }
     }
+    
     verify();
   }, [key]);
 
@@ -78,7 +84,7 @@ export default function EmailVerifyConfirmPage() {
           <>
             <CardContent />
             <CardFooter className="flex-col gap-3">
-              <Link to="/login" className="w-full">
+              <Link to={status === "success" ? loginTo : "/login"} className="w-full">
                 <Button className="w-full">
                   {status === "success" ? "Sign in" : "Back to sign in"}
                 </Button>

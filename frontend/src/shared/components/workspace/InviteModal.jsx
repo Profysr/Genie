@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Send, Link, CheckCircle2, UserPlus } from "lucide-react";
+import { X, Send, CheckCircle2, UserPlus } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { cn } from "@/shared/lib/utils";
 import { useInviteMember } from "@/shared/hooks/useMembers";
@@ -7,9 +7,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import Modal from "@/shared/components/ui/Modal";
 
 const ROLES = [
-  { key: "member", label: "Member", desc: "Can create and edit tasks" },
-  { key: "viewer", label: "Viewer", desc: "Read-only access" },
-  { key: "admin", label: "Admin", desc: "Full workspace access" },
+  { key: "Member", label: "Member", desc: "Can create and edit tasks" },
+  { key: "Viewer", label: "Viewer", desc: "Read-only access" },
+  { key: "Admin", label: "Admin", desc: "Full workspace access" },
 ];
 
 function EmailChipInput({ emails, onChange }) {
@@ -83,15 +83,11 @@ export default function InviteModal({
   onOpenChange,
 }) {
   const [emails, setEmails] = useState([]);
-  const [role, setRole] = useState("member");
+  const [role, setRole] = useState("Member");
   const [error, setError] = useState("");
   const [successCount, setSuccessCount] = useState(0);
   const qc = useQueryClient();
   const inviteMember = useInviteMember(workspaceId);
-
-  const copyLink = () => {
-    navigator.clipboard.writeText(`${window.location.origin}/register`);
-  };
 
   const handleSend = async () => {
     if (!emails.length) return;
@@ -118,7 +114,7 @@ export default function InviteModal({
 
   const handleClose = () => {
     setEmails([]);
-    setRole("member");
+    setRole("Member");
     setError("");
     setSuccessCount(0);
     onOpenChange(false);
@@ -192,15 +188,7 @@ export default function InviteModal({
             {error && <p className="text-xs text-destructive">{error}</p>}
           </div>
 
-          <div className="-mx-6 -mb-5 mt-5 px-6 py-4 border-t border-border bg-muted/30 flex items-center justify-between">
-            <button
-              type="button"
-              onClick={copyLink}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <Link className="w-3.5 h-3.5" />
-              Copy invite link
-            </button>
+          <div className="-mx-6 -mb-5 mt-5 px-6 py-4 border-t border-border bg-muted/30 flex items-center justify-end">
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={handleClose}>
                 Cancel

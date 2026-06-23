@@ -24,18 +24,21 @@ export const useInviteMember = (workspaceId) =>
     membersKey(workspaceId),
   );
 
-const useUpdateMemberRole = (workspaceId) =>
+export const useUpdateMemberRole = (workspaceId) =>
   useInvalidatingMutation(
     ({ memberId, role }) =>
       api
-        .patch(`/api/workspaces/${workspaceId}/members/${memberId}/`, { role })
+        .patch(`/api/workspaces/${workspaceId}/members/${memberId}/`, {
+          role,
+        })
         .then((r) => r.data),
     membersKey(workspaceId),
   );
 
 export const useRemoveMember = (workspaceId) =>
   useInvalidatingMutation(
-    (memberId) => api.delete(`/api/workspaces/${workspaceId}/members/${memberId}/`),
+    (memberId) =>
+      api.delete(`/api/workspaces/${workspaceId}/members/${memberId}/`),
     membersKey(workspaceId),
   );
 
@@ -60,6 +63,7 @@ export const useInviteDetails = (token) =>
     queryKey: ["invite", token],
     queryFn: () => api.get(`/api/invites/${token}/`).then((r) => r.data),
     enabled: !!token,
+    staleTime: Infinity,
     retry: false,
   });
 
@@ -71,6 +75,7 @@ export const usePendingInvites = (workspaceId, { refetchInterval } = {}) =>
         .get(`/api/workspaces/${workspaceId}/invites/pending/`)
         .then((r) => r.data),
     enabled: !!workspaceId,
+    staleTime: Infinity,
     refetchInterval,
   });
 

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { Mail, CheckCircle, AlertCircle } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -15,12 +15,29 @@ import { useToast } from "@/shared/components/ui/toast";
 
 export default function VerifyEmailSentPage() {
   const [searchParams] = useSearchParams();
-  const email = searchParams.get("email") || "your email";
+  const navigate = useNavigate();
+  const email = searchParams.get("email") || "";
 
   const { toast } = useToast();
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
   const [error, setError] = useState("");
+  useEffect(() => {
+    if (!email) return;
+
+    api
+      .get(`/api/auth/email-verified/?email=${encodeURIComponent(email)}`)
+      .then(({ data }) => {
+        if (data.verified) {
+          const pendingInvite = localStorage.getItem("pendingInvite");
+          const next = pendingInvite
+            ? `/login?next=${encodeURIComponent(`/invites/${pendingInvite}`)}`
+            : "/login";
+          navigate(next, { replace: true });
+        }
+      })
+      .catch(() => {});
+  }, [email, navigate]);
 
   const handleResend = async () => {
     setError("");
@@ -30,7 +47,8 @@ export default function VerifyEmailSentPage() {
       setResent(true);
     } catch (err) {
       const msg =
-        err?.response?.data?.detail || "Could not resend. Please try registering again.";
+        err?.response?.data?.detail ||
+        "Could not resend. Please try registering again.";
       setError(msg);
       toast.error("Failed to resend email", msg);
     } finally {
@@ -50,8 +68,10 @@ export default function VerifyEmailSentPage() {
           <CardTitle className="text-2xl">Check your inbox</CardTitle>
           <CardDescription>
             We sent a confirmation link to{" "}
-            <span className="font-medium text-foreground">{email}</span>. Click
-            it to activate your account.
+            <span className="font-medium text-foreground">
+              {email || "your email"}
+            </span>
+            . Click it to activate your account.
           </CardDescription>
         </CardHeader>
 

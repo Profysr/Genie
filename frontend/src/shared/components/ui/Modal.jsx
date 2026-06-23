@@ -24,7 +24,7 @@ const VARIANT_MAP = {
 /**
  * Loading Skeleton for Modal Content
  */
-const ModalSkeleton = () => (
+export const ModalSkeleton = () => (
   <div className="space-y-4 animate-pulse">
     <div className="flex items-center gap-3">
       <div className="h-4 bg-foreground/10 rounded w-1/3" />

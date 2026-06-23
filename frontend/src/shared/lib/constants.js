@@ -333,7 +333,7 @@ export const EMPLOYMENT_TYPES = [
 ];
 
 // ── Workspace member role display config ──────────────────────────────────────
-const WORKSPACE_ROLE_CONFIG = {
+export const WORKSPACE_ROLE_CONFIG = {
   Admin: {
     label: "Admin",
     icon: Shield,

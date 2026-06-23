@@ -6,14 +6,14 @@ This document is the single source of truth for navigating the frontend. Read it
 
 ## Stack & Infrastructure
 
-| Layer | Tech | File |
-|---|---|---|
-| HTTP client | Axios | `src/shared/lib/api.js` |
+| Layer        | Tech                    | File                                       |
+| ------------ | ----------------------- | ------------------------------------------ |
+| HTTP client  | Axios                   | `src/shared/lib/api.js`                    |
 | Server state | TanStack React Query v5 | `src/apps/*/hooks/*`, `src/shared/hooks/*` |
-| Client state | Zustand | `src/store/authStore.js` |
-| Real-time | Native WebSocket | `src/shared/hooks/useWorkspaceSocket.js` |
-| Routing | React Router v6 | `src/App.jsx` |
-| Environment | Vite env vars | `src/shared/lib/env.js` |
+| Client state | Zustand                 | `src/store/authStore.js`                   |
+| Real-time    | Native WebSocket        | `src/shared/hooks/useWorkspaceSocket.js`   |
+| Routing      | React Router v6         | `src/App.jsx`                              |
+| Environment  | Vite env vars           | `src/shared/lib/env.js`                    |
 
 > **Path note:** Some older sections below still reference legacy `src/lib/`, `src/hooks/`, `src/components/`, `src/pages/` paths. Since vB.0 these live under either `src/shared/` (cross-app primitives, layout, lib, shared hooks) or `src/apps/<module>/` (feature code). When a path looks stale, resolve it via the Directory Architecture map below.
 
@@ -47,7 +47,7 @@ src/store/                     — Zustand stores (authStore, themeStore) — NO
 
 This is what makes a module extractable: cut the `apps/<module>` folder + its `src/shared` dependencies and it stands alone.
 
-**Known exception (downward dependency):** `hr-management/pages/MemberDetailPage.jsx` imports `useOrgProfile` from `@/apps/org-structure/hooks/useOrg`. This mirrors the backend `hr_management → org_structure` `depends_on` edge — HR genuinely builds on org profiles. It is the **only** cross-app import in the tree. If HR is ever extracted standalone, this hook must be promoted into `src/shared/hooks/` (or the org-profile read endpoint re-exposed). Treat any *new* cross-app import as a violation; route it through `src/shared/` instead.
+**Known exception (downward dependency):** `hr-management/pages/MemberDetailPage.jsx` imports `useOrgProfile` from `@/apps/org-structure/hooks/useOrg`. This mirrors the backend `hr_management → org_structure` `depends_on` edge — HR genuinely builds on org profiles. It is the **only** cross-app import in the tree. If HR is ever extracted standalone, this hook must be promoted into `src/shared/hooks/` (or the org-profile read endpoint re-exposed). Treat any _new_ cross-app import as a violation; route it through `src/shared/` instead.
 
 ---
 
@@ -55,15 +55,16 @@ This is what makes a module extractable: cut the `apps/<module>` folder + its `s
 
 Workspace-level permission gating. Every workspace member has a `CustomRole` with a `permissions` map.
 
-| Layer | Location | Role |
-|---|---|---|
-| Backend source of truth | `backend/workspaces/constants.py` → `PERMISSIONS` dict | key → human description for 22 permission keys |
-| System roles | `SYSTEM_ROLE_PERMISSIONS` | Admin (all), Member (default), Viewer (read-only) |
-| DB enforcement | `has_workspace_permission(user, ws, key)` | called in views |
-| Frontend hooks | `src/shared/hooks/useRoles.js` | `useRoles`, `useCreateRole`, `useUpdateRole`, `useDeleteRole`, `useAssignRole` |
-| Frontend context | `src/contexts/PermissionsContext.jsx` | `PermissionsProvider` (in AppLayout) + `usePermission()` → `{ can(key), isOwner }` |
+| Layer                   | Location                                               | Role                                                                               |
+| ----------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| Backend source of truth | `backend/workspaces/constants.py` → `PERMISSIONS` dict | key → human description for 22 permission keys                                     |
+| System roles            | `SYSTEM_ROLE_PERMISSIONS`                              | Admin (all), Member (default), Viewer (read-only)                                  |
+| DB enforcement          | `has_workspace_permission(user, ws, key)`              | called in views                                                                    |
+| Frontend hooks          | `src/shared/hooks/useRoles.js`                         | `useRoles`, `useCreateRole`, `useUpdateRole`, `useDeleteRole`, `useAssignRole`     |
+| Frontend context        | `src/contexts/PermissionsContext.jsx`                  | `PermissionsProvider` (in AppLayout) + `usePermission()` → `{ can(key), isOwner }` |
 
 **Permission keys** (grouped):
+
 - Projects/Boards: `project.create`, `project.delete`, `project.admin`
 - Kanban/Tasks: `task.view`, `task.create`, `task.edit`, `task.delete`, `task.move`, `task.comment`, `sprint.manage`, `automation.manage`
 - People & HR: `member.invite`, `member.remove`, `member.view_profile`, `hr.view`, `hr.manage_leave`, `hr.manage_attendance`, `org.view`, `org.manage`
@@ -83,22 +84,25 @@ Workspace-level permission gating. Every workspace member has a `CustomRole` wit
 
 JCN's product areas are licensed as modules. The system spans backend + frontend:
 
-| Layer | Location | Role |
-|---|---|---|
-| Registry (source of truth) | `backend/core/modules.py` → `MODULE_REGISTRY` | tier (`free`/`pro`/`enterprise`), `always_on`, `depends_on`, icon |
-| DB state | `WorkspaceModule` model (`workspaces` app) | which modules each workspace has enabled |
-| Backend enforcement | `require_module(workspace, key)` | raises HTTP 403 if disabled; called at the top of every org/HR view |
-| Frontend context | `src/shared/hooks/useModules.js` | `ModulesContext` (provided in `AppLayout`) + `useModules()` → `{ isEnabled(key), isLoading, modules }` |
+| Layer                      | Location                                      | Role                                                                                                   |
+| -------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Registry (source of truth) | `backend/core/modules.py` → `MODULE_REGISTRY` | tier (`free`/`pro`/`enterprise`), `always_on`, `depends_on`, icon                                      |
+| DB state                   | `WorkspaceModule` model (`workspaces` app)    | which modules each workspace has enabled                                                               |
+| Backend enforcement        | `require_module(workspace, key)`              | raises HTTP 403 if disabled; called at the top of every org/HR view                                    |
+| Frontend context           | `src/shared/hooks/useModules.js`              | `ModulesContext` (provided in `AppLayout`) + `useModules()` → `{ isEnabled(key), isLoading, modules }` |
 
 **Modules:** `projects` (free, always_on), `org_structure` (pro), `hr_management` (enterprise, `depends_on: ["org_structure"]`), `analytics_advanced` (pro).
 
 ### Hooks
+
 - `useModulesQuery(ws)` — `GET /api/workspaces/:id/modules/`, key `["workspace-modules", ws]`, `staleTime 5min`.
 - `useToggleModule(ws)` — `PATCH /api/workspaces/:id/modules/:key/ { is_enabled }`; invalidates the modules query.
 - `useModules()` — reads `ModulesContext`; call `isEnabled("org_structure")` anywhere under `AppLayout`.
 
 ### Frontend module gating (implemented)
+
 The earlier "gating gap" is **closed** — the frontend now consumes `isEnabled` at both the nav and route layers:
+
 - **Nav items carry a `moduleKey`.** Each per-app `nav.js` (`apps/<module>/nav.js`) tags its items with `moduleKey` (e.g. HR items → `"hr_management"`). Items without one are always shown.
 - **`Sidebar` filters by it** — `useModules()` → `isEnabled`; an item renders only when `!item.moduleKey || modulesLoading || isEnabled(item.moduleKey)`. (`modulesLoading` keeps items visible during the first fetch, then they resolve once modules load.)
 - **Routes are wrapped in `<ProtectedModuleRoute moduleKey="…">`** (`shared/components/layout/ProtectedModuleRoute.jsx`). When the module is disabled it renders `ModuleUnavailablePage` (an upsell, not a raw 403); on first visit after enabling it shows `AppWelcomeScreen` once (persisted per workspace+module in `localStorage`).
@@ -107,12 +111,15 @@ The earlier "gating gap" is **closed** — the frontend now consumes `isEnabled`
 ---
 
 ### `src/shared/lib/api.js`
+
 Single Axios instance shared by all hooks.
+
 - Attaches `Authorization: Bearer {token}` on every request (from `localStorage.access_token`).
 - On **401**: auto-refreshes via `/api/auth/token/refresh/`, retries the original request once.
 - On refresh failure: clears localStorage, redirects to `/login`.
 
 ### `src/lib/env.js`
+
 ```
 BACKEND_URL  = VITE_BACKEND_URL
 FRONTEND_URL = VITE_FRONTEND_URL
@@ -120,10 +127,12 @@ BACKEND_WS_URL = http→ws / https→wss auto-derived from BACKEND_URL
 ```
 
 ### `src/store/authStore.js` (Zustand, persisted)
+
 State: `user`, `accessToken`, `refreshToken`
 Methods: `login()`, `register()`, `logout()`, `fetchMe()`, `setTokens()`, `setUser()`
+
 - `login` / `register` / `logout` all call `queryClient.clear()` to wipe the entire React Query cache.
-- `register()` checks `data.access` before calling `setTokens` — when `ACCOUNT_EMAIL_VERIFICATION=mandatory` the response has no tokens, only `{"detail": "Verification e-mail sent."}`. Callers check `data.access` to decide whether to navigate to the app or to `/verify-email-sent`.
+- `register()` checks `data.access` before calling `setTokens` — when `ACCOUNT_EMAIL_VERIFICATION=mandatory` the response has no tokens, only `{"detail": "Verification e-mail sent."}`. Callers check `data.access` to decide whether to navigate to the app or to `/verify-email`.
 
 ---
 
@@ -132,7 +141,9 @@ Methods: `login()`, `register()`, `logout()`, `fetchMe()`, `setTokens()`, `setUs
 > Rule: a value/derivation used by 2+ files lives in `shared/lib` and is **imported**, never re-derived per component. Changing it in one place must propagate everywhere.
 
 ### `src/shared/lib/constants.js`
+
 Single source for cross-app config. Each entry ships a getter that always returns a valid object:
+
 - **Priority** — `PRIORITIES` (array w/ `value, label, order, icon, textCls, dotCls, hex, filterActiveCls, modalBtnCls`), `PRIORITY_MAP` (value→object, for keyed lookups), `getPriority(value)`, `PRIORITY_ORDER`. **Do not** build `Object.fromEntries(PRIORITIES.map(...))` in a component — use `getPriority()` / `PRIORITY_MAP`.
 - **Task types** — `TASK_TYPES`, `getTaskType(value)`.
 - **Sprint status** — `SPRINT_STATUSES`, `getSprintStatus(value)` (returns `{ value, label, badgeCls }`).
@@ -141,13 +152,15 @@ Single source for cross-app config. Each entry ships a getter that always return
 - **Appearance / focus** — `THEMES`, `ACCENT_COLORS`, `DENSITIES`, `FOCUS_DURATIONS`.
 
 ### `src/shared/lib/dateUtils.js`
+
 Shared date primitives (previously duplicated across `useGanttModel`, `CalendarView`, the deleted `RoadmapPage`):
+
 - Labels: `MONTH_NAMES`, `MONTH_NAMES_SHORT`, `DAY_LABELS`.
 - Parsing/keys: `parseDate("YYYY-MM-DD")` (TZ-safe, null-safe), `dateKey(date)`.
 - Arithmetic: `addDays(date, n)`, `daysBetween(a, b)`.
 - Comparisons: `isSameDay(a, b)`, `isToday(date)`.
 - Formatting: `formatShortDate(value)` → `"Jun 23"` (accepts string or Date, null-safe).
-> `useGanttModel.js` re-exports `parseDate/dateKey/daysBetween/addDays` from here so `GanttCanvas` (which imports them from the model) keeps working without redefining them.
+  > `useGanttModel.js` re-exports `parseDate/dateKey/daysBetween/addDays` from here so `GanttCanvas` (which imports them from the model) keeps working without redefining them.
 
 ---
 
@@ -282,19 +295,20 @@ The master index of every React Query key used in the codebase. Prefix-match inv
 
 How long data is considered fresh before React Query will refetch on next mount/focus.
 
-| staleTime | Keys |
-|---|---|
+| staleTime                     | Keys                                                                                                                                                                                                                                                                                                                                          |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Infinity` (never auto-stale) | `workspace`, `workspaces`, `boards`, `board`, `workspace-members`, `labels`, `statuses`, `saved-views`, `onboarding`, `import sources`, `presence`, `org-departments`, `org-dept-members`, `org-teams`, `org-team-members`, `org-job-titles`, `hr-leave-policies`, `hr-attendance-policy`, `inbox-unread-count` (event-driven — see useInbox) |
-| `60_000` (1 min) | `portfolio`, all `analytics` keys, `burndown`, `hr-leave-balances`, `hr-whos-off`, `hr-attendance-qr`, `hr-employee-docs`, `hr-employee-notes` |
-| `5 * 60_000` (5 min) | `org-chart`, `workspace-modules` |
-| `2 * 60_000` (2 min) | `org-profile`, `hr-dashboard` |
-| `30_000` (30 s) | `inbox`, `integrations`, `api-keys`, `sprint detail`, `hr-leave-requests`, `hr-attendance-my`, `hr-attendance-list`, `hr-attendance-summary` |
-| `15_000` (15 s) | `import jobs`, `webhook deliveries` |
-| global default `30_000` | `tasks`, `task-detail`, `sprints list`, `approvals`, `attachments`, `automations`, `forms`, `wiki`, `children`, `dependencies` |
+| `60_000` (1 min)              | `portfolio`, all `analytics` keys, `burndown`, `hr-leave-balances`, `hr-whos-off`, `hr-attendance-qr`, `hr-employee-docs`, `hr-employee-notes`                                                                                                                                                                                                |
+| `5 * 60_000` (5 min)          | `org-chart`, `workspace-modules`                                                                                                                                                                                                                                                                                                              |
+| `2 * 60_000` (2 min)          | `org-profile`, `hr-dashboard`                                                                                                                                                                                                                                                                                                                 |
+| `30_000` (30 s)               | `inbox`, `integrations`, `api-keys`, `sprint detail`, `hr-leave-requests`, `hr-attendance-my`, `hr-attendance-list`, `hr-attendance-summary`                                                                                                                                                                                                  |
+| `15_000` (15 s)               | `import jobs`, `webhook deliveries`                                                                                                                                                                                                                                                                                                           |
+| global default `30_000`       | `tasks`, `task-detail`, `sprints list`, `approvals`, `attachments`, `automations`, `forms`, `wiki`, `children`, `dependencies`                                                                                                                                                                                                                |
 
 > **The global default is `30_000`, not `0`** — set in `src/shared/lib/queryClient.js`. Any query with no explicit `staleTime` inherits 30s. (Earlier revisions of this doc said `0`; that was wrong.)
 
 **Rules for choosing:**
+
 - `Infinity`: near-static config (workspace settings, board list, members, labels). Only invalidate on explicit mutation.
 - `60s`: aggregate data that changes when tasks change but a 1-min lag is acceptable (analytics, burndown).
 - `30s`: user-facing counters, integration status, and task-level data (the global default).
@@ -306,47 +320,47 @@ How long data is considered fresh before React Query will refetch on next mount/
 
 - Keeps `refetchOnReconnect` (RQ default `true`) as the resync safety net for events missed during a dropped socket.
 - Does **not** raise `staleTime` — a fresh mount still background-refreshes once.
-- **Applied to:** `tasks`, `task-detail`, `comments`, `activities`, `approvals` (board socket); `sprint` detail (invalidated by board socket task events); `inbox` list (workspace socket). `inbox-unread-count` goes further (`staleTime: Infinity`) because the socket *increments it in place* — a cheap counter, not a payload.
+- **Applied to:** `tasks`, `task-detail`, `comments`, `activities`, `approvals` (board socket); `sprint` detail (invalidated by board socket task events); `inbox` list (workspace socket). `inbox-unread-count` goes further (`staleTime: Infinity`) because the socket _increments it in place_ — a cheap counter, not a payload.
 - **Not applied to** queries with no matching WS event — `subtasks`, `attachments`, `dependencies`, custom fields — they keep focus-refetch as their only cross-tab sync.
 
 ---
 
 ## Hooks — Detailed Reference
 
-### `useWorkspaceSocket.js`  *(two scoped connections)*
+### `useWorkspaceSocket.js` _(two scoped connections)_
 
 Connects to the workspace WebSocket. The backend pushes **every** event to every connection; a stable module-level `handle(type, payload, qc, ws)` decides which events each connection acts on, so the two scopes never double-process the same event.
 
 WebSocket URL (both): `ws(s)://BACKEND/ws/workspaces/{workspaceId}/?token={access_token}`
 
-| Hook | Mounted in | Lifetime | Handles |
-|---|---|---|---|
-| `useWorkspaceSocket(ws)` | **`AppLayout`** (once) | whole session, every page | workspace-wide events: `notification.created`, `objective.*`, `presence.updated` |
-| `useBoardSocket(ws)` | **`KanbanPage`** | only while a board is open | board events: `task.*`, `comment.*`, `approval.*`, `typing.update`, `reaction.updated` |
+| Hook                     | Mounted in             | Lifetime                   | Handles                                                                                |
+| ------------------------ | ---------------------- | -------------------------- | -------------------------------------------------------------------------------------- |
+| `useWorkspaceSocket(ws)` | **`AppLayout`** (once) | whole session, every page  | workspace-wide events: `notification.created`, `objective.*`, `presence.updated`       |
+| `useBoardSocket(ws)`     | **`KanbanPage`**       | only while a board is open | board events: `task.*`, `comment.*`, `approval.*`, `typing.update`, `reaction.updated` |
 
-> **Why two connections (vB.x):** workspace-wide events (the inbox badge especially) must stay live on *every* page, but task/board events only matter while a board is open. Previously the single socket lived only in `KanbanPage`, so the inbox badge fell back to 30s-stale + focus refetch everywhere else. Splitting lets the badge be event-driven app-wide while board traffic stays scoped to the board. The second connection is cheap (same endpoint, scoped handler).
+> **Why two connections (vB.x):** workspace-wide events (the inbox badge especially) must stay live on _every_ page, but task/board events only matter while a board is open. Previously the single socket lived only in `KanbanPage`, so the inbox badge fell back to 30s-stale + focus refetch everywhere else. Splitting lets the badge be event-driven app-wide while board traffic stays scoped to the board. The second connection is cheap (same endpoint, scoped handler).
 
 #### Workspace scope — `handleWorkspaceEvent`
 
-| Event | Cache action | Keys affected |
-|---|---|---|
-| `notification.created` | `setQueryData` (**increment in place, no GET**) + `invalidateQueries` on the list | `["inbox-unread-count", ws]` (+1), `["inbox", ws]` |
-| `objective.created` / `updated` / `deleted` | `invalidateQueries` | `["objectives", ws]` (prefix — all time-period variants) |
-| `presence.updated` | `invalidateQueries` | `presenceKey(...)`, `["presence", ws, "all"]` |
+| Event                                       | Cache action                                                                      | Keys affected                                            |
+| ------------------------------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `notification.created`                      | `setQueryData` (**increment in place, no GET**) + `invalidateQueries` on the list | `["inbox-unread-count", ws]` (+1), `["inbox", ws]`       |
+| `objective.created` / `updated` / `deleted` | `invalidateQueries`                                                               | `["objectives", ws]` (prefix — all time-period variants) |
+| `presence.updated`                          | `invalidateQueries`                                                               | `presenceKey(...)`, `["presence", ws, "all"]`            |
 
 #### Board scope — `handleBoardEvent`
 
-| Event | Cache action | Keys affected |
-|---|---|---|
-| `task.created` | `invalidateQueries` | `["tasks", ws, board_id]`, `["sprint", ws, board_id]` |
-| `task.updated` | `setQueriesData` (prefix) + `setQueryData` | `["tasks", ws, board_id]`, `["task-detail", ws, board_id, id]`, + invalidates `["sprint", ws, board_id]` |
-| `task.moved` | `setQueriesData` (prefix) | `["tasks", ws, board_id]`, + invalidates `["sprint", ws, board_id]` |
-| `task.deleted` | `setQueriesData` filter | `["tasks", ws, board_id]`, + invalidates `["sprint", ws, board_id]` |
-| `comment.created` | `setQueryData` | `["task-detail", ws, board_id, task_id]` |
-| `comment.deleted` | `setQueryData` | `["task-detail", ws, board_id, task_id]` |
-| `reaction.updated` | `setQueryData` | `["task-detail", ws, board_id, task_id]` |
-| `approval.created/updated` | `invalidateQueries` | `["approvals", ws, board_id, task_id]`, `["tasks", ws, board_id]` |
-| `typing.update` | DOM custom event | `window → "jcn:typing"` |
+| Event                      | Cache action                               | Keys affected                                                                                            |
+| -------------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| `task.created`             | `invalidateQueries`                        | `["tasks", ws, board_id]`, `["sprint", ws, board_id]`                                                    |
+| `task.updated`             | `setQueriesData` (prefix) + `setQueryData` | `["tasks", ws, board_id]`, `["task-detail", ws, board_id, id]`, + invalidates `["sprint", ws, board_id]` |
+| `task.moved`               | `setQueriesData` (prefix)                  | `["tasks", ws, board_id]`, + invalidates `["sprint", ws, board_id]`                                      |
+| `task.deleted`             | `setQueriesData` filter                    | `["tasks", ws, board_id]`, + invalidates `["sprint", ws, board_id]`                                      |
+| `comment.created`          | `setQueryData`                             | `["task-detail", ws, board_id, task_id]`                                                                 |
+| `comment.deleted`          | `setQueryData`                             | `["task-detail", ws, board_id, task_id]`                                                                 |
+| `reaction.updated`         | `setQueryData`                             | `["task-detail", ws, board_id, task_id]`                                                                 |
+| `approval.created/updated` | `invalidateQueries`                        | `["approvals", ws, board_id, task_id]`, `["tasks", ws, board_id]`                                        |
+| `typing.update`            | DOM custom event                           | `window → "jcn:typing"`                                                                                  |
 
 **Inbox badge is poll-free:** `useInboxUnreadCount` uses `staleTime: Infinity` + `refetchOnWindowFocus/Reconnect: false`. It fetches once per session, then the count only moves via three events — **created** (workspace socket increments in place), and **read / bulk-read** (`useUpdateInboxItem` / `useBulkUpdateInbox` invalidate the key). No window-focus refetching.
 
@@ -360,6 +374,7 @@ WebSocket URL (both): `ws(s)://BACKEND/ws/workspaces/{workspaceId}/?token={acces
 The heaviest hook. All task CRUD + comments + subtasks.
 
 #### Query Key Factories
+
 ```js
 tasksKey(ws, proj, filters)   → ["tasks", ws, proj, filters]
 detailKey(ws, proj, taskId)   → ["task-detail", ws, proj, taskId]
@@ -369,19 +384,20 @@ commentsKey(ws, proj, taskId) → ["comments", ws, proj, taskId]
 
 #### Queries
 
-| Hook | Key | URL | staleTime | enabled |
-|---|---|---|---|---|
-| `useTasks` | `tasksKey(ws, proj, filters)` | `GET /tasks/?{qs}` | default | `!!ws && !!proj` |
-| `useTaskDetail` | `detailKey(...)` | `GET /tasks/{id}/` | default | `!!taskId` |
-| `useTaskSubtasks` | `subtasksKey(...)` | `GET /tasks/{id}/subtasks/` | default | `!!taskId` |
-| `useTaskComments` | `commentsKey(...)` | `GET /tasks/{id}/comments/` (cursor) | default | `!!taskId` |
-| `useTaskActivities` | `["activities", ws, proj, taskId]` | `GET /tasks/{id}/activities/` (cursor) | default | `!!taskId` |
+| Hook                | Key                                | URL                                    | staleTime | enabled          |
+| ------------------- | ---------------------------------- | -------------------------------------- | --------- | ---------------- |
+| `useTasks`          | `tasksKey(ws, proj, filters)`      | `GET /tasks/?{qs}`                     | default   | `!!ws && !!proj` |
+| `useTaskDetail`     | `detailKey(...)`                   | `GET /tasks/{id}/`                     | default   | `!!taskId`       |
+| `useTaskSubtasks`   | `subtasksKey(...)`                 | `GET /tasks/{id}/subtasks/`            | default   | `!!taskId`       |
+| `useTaskComments`   | `commentsKey(...)`                 | `GET /tasks/{id}/comments/` (cursor)   | default   | `!!taskId`       |
+| `useTaskActivities` | `["activities", ws, proj, taskId]` | `GET /tasks/{id}/activities/` (cursor) | default   | `!!taskId`       |
 
 `useTaskComments` and `useTaskActivities` are **infinite queries**. `getNextPageParam` returns `lastPage.next` (full cursor URL).
 
 #### Filter Builder
 
 `buildTaskParams(filters)` converts the filter object to a URL query string:
+
 - `search`, `sprint`, `start`, `end`
 - `priorities[]`, `assignees[]`, `labels[]`, `types[]`, `due[]`
 - `pendingMyApproval → pending_approval=true`
@@ -391,14 +407,17 @@ commentsKey(ws, proj, taskId) → ["comments", ws, proj, taskId]
 > **Mutations merge, they do not refetch (perf).** Every PATCH/move/delete returns (or implies) the full task, so the high-frequency mutations patch the cache in place via `setQueriesData` instead of `invalidateQueries(["tasks"])` — which would refetch the **entire board task list** from the backend on every small edit. Only `useCreateTask` still invalidates (a brand-new task's filter membership is unknown). Other clients are reconciled by the board socket. Shared helpers: `mergeTaskInLists` (lists + children), `patchSubtaskCounts`, `maybeInvalidateSprint`.
 
 **`useCreateTask`**
+
 - `POST /tasks/`
 - onSuccess: invalidates `["tasks", ws, proj]`, `["sprint", ws, proj]` — **the one mutation that still refetches the list** (new task may or may not match active filters).
 
 **`useUpdateTask`** ← used by board-level views (Kanban, Calendar, Gantt)
+
 - `PATCH /tasks/{taskId}/`
 - onSuccess: `mergeTaskInLists` (server response → `["tasks"]` + `["children"]`) + `setQueryData(detailKey)`; `maybeInvalidateSprint` (only if the payload touched `status_id`/`sprint_id`/`sprint`). **No task-list refetch.**
 
 **`useUpdateTaskDetail`** ← used by TaskDetailPanel only
+
 - `PATCH /tasks/{taskId}/`
 - onSuccess:
   1. `setQueryData(detailKey)` — merges `{ ...old, ...updated }` immediately
@@ -406,10 +425,12 @@ commentsKey(ws, proj, taskId) → ["comments", ws, proj, taskId]
   3. `maybeInvalidateSprint` — refreshes sprint counts **only** when a sprint-affecting field changed
 
 **`useDeleteTask`**
+
 - `DELETE /tasks/{taskId}/`
 - onSuccess: `setQueriesData(["tasks"])` filters the id out, `removeQueries(detailKey)`, invalidates `["sprint", ws, proj]` (deletion always affects completion). No list refetch.
 
 **`useMoveTask`** ← Kanban drag-drop, most complex mutation
+
 - `PATCH /tasks/{taskId}/move/` with `{ status_id, order }`
 - **Optimistic update:**
   - `onMutate`: `cancelQueries` → snapshot all `["tasks", ws, proj, *]` variants → `setQueriesData` with `{ status_id, order }` immediately
@@ -421,6 +442,7 @@ commentsKey(ws, proj, taskId) → ["comments", ws, proj, taskId]
     4. `invalidateQueries(["sprint", ws, proj])` — refreshes sprint counts
 
 **`useCreateComment`**
+
 - `POST /tasks/{taskId}/comments/`
 - onSuccess (`setQueryData` only, no invalidate):
   - Top-level: appends to last page of infinite query
@@ -428,12 +450,14 @@ commentsKey(ws, proj, taskId) → ["comments", ws, proj, taskId]
   - Increments `comment_count` on `detailKey`
 
 **`useDeleteComment`**
+
 - `DELETE /tasks/{taskId}/comments/{commentId}/`
 - onSuccess (`setQueryData` only):
   - Filters from pages (top-level) or from parent's replies array
   - Decrements `comment_count`
 
 **`useCreateSubtask`** / **`useToggleSubtask`** / **`useDeleteSubtask`**
+
 - All update `subtasksKey` via `setQueryData`, then call `patchSubtaskCounts` which writes the recomputed `subtask_count` + `done_subtask_count` into `detailKey` **and** every `["tasks", ws, proj, *]` variant.
 - **No `invalidateQueries(["tasks"])`** — the card progress bar updates from the patched counts, so toggling a checklist item no longer refetches the whole board.
 
@@ -443,22 +467,22 @@ commentsKey(ws, proj, taskId) → ["comments", ws, proj, taskId]
 
 Two separate keys: `sprints` (list) and `sprint` (detail). Note the singular vs plural.
 
-| Hook | Key | staleTime | Notes |
-|---|---|---|---|
-| `useSprints` | `["sprints", ws, proj]` | default | list of sprint names/dates/status |
-| `useSprintDetail` | `["sprint", ws, proj, sprintId]` | `30_000` | task counts, completion %; invalidated by all task mutations |
-| `useSprintBurndown` | `["burndown", ws, proj, sprintId]` | `60_000` | analytics endpoint |
+| Hook                | Key                                | staleTime | Notes                                                        |
+| ------------------- | ---------------------------------- | --------- | ------------------------------------------------------------ |
+| `useSprints`        | `["sprints", ws, proj]`            | default   | list of sprint names/dates/status                            |
+| `useSprintDetail`   | `["sprint", ws, proj, sprintId]`   | `30_000`  | task counts, completion %; invalidated by all task mutations |
+| `useSprintBurndown` | `["burndown", ws, proj, sprintId]` | `60_000`  | analytics endpoint                                           |
 
 **When sprint detail goes stale:**
 All task mutations (`create`, `update`, `updateDetail`, `delete`, `move`) and all WebSocket task events invalidate `["sprint", ws, proj]` (prefix match → hits all sprint detail entries for that board).
 
 #### Mutations
 
-| Hook | URL | Invalidates |
-|---|---|---|
-| `useCreateSprint` | `POST /sprints/` | `["sprints", ws, proj]` |
-| `useUpdateSprint` | `PATCH /sprints/{id}/` | `["sprints", ws, proj]`, `["sprint", ws, proj, id]` |
-| `useDeleteSprint` | `DELETE /sprints/{id}/` | `["sprints", ws, proj]` |
+| Hook              | URL                     | Invalidates                                         |
+| ----------------- | ----------------------- | --------------------------------------------------- |
+| `useCreateSprint` | `POST /sprints/`        | `["sprints", ws, proj]`                             |
+| `useUpdateSprint` | `PATCH /sprints/{id}/`  | `["sprints", ws, proj]`, `["sprint", ws, proj, id]` |
+| `useDeleteSprint` | `DELETE /sprints/{id}/` | `["sprints", ws, proj]`                             |
 
 ---
 
@@ -466,10 +490,10 @@ All task mutations (`create`, `update`, `updateDetail`, `delete`, `move`) and al
 
 Despite the file name, this manages boards (the backend calls them "projects" in URLs).
 
-| Hook | Key | staleTime |
-|---|---|---|
-| `useBoards` | `["boards", ws]` | `Infinity` |
-| `useBoard` | `["board", ws, boardId]` | `Infinity` |
+| Hook        | Key                      | staleTime  |
+| ----------- | ------------------------ | ---------- |
+| `useBoards` | `["boards", ws]`         | `Infinity` |
+| `useBoard`  | `["board", ws, boardId]` | `Infinity` |
 
 `useBoard` has `retry: false` — a 403/404 response surfaces immediately (used for the "Access denied" error screen in KanbanPage).
 
@@ -508,6 +532,7 @@ Members list only changes via explicit mutations. Every mutation invalidates the
 `useAcceptInvite(token)` invalidates both `["workspaces"]` and `["workspace-members"]` (prefix only, no workspaceId — affects all workspaces in cache).
 
 **Invite hooks** (all live here — do **not** re-query invite endpoints inline in pages):
+
 - `useInviteMember(ws)` — `POST …/invites/` (used by InviteModal **and** SetupWizard).
 - `usePendingInvites(ws, { refetchInterval? })` — `GET …/invites/pending/`, key `["workspace-invites", ws]` (MembersPage).
 - `useCancelInvite(ws)` — `DELETE …/invites/:token/`; invalidates the pending-invites key (MembersPage).
@@ -658,14 +683,16 @@ All mutations invalidate this key.
 `useUpdateForm` invalidates both the list and the single form. `useUpdateFormFields` (PUT, replaces fields array) invalidates only the single form. `useUpdateSubmissionStatus` invalidates submissions only.
 
 **Public (unauthenticated) form hooks** — token-scoped, no workspace/board. Used by `PublicFormPage`:
+
 - `usePublicForm(formToken)` — `GET /api/forms/:token/`, key `["public-form", token]`.
 - `useSubmitPublicForm(formToken)` — `POST /api/forms/:token/submit/`. Success/error UI is handled at the call site via `mutate`'s second-arg callbacks.
 
 ---
 
-### `useAccount.js`  *(src/shared/hooks/)*
+### `useAccount.js` _(src/shared/hooks/)_
 
 Current-user account mutations (profile, avatar, password). UI feedback is left to the call site; these own the data layer only. Consumed by `UserSettingsModal`.
+
 - `useUpdateProfile()` — `PATCH /api/users/me/`; syncs `["me"]` cache **and** the Zustand auth store. Used by both the profile form and the avatar picker.
 - `useChangePassword()` — `POST /api/auth/password/change/` (dj_rest_auth).
 - `useRequestPasswordReset()` — `POST /api/auth/password/reset/`; pass the email as the mutate arg.
@@ -730,7 +757,7 @@ Create/revoke both invalidate this key.
 
 ---
 
-### `useOrg.js`  *(src/apps/org-structure/hooks/useOrg.js)*
+### `useOrg.js` _(src/apps/org-structure/hooks/useOrg.js)_
 
 All data hooks for the Org Structure module. Follows the same key-factory pattern as `useTasks.js`. All list/detail keys use `staleTime: Infinity` (near-static config data); `org-chart` uses `5 * 60_000`; `org-profile` uses `2 * 60_000`.
 
@@ -746,30 +773,31 @@ All data hooks for the Org Structure module. Follows the same key-factory patter
 
 #### Query hooks
 
-| Hook | Key | URL |
-|------|-----|-----|
-| `useDepartments(ws)` | `org-departments` | `GET /org/departments/` |
+| Hook                               | Key                | URL                                  |
+| ---------------------------------- | ------------------ | ------------------------------------ |
+| `useDepartments(ws)`               | `org-departments`  | `GET /org/departments/`              |
 | `useDepartmentMembers(ws, deptId)` | `org-dept-members` | `GET /org/departments/{id}/members/` |
-| `useTeams(ws)` | `org-teams` | `GET /org/teams/` |
-| `useTeamMembers(ws, teamId)` | `org-team-members` | `GET /org/teams/{id}/members/` |
-| `useJobTitles(ws)` | `org-job-titles` | `GET /org/job-titles/` |
-| `useOrgChart(ws)` | `org-chart` | `GET /org/chart/` |
-| `useOrgProfile(ws, memberId)` | `org-profile` | `GET /org/members/{id}/profile/` |
+| `useTeams(ws)`                     | `org-teams`        | `GET /org/teams/`                    |
+| `useTeamMembers(ws, teamId)`       | `org-team-members` | `GET /org/teams/{id}/members/`       |
+| `useJobTitles(ws)`                 | `org-job-titles`   | `GET /org/job-titles/`               |
+| `useOrgChart(ws)`                  | `org-chart`        | `GET /org/chart/`                    |
+| `useOrgProfile(ws, memberId)`      | `org-profile`      | `GET /org/members/{id}/profile/`     |
 
 #### Mutation hooks
 
 All mutations invalidate their respective list key. `useRemoveDepartmentMember` / `useRemoveTeamMember` also invalidate the member sub-key.
 
-| Hook | Invalidates |
-|------|-------------|
-| `useCreateDepartment` / `useUpdateDepartment` / `useDeleteDepartment` | `org-departments` |
-| `useAddDepartmentMember` / `useRemoveDepartmentMember` | `org-departments`, `org-dept-members` |
-| `useCreateTeam` / `useUpdateTeam` / `useDeleteTeam` | `org-teams` |
-| `useAddTeamMember` / `useRemoveTeamMember` | `org-teams`, `org-team-members` |
-| `useCreateJobTitle` | `org-job-titles` |
-| `useUpdateOrgProfile(ws, memberId)` | `setQueryData` on `org-profile` + invalidates `org-chart` |
+| Hook                                                                  | Invalidates                                               |
+| --------------------------------------------------------------------- | --------------------------------------------------------- |
+| `useCreateDepartment` / `useUpdateDepartment` / `useDeleteDepartment` | `org-departments`                                         |
+| `useAddDepartmentMember` / `useRemoveDepartmentMember`                | `org-departments`, `org-dept-members`                     |
+| `useCreateTeam` / `useUpdateTeam` / `useDeleteTeam`                   | `org-teams`                                               |
+| `useAddTeamMember` / `useRemoveTeamMember`                            | `org-teams`, `org-team-members`                           |
+| `useCreateJobTitle`                                                   | `org-job-titles`                                          |
+| `useUpdateOrgProfile(ws, memberId)`                                   | `setQueryData` on `org-profile` + invalidates `org-chart` |
 
 **`useUpdateOrgProfile`** — PATCH `/org/members/{id}/profile/`
+
 - `onSuccess`: `setQueryData(profileKey)` with the server response (no network round-trip for the panel), then `invalidateQueries(chartKey)` so the org chart node reflects the updated job title.
 
 #### `OrgProfileSerializer` response shape
@@ -798,14 +826,14 @@ All mutations invalidate their respective list key. `useRemoveDepartmentMember` 
 
 Backend serializers split read and write fields. Always use these write-only fields in mutation payloads — never the nested read objects:
 
-| Field | Sets |
-|-------|------|
-| `head_id` | Department head (WorkspaceMember PK) |
-| `parent_id` | Parent department (Department PK) |
-| `department_id` | Team's department (Department PK) |
-| `lead_id` | Team lead (WorkspaceMember PK) |
-| `member_id` | Member to add (WorkspaceMember PK) |
-| `job_title_id` | OrgProfile job title (JobTitle PK; send `null` to clear) |
+| Field             | Sets                                                           |
+| ----------------- | -------------------------------------------------------------- |
+| `head_id`         | Department head (WorkspaceMember PK)                           |
+| `parent_id`       | Parent department (Department PK)                              |
+| `department_id`   | Team's department (Department PK)                              |
+| `lead_id`         | Team lead (WorkspaceMember PK)                                 |
+| `member_id`       | Member to add (WorkspaceMember PK)                             |
+| `job_title_id`    | OrgProfile job title (JobTitle PK; send `null` to clear)       |
 | `employment_type` | `"full_time"` \| `"part_time"` \| `"contractor"` \| `"intern"` |
 
 #### `OrgChartPage` — Interactive SVG canvas
@@ -823,27 +851,30 @@ Backend serializers split read and write fields. Always use these write-only fie
 
 ---
 
-### HR Management hooks  *(src/apps/hr-management/hooks/)*
+### HR Management hooks _(src/apps/hr-management/hooks/)_
 
 All HR endpoints sit under `/api/workspaces/{ws}/hr/…` and are backend-gated by `require_module(ws, "hr_management")`.
 
 #### `useLeave.js`
+
 ```
 ["hr-leave-policies",  ws]                    staleTime: Infinity
 ["hr-leave-requests",  ws, statusFilter|"all"] staleTime: 30_000
 ["hr-leave-balances",  ws]                    staleTime: 60_000
 ["hr-whos-off",        ws]                    staleTime: 60_000
 ```
-| Hook | URL | Notes |
-|------|-----|-------|
-| `useLeavePolicies` / `useCreateLeavePolicy` / `useUpdateLeavePolicy` / `useDeleteLeavePolicy` | `…/hr/leave-policies/[:id/]` | mutations invalidate policies |
-| `useLeaveRequests(ws, status?)` | `…/hr/leave-requests/?status=` | employee sees own, admin sees all |
-| `useCreateLeaveRequest` | `POST …/leave-requests/` | invalidates **requests + balances** |
-| `useReviewLeaveRequest` | `POST …/leave-requests/:id/review/ {status, comment}` | admin/lead; invalidates requests + balances |
-| `useLeaveBalances` | `GET …/leave-balances/` | |
-| `useWhosOff` | `GET …/whos-off/` | today + next 7 days; dashboard widget |
+
+| Hook                                                                                          | URL                                                   | Notes                                       |
+| --------------------------------------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------- |
+| `useLeavePolicies` / `useCreateLeavePolicy` / `useUpdateLeavePolicy` / `useDeleteLeavePolicy` | `…/hr/leave-policies/[:id/]`                          | mutations invalidate policies               |
+| `useLeaveRequests(ws, status?)`                                                               | `…/hr/leave-requests/?status=`                        | employee sees own, admin sees all           |
+| `useCreateLeaveRequest`                                                                       | `POST …/leave-requests/`                              | invalidates **requests + balances**         |
+| `useReviewLeaveRequest`                                                                       | `POST …/leave-requests/:id/review/ {status, comment}` | admin/lead; invalidates requests + balances |
+| `useLeaveBalances`                                                                            | `GET …/leave-balances/`                               |                                             |
+| `useWhosOff`                                                                                  | `GET …/whos-off/`                                     | today + next 7 days; dashboard widget       |
 
 #### `useAttendance.js`
+
 ```
 ["hr-attendance-policy",  ws]                       staleTime: Infinity
 ["hr-attendance-my",      ws, dateFrom, dateTo]      staleTime: 30_000  enabled: !!dateFrom
@@ -851,21 +882,26 @@ All HR endpoints sit under `/api/workspaces/{ws}/hr/…` and are backend-gated b
 ["hr-attendance-summary", ws, dateFrom, dateTo]      staleTime: 30_000  ← admin
 ["hr-attendance-qr",      ws]                        staleTime: 60_000  enabled on demand
 ```
+
 - `useUpdateAttendancePolicy` uses `setQueryData` (PATCH response is the new policy).
 - `useClockIn` / `useClockOut` invalidate all three attendance data keys via **2-element prefix** (`["hr-attendance-my", ws]` etc.) so every date-range variant refreshes.
 - `useAttendanceQR(ws, enabled)` only fires when `enabled` (QR modal open).
 
 #### `useHRDashboard.js`
+
 ```
 ["hr-dashboard", ws]   staleTime: 2 * 60_000
 ```
+
 `GET …/hr/dashboard/` — headcount, leave overview, attendance overview, upcoming events.
 
 #### `useEmployeeDocs.js` / `useEmployeeNotes.js`
+
 ```
 ["hr-employee-docs",  ws, memberId]   staleTime: 60_000
 ["hr-employee-notes", ws, memberId]   staleTime: 60_000
 ```
+
 Per-member, admin-scoped. Docs use multipart upload (`…/hr/members/:id/documents/`); notes are CRUD (`…/hr/members/:id/notes/`). All mutations invalidate the member-scoped key. Both consumed by `MemberDetailPage.jsx`.
 
 > **No WebSocket integration yet.** HR data is poll/stale-time driven only — no `useWorkspaceSocket` events for leave/attendance. Leave-approval notifications arrive through the existing `notify()` → inbox path (the bell), not via live HR cache patching.
@@ -896,6 +932,7 @@ Not a React Query hook — wraps `useBoard()` and derives permissions.
 Pure computation — no API calls.
 
 Exports:
+
 - `GROUP_H = 40`, `ROW_H = 36` — pixel heights for canvas rows
 - `parseDate(str)`, `dateKey(date)`, `daysBetween(a, b)`, `addDays(date, n)` — date utils
 - `computeRange(tasks, sprints)` — returns `{ start, end }` date range with padding
@@ -911,10 +948,10 @@ Pure canvas renderer — zero React re-renders on scroll or hover. Receives all 
 
 #### Imperative handle (via `forwardRef`)
 
-| Method | Called by | Purpose |
-|--------|-----------|---------|
-| `redraw()` | `GanttView` on every scroll tick | Full repaint — reads `scrollTopRef` / `scrollLeftRef` |
-| `setHover(taskId \| null)` | `GanttView.onDriverMouseMove` / `onMouseLeave` / drag start | Starts or stops the hover animation loop |
+| Method                     | Called by                                                   | Purpose                                               |
+| -------------------------- | ----------------------------------------------------------- | ----------------------------------------------------- |
+| `redraw()`                 | `GanttView` on every scroll tick                            | Full repaint — reads `scrollTopRef` / `scrollLeftRef` |
+| `setHover(taskId \| null)` | `GanttView.onDriverMouseMove` / `onMouseLeave` / drag start | Starts or stops the hover animation loop              |
 
 #### Animation system
 
@@ -930,7 +967,7 @@ Pure canvas renderer — zero React re-renders on scroll or hover. Receives all 
 3. Vertical grid lines
 4. Binary-search first visible row
 5. Row backgrounds + separators
-6. *(taskRowMap built here — reused in 7.5 + 8)*
+6. _(taskRowMap built here — reused in 7.5 + 8)_
 7. Today line — soft glow behind + crisp 1.5 px line + diamond marker at top
 8. **Pass 1 — bars**: sprint bars, task bars (gradient sheen, drag ghost shadow, drag delta pill)
 9. **Pass 2 — hover overlay** (always on top): glow halo (`shadowBlur=18`), white brightening overlay, grip handles, date chips
@@ -947,6 +984,7 @@ Pure canvas renderer — zero React re-renders on scroll or hover. Receives all 
 - **Today line** — diamond marker (`ctx.rotate(π/4)` + `fillRect`) replaces old circle.
 
 #### `ctx.shadowBlur` rule
+
 Every section that sets `shadowBlur > 0` wraps the draw call in `ctx.save() / ctx.restore()`. Never rely on manual reset — a missed reset bleeds shadow onto all subsequent paths in the same frame.
 
 ---
@@ -995,7 +1033,7 @@ Key factory filters out falsy `timePeriod`. All mutations (objectives, key resul
 ### `useDebounce.js`
 
 ```js
-const debouncedValue = useDebounce(value, delay = 300)
+const debouncedValue = useDebounce(value, (delay = 300));
 ```
 
 Pure React hook (useState + useEffect). Used in KanbanPage for search: `useDebounce(filters.search, 350)`.
@@ -1007,6 +1045,7 @@ Pure React hook (useState + useEffect). Used in KanbanPage for search: `useDebou
 Global keyboard shortcut manager. Not React Query.
 
 Shortcuts:
+
 - `Ctrl/Cmd+K` — command palette
 - `?` — help modal
 - `c` — create task (fires `window.dispatchEvent(new CustomEvent("jcn:create-task"))`)
@@ -1030,38 +1069,39 @@ The standard modal for all dialogs. **Do not use `@radix-ui/react-dialog` direct
 
 #### Variants (pass as `variant` prop)
 
-| `variant` | Icon | Confirm button | Use for |
-|---|---|---|---|
-| *(default)* | none | primary | general-purpose |
-| `delete` | `AlertTriangle` (red) | destructive "Delete" | destructive confirmations |
-| `info` | `Info` (blue) | primary | informational dialogs |
-| `success` | `CheckCircle` (green) | default | success confirmations |
-| `warning` | `AlertCircle` (yellow) | default | warnings |
+| `variant`   | Icon                   | Confirm button       | Use for                   |
+| ----------- | ---------------------- | -------------------- | ------------------------- |
+| _(default)_ | none                   | primary              | general-purpose           |
+| `delete`    | `AlertTriangle` (red)  | destructive "Delete" | destructive confirmations |
+| `info`      | `Info` (blue)          | primary              | informational dialogs     |
+| `success`   | `CheckCircle` (green)  | default              | success confirmations     |
+| `warning`   | `AlertCircle` (yellow) | default              | warnings                  |
 
 #### Key props (`BaseModal`)
 
-| Prop | Default | Notes |
-|---|---|---|
-| `isOpen` | — | controls visibility |
-| `onClose` | — | called on backdrop click or X button |
-| `title` | — | header text |
-| `description` | — | sub-text below title |
-| `icon` | — | Lucide component rendered in header |
-| `iconColor` | `"text-primary"` | Tailwind class for icon colour |
-| `onConfirm` | — | confirm button handler; omit if using custom footer |
-| `confirmLabel` | `"Confirm"` | confirm button text |
-| `confirmVariant` | `"primary"` | one of `primary`, `danger`, `secondary`, `success`, `warning`, `danger-light` |
-| `isLoading` | `false` | shows spinner on confirm, disables both buttons |
-| `isConfirmDisabled` | `false` | disables confirm button only |
-| `showFooter` | `true` | set `false` when the modal body owns its own footer/form buttons |
-| `showHeader` | `true` | set `false` for fully custom layout |
-| `flexBody` | `false` | adds `flex-1 min-h-0 overflow-hidden flex flex-col` to body — required when children need to scroll inside a constrained height |
-| `maxWidth` | `"600px"` | inline style on the content container |
-| `padding` | `"px-5 py-4"` | className on the body div; pass `"p-0"` for forms that own their own padding |
+| Prop                | Default          | Notes                                                                                                                           |
+| ------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `isOpen`            | —                | controls visibility                                                                                                             |
+| `onClose`           | —                | called on backdrop click or X button                                                                                            |
+| `title`             | —                | header text                                                                                                                     |
+| `description`       | —                | sub-text below title                                                                                                            |
+| `icon`              | —                | Lucide component rendered in header                                                                                             |
+| `iconColor`         | `"text-primary"` | Tailwind class for icon colour                                                                                                  |
+| `onConfirm`         | —                | confirm button handler; omit if using custom footer                                                                             |
+| `confirmLabel`      | `"Confirm"`      | confirm button text                                                                                                             |
+| `confirmVariant`    | `"primary"`      | one of `primary`, `danger`, `secondary`, `success`, `warning`, `danger-light`                                                   |
+| `isLoading`         | `false`          | shows spinner on confirm, disables both buttons                                                                                 |
+| `isConfirmDisabled` | `false`          | disables confirm button only                                                                                                    |
+| `showFooter`        | `true`           | set `false` when the modal body owns its own footer/form buttons                                                                |
+| `showHeader`        | `true`           | set `false` for fully custom layout                                                                                             |
+| `flexBody`          | `false`          | adds `flex-1 min-h-0 overflow-hidden flex flex-col` to body — required when children need to scroll inside a constrained height |
+| `maxWidth`          | `"600px"`        | inline style on the content container                                                                                           |
+| `padding`           | `"px-5 py-4"`    | className on the body div; pass `"p-0"` for forms that own their own padding                                                    |
 
 #### Patterns
 
 **Standard confirm dialog** (uses built-in footer):
+
 ```jsx
 <Modal
   isOpen={open}
@@ -1074,6 +1114,7 @@ The standard modal for all dialogs. **Do not use `@radix-ui/react-dialog` direct
 ```
 
 **Form modal** (owns footer + needs scroll):
+
 ```jsx
 <Modal
   isOpen={open}
@@ -1088,7 +1129,9 @@ The standard modal for all dialogs. **Do not use `@radix-ui/react-dialog` direct
     <form className="p-5 space-y-4">
       {/* fields */}
       <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
         <Button type="submit">Create</Button>
       </div>
     </form>
@@ -1097,14 +1140,22 @@ The standard modal for all dialogs. **Do not use `@radix-ui/react-dialog` direct
 ```
 
 **Custom footer pinned to bottom** (e.g. footer with non-standard layout):
+
 ```jsx
-<Modal isOpen={open} onClose={onClose} title="Invite" showFooter={false} padding="px-6 py-5">
+<Modal
+  isOpen={open}
+  onClose={onClose}
+  title="Invite"
+  showFooter={false}
+  padding="px-6 py-5"
+>
   {/* body */}
   <div className="-mx-6 -mb-5 mt-5 px-6 py-4 border-t border-border bg-muted/30 flex items-center justify-between">
     {/* footer content */}
   </div>
 </Modal>
 ```
+
 The `-mx-6 -mb-5` negative-margin trick cancels the body padding so the footer spans full width.
 
 Also exports `ModalSkeleton` — a pulse-animated placeholder for use inside `<Suspense>` when lazy-loading modal content.
@@ -1115,30 +1166,32 @@ Also exports `ModalSkeleton` — a pulse-animated placeholder for use inside `<S
 
 Renders a user avatar in one of three modes, resolved automatically via `avatar_type`:
 
-| `avatar_type` | Renders | Data source |
-|---|---|---|
-| `google` | `<img>` from `user.avatar` (Google picture URL) | Set by Google OAuth adapter on first login |
-| `icon` | Emoji in a coloured circle | `user.avatar_icon` (e.g. `"🦊"`) |
-| `initials` | First letter of name in a coloured circle | `user.full_name` or `user.email` |
+| `avatar_type` | Renders                                         | Data source                                |
+| ------------- | ----------------------------------------------- | ------------------------------------------ |
+| `google`      | `<img>` from `user.avatar` (Google picture URL) | Set by Google OAuth adapter on first login |
+| `icon`        | Emoji in a coloured circle                      | `user.avatar_icon` (e.g. `"🦊"`)           |
+| `initials`    | First letter of name in a coloured circle       | `user.full_name` or `user.email`           |
 
 **Props:**
 
-| Prop | Type | Notes |
-|---|---|---|
-| `user` | object | Shortcut — component resolves `src`/`icon`/`name` from `avatar_type`, `avatar`, `avatar_icon`, `full_name` |
-| `name` | string | Used for initials + colour hash. Overrides `user.full_name` |
-| `src` | string | Explicit image URL — overrides `user` resolution |
-| `icon` | string | Explicit emoji — overrides `user` resolution |
-| `size` | `xxs` \| `xs` \| `sm` \| `md` \| `lg` \| `xl` \| `2xl` | Default `md` |
-| `ring` | bool | Adds `ring-2 ring-background` (used in `AvatarGroup`) |
-| `className` | string | Merged onto the root element |
+| Prop        | Type                                                   | Notes                                                                                                      |
+| ----------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `user`      | object                                                 | Shortcut — component resolves `src`/`icon`/`name` from `avatar_type`, `avatar`, `avatar_icon`, `full_name` |
+| `name`      | string                                                 | Used for initials + colour hash. Overrides `user.full_name`                                                |
+| `src`       | string                                                 | Explicit image URL — overrides `user` resolution                                                           |
+| `icon`      | string                                                 | Explicit emoji — overrides `user` resolution                                                               |
+| `size`      | `xxs` \| `xs` \| `sm` \| `md` \| `lg` \| `xl` \| `2xl` | Default `md`                                                                                               |
+| `ring`      | bool                                                   | Adds `ring-2 ring-background` (used in `AvatarGroup`)                                                      |
+| `className` | string                                                 | Merged onto the root element                                                                               |
 
 **Usage — preferred pattern** (pass the full user object, component resolves the mode):
+
 ```jsx
 <Avatar user={member} size="sm" />
 ```
 
 **Usage — explicit** (legacy, still works; Google avatars also resolve correctly since `user.avatar` holds the URL):
+
 ```jsx
 <Avatar name={user.full_name} src={user.avatar} size="md" />
 ```
@@ -1150,6 +1203,7 @@ Renders a user avatar in one of three modes, resolved automatically via `avatar_
 ### `AvatarPicker` — inside `UserSettingsModal.jsx` (Me tab)
 
 Lets the logged-in user choose their avatar mode. Three option pills:
+
 - **Initials** — always available; PATCH `{ avatar_type: "initials" }`.
 - **Google Profile** — shown only if `user.avatar` is set (meaning Google OAuth was used). PATCH `{ avatar_type: "google" }`.
 - **Choose Icon** — reveals a 24-emoji grid. Clicking an emoji PATCHes `{ avatar_type: "icon", avatar_icon: "🦊" }`.
@@ -1196,22 +1250,27 @@ TaskDetailPanel  (Suspense-lazy, shown as modal overlay)
 ## Cache Update Strategies
 
 ### `invalidateQueries`
+
 Marks the cache stale and triggers a background refetch. The component immediately re-renders with the old data, then re-renders again with fresh data when the fetch resolves.
 
 Use when: data shape is unknown/unpredictable (e.g., `task.created` — we don't know if the new task passes the current filter), or when the server computes aggregates (sprint counts, board stats).
 
 ### `setQueryData`
+
 Writes directly into the cache, no network round-trip. The component re-renders immediately with the new value.
 
 Use when: you have the exact new state in hand and the shape matches the existing cache entry. Examples: comment optimistic append, field value upsert, onboarding state update.
 
 ### `setQueriesData`
+
 Same as `setQueryData` but uses prefix matching to update multiple cache entries at once.
 
 Use when: the same entity exists in multiple filtered variants (e.g., `["tasks", ws, proj, {priorities: ["high"]}]` and `["tasks", ws, proj, {}]` both need the moved task updated).
 
 ### Optimistic Updates (`onMutate` / `onError`)
+
 Used only in `useMoveTask`. Pattern:
+
 1. `cancelQueries` — stop any in-flight refetch that would overwrite your optimistic state
 2. `getQueriesData` — snapshot current state for rollback
 3. `setQueriesData` — apply the expected result immediately
@@ -1224,24 +1283,24 @@ Used only in `useMoveTask`. Pattern:
 
 Quick reference for when you're writing a new mutation or adding a new feature:
 
-| Change | Keys to invalidate or update |
-|---|---|
-| Task field changed (assignee, dates, priority) | **merge** server response into `["tasks"]`+`["children"]`+`detail`; sprint **only if** status/sprint changed |
-| Task status changed | **merge** into `["tasks"]`; invalidate `["sprint", ws, proj]` |
-| Task created | invalidate `["tasks", ws, proj]`, `["sprint", ws, proj]` (membership unknown — only mutation that refetches) |
-| Task deleted | `setQueriesData` filter out id + `removeQueries(detail)`; invalidate `["sprint", ws, proj]` |
-| Task moved (Kanban drag) | optimistic + merge on `["tasks"]`/`["children"]`; `["sprint"]` invalidate |
-| Comment added/deleted | `setQueryData` on `["task-detail"]` (+ infinite `["comments"]`) only |
-| Subtask added/toggled/deleted | `setQueryData` on `["subtasks"]` + `patchSubtaskCounts` into `["task-detail"]` & `["tasks"]` — **no `["tasks"]` refetch** |
-| Child task created/attached | `["children"]`, `["task-detail"]`, `["tasks"]` |
-| Sprint created/deleted | `["sprints"]` (list only) |
-| Sprint updated | `["sprints"]` + `["sprint", ws, proj, id]` |
-| Board member added/removed | `["project-members", ws, proj]` |
-| Workspace member added/removed | `["workspace-members", ws]` |
-| Label created/deleted | `["labels", ws, proj]` |
-| Status created | `["board", ws, proj]` (board embeds statuses) |
-| Statuses bulk-saved | `setQueryData` on `["statuses", ws, proj]` |
-| Board created/updated | `["boards", ws]`, `["portfolio", ws]` |
+| Change                                         | Keys to invalidate or update                                                                                              |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Task field changed (assignee, dates, priority) | **merge** server response into `["tasks"]`+`["children"]`+`detail`; sprint **only if** status/sprint changed              |
+| Task status changed                            | **merge** into `["tasks"]`; invalidate `["sprint", ws, proj]`                                                             |
+| Task created                                   | invalidate `["tasks", ws, proj]`, `["sprint", ws, proj]` (membership unknown — only mutation that refetches)              |
+| Task deleted                                   | `setQueriesData` filter out id + `removeQueries(detail)`; invalidate `["sprint", ws, proj]`                               |
+| Task moved (Kanban drag)                       | optimistic + merge on `["tasks"]`/`["children"]`; `["sprint"]` invalidate                                                 |
+| Comment added/deleted                          | `setQueryData` on `["task-detail"]` (+ infinite `["comments"]`) only                                                      |
+| Subtask added/toggled/deleted                  | `setQueryData` on `["subtasks"]` + `patchSubtaskCounts` into `["task-detail"]` & `["tasks"]` — **no `["tasks"]` refetch** |
+| Child task created/attached                    | `["children"]`, `["task-detail"]`, `["tasks"]`                                                                            |
+| Sprint created/deleted                         | `["sprints"]` (list only)                                                                                                 |
+| Sprint updated                                 | `["sprints"]` + `["sprint", ws, proj, id]`                                                                                |
+| Board member added/removed                     | `["project-members", ws, proj]`                                                                                           |
+| Workspace member added/removed                 | `["workspace-members", ws]`                                                                                               |
+| Label created/deleted                          | `["labels", ws, proj]`                                                                                                    |
+| Status created                                 | `["board", ws, proj]` (board embeds statuses)                                                                             |
+| Statuses bulk-saved                            | `setQueryData` on `["statuses", ws, proj]`                                                                                |
+| Board created/updated                          | `["boards", ws]`, `["portfolio", ws]`                                                                                     |
 
 ---
 
@@ -1250,11 +1309,13 @@ Quick reference for when you're writing a new mutation or adding a new feature:
 Two infinite queries exist:
 
 **`useTaskComments`** — key `["comments", ws, proj, taskId]`
+
 - Each page: `{ results: Comment[], next: string | null, previous: string | null }`
 - `getNextPageParam`: `lastPage.next` (full URL with cursor)
 - Mutations update cache directly via `setQueryData` (no refetch)
 
 **`useTaskActivities`** — key `["activities", ws, proj, taskId]`
+
 - Same pagination shape
 - Read-only — no mutations
 
@@ -1266,10 +1327,10 @@ When writing to an infinite query cache (e.g., appending a new comment), iterate
 
 Some WebSocket events bypass React Query and go to the DOM directly.
 
-| WS Event | DOM Event | Listener |
-|---|---|---|
-| `typing.update` | `jcn:typing` | TaskDetailPanel |
-| *(keyboard shortcut)* | `jcn:create-task` | KanbanPage |
+| WS Event              | DOM Event         | Listener        |
+| --------------------- | ----------------- | --------------- |
+| `typing.update`       | `jcn:typing`      | TaskDetailPanel |
+| _(keyboard shortcut)_ | `jcn:create-task` | KanbanPage      |
 
 ---
 
@@ -1298,6 +1359,7 @@ These files exist in the repo but are not reachable at runtime. All confirmed by
 ### Pages
 
 #### `src/pages/projects/AutomationsPage.jsx`
+
 **Status:** Intentionally disabled — import and route both commented out in `App.jsx`.
 
 ```js
@@ -1305,9 +1367,11 @@ These files exist in the repo but are not reachable at runtime. All confirmed by
 // ‼️ Automation disabled — const AutomationsPage = lazy(() => import("@/pages/projects/AutomationsPage"));
 
 // App.jsx lines 111-115
-{/* ‼️ Automation disabled
+{
+  /* ‼️ Automation disabled
 <Route path="boards/:boardId/automations" element={<AutomationsPage />} />
-*/}
+*/
+}
 ```
 
 What it does: full automation rule builder — triggers (task created/status changed/etc.), conditions, and actions (assign user, move status, send notification). The backend `useAutomations.js` hook is also dead because of this (see Hooks section below).
@@ -1317,11 +1381,13 @@ What it does: full automation rule builder — triggers (task created/status cha
 ---
 
 #### `RoadmapPage.jsx` — **DELETED**
+
 Superseded by `GanttView` (the Timeline tab in KanbanPage) and removed. The commented-out import/route in `App.jsx` were also removed. Its sprint-centric timeline (horizontal sprint bars, drag to reschedule) lives in `GanttView` now.
 
 ---
 
 #### `src/pages/workspace/InboxPage.jsx`
+
 **Status:** Built but never routed — no route exists in `App.jsx`, no import anywhere.
 
 What it does: a full inbox UI — tabbed view (all / assigned / mentioned / watching), filter by event type, individual item actions (mark read, archive, snooze), bulk actions. The underlying hooks (`useInbox`, `useInboxUnreadCount`, `useUpdateInboxItem`, `useBulkUpdateInbox`) are **alive** — they power the notification bell and sidebar unread count. Only the page itself is unreachable.
@@ -1331,6 +1397,7 @@ What it does: a full inbox UI — tabbed view (all / assigned / mentioned / watc
 ---
 
 #### `src/pages/projects/AccessDeniedPage.jsx`
+
 **Status:** Orphaned — never imported, no route.
 
 What it does: a 403 error screen with a "Request access" button and the board name displayed.
@@ -1342,9 +1409,11 @@ What it does: a 403 error screen with a "Request access" button and the board na
 ### Hooks
 
 #### `src/hooks/useAutomations.js`
+
 **Status:** Dead — its only consumer is the disabled `AutomationsPage.jsx`.
 
 Grep confirms zero active imports:
+
 ```
 useAutomations  →  found only in: useAutomations.js, AutomationsPage.jsx
 ```
@@ -1358,13 +1427,13 @@ Query key: `["automations", workspaceId, boardId]`
 
 ### Summary Table
 
-| File | Type | Status | Safe to delete |
-|---|---|---|---|
-| `pages/projects/AutomationsPage.jsx` | Page | Disabled (commented route) | Yes (with hook) |
-| ~~`RoadmapPage.jsx`~~ | Page | **Deleted** — superseded by GanttView | Done |
-| `pages/workspace/InboxPage.jsx` | Page | Built, no route | Only if not planning inbox route |
-| `pages/projects/AccessDeniedPage.jsx` | Page | Orphaned, duplicate of inline UI | Yes |
-| `hooks/useAutomations.js` | Hook | Only used by dead AutomationsPage | Yes (with page) |
+| File                                  | Type | Status                                | Safe to delete                   |
+| ------------------------------------- | ---- | ------------------------------------- | -------------------------------- |
+| `pages/projects/AutomationsPage.jsx`  | Page | Disabled (commented route)            | Yes (with hook)                  |
+| ~~`RoadmapPage.jsx`~~                 | Page | **Deleted** — superseded by GanttView | Done                             |
+| `pages/workspace/InboxPage.jsx`       | Page | Built, no route                       | Only if not planning inbox route |
+| `pages/projects/AccessDeniedPage.jsx` | Page | Orphaned, duplicate of inline UI      | Yes                              |
+| `hooks/useAutomations.js`             | Hook | Only used by dead AutomationsPage     | Yes (with page)                  |
 
 **Hooks confirmed alive despite dead pages:** `useInbox`, `useInboxUnreadCount`, `useUpdateInboxItem`, `useBulkUpdateInbox` — all used by `NotificationBell.jsx` and `Sidebar.jsx`. Do not delete these.
 
@@ -1374,14 +1443,14 @@ Query key: `["automations", workspaceId, boardId]`
 
 All auth pages live in `src/pages/auth/` and are public routes (no `ProtectedRoute` wrapper).
 
-| Page | Route | Description |
-|------|-------|-------------|
-| `LoginPage` | `/login` | Email + password sign-in. Includes "Forgot password?" link next to the Password label. |
-| `RegisterPage` | `/register` | Email registration. After submit: if response has tokens → normal post-auth flow; if no tokens (email verification mandatory) → `/verify-email-sent?email=...`. |
-| `ForgotPasswordPage` | `/forgot-password` | Email input → `POST /api/auth/password/reset/`. Shows inline "check your inbox" confirmation after submit. Always returns success (no user enumeration). |
-| `ResetPasswordConfirmPage` | `/reset-password/:uid/:token` | New-password form. Calls `POST /api/auth/password/reset/confirm/`. Link arrives from the Resend password-reset email. |
-| `VerifyEmailSentPage` | `/verify-email-sent?email=` | "Check your inbox" landing shown after registration when email verification is mandatory. Has a resend button (`POST /api/auth/registration/resend-email/`). |
-| `EmailVerifyConfirmPage` | `/verify-email/:key` | Auto-POSTs the key to `POST /api/auth/registration/verify-email/` on mount. Shows verifying spinner → success/error state. |
+| Page                       | Route                         | Description                                                                                                                                                  |
+| -------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `LoginPage`                | `/login`                      | Email + password sign-in. Includes "Forgot password?" link next to the Password label.                                                                       |
+| `RegisterPage`             | `/register`                   | Email registration. After submit: if response has tokens → normal post-auth flow; if no tokens (email verification mandatory) → `/verify-email?email=...`.   |
+| `ForgotPasswordPage`       | `/forgot-password`            | Email input → `POST /api/auth/password/reset/`. Shows inline "check your inbox" confirmation after submit. Always returns success (no user enumeration).     |
+| `ResetPasswordConfirmPage` | `/reset-password/:uid/:token` | New-password form. Calls `POST /api/auth/password/reset/confirm/`. Link arrives from the Resend password-reset email.                                        |
+| `VerifyEmailSentPage`      | `/verify-email?email=`        | "Check your inbox" landing shown after registration when email verification is mandatory. Has a resend button (`POST /api/auth/registration/resend-email/`). |
+| `EmailVerifyConfirmPage`   | `/verify-email/:key`          | Auto-POSTs the key to `POST /api/auth/registration/verify-email/` on mount. Shows verifying spinner → success/error state.                                   |
 
 ---
 
@@ -1398,7 +1467,7 @@ Two completely separate paths depending on how the user enters the product.
 ```
 Register (email)
   → if ACCOUNT_EMAIL_VERIFICATION=mandatory:
-      response has no tokens → /verify-email-sent?email=...  (VerifyEmailSentPage)
+      response has no tokens → /verify-email?email=...  (VerifyEmailSentPage)
       User clicks link in email → /verify-email/:key  (EmailVerifyConfirmPage)
           POST /api/auth/registration/verify-email/ { key }
       → /login  (sign in with verified account)

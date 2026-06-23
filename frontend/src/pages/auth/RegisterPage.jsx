@@ -17,6 +17,31 @@ import {
   CardTitle,
 } from "@/shared/components/ui/card";
 
+// Flow
+// /invites/{token}
+//   → AcceptInvitePage.jsx  (goToRegister)
+//     → localStorage.pendingInvite = token  ✅ set here
+//     → /register?invite={token}&email={email}
+//       → RegisterPage.jsx
+//         → authStore.register()
+//           → POST /api/auth/registration/
+//             → backend returns { detail: "Verification e-mail sent." }  ← NO tokens
+//         → data.access is undefined
+//         → navigate("/verify-email-sent?email=...")  ← inviteToken from URL is ABANDONED here
+//           → VerifyEmailSentPage.jsx  (just a "check your inbox" static screen)
+//             → user opens email link
+//               → /verify-email/{key}
+//                 → EmailVerifyConfirmPage.jsx
+//                   → POST /api/auth/registration/verify-email/
+//                   → status = "success"
+//                   → shows "Sign in" button → <Link to="/login">  ← NO next, NO invite context
+//                     → LoginPage.jsx
+//                       → login() → gets tokens
+//                       → navigate("/")  ← next was never set
+//                         → WorkspaceRedirect.jsx
+//                           → GET /api/workspaces/ → returns []  (new user, no workspace yet)
+//                           → navigate("/onboarding")  ← WRONG ❌
+
 export default function RegisterPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -38,7 +63,7 @@ export default function RegisterPage() {
   const [showPw1, setShowPw1] = useState(false);
   const [showPw2, setShowPw2] = useState(false);
 
-  // After any successful auth, accept the pending invite then navigate
+  // handlePostAuth() runs → navigate("/") → WorkspaceRedirect → /onboarding (new user, no workspace)
   const handlePostAuth = async (workspaceId) => {
     if (workspaceId) {
       navigate(`/w/${workspaceId}`, { replace: true });
@@ -76,7 +101,7 @@ export default function RegisterPage() {
       );
       // Email verification mandatory → no tokens; redirect to check-inbox page.
       if (!data.access) {
-        navigate(`/verify-email-sent?email=${encodeURIComponent(form.email)}`, {
+        navigate(`/verify-email?email=${encodeURIComponent(form.email)}`, {
           replace: true,
         });
         return;

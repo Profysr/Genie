@@ -7,106 +7,180 @@
       body {
         margin: 0;
         padding: 0;
-        background: #f4f4f5;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #fafafa;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
       }
       .wrap {
-        max-width: 520px;
-        margin: 40px auto;
-        background: #fff;
-        border-radius: 10px;
+        max-width: 460px;
+        margin: 32px auto;
+        background: #ffffff;
+        border-radius: 16px;
         overflow: hidden;
-        border: 1px solid #e4e4e7;
+        border: 1px solid #f0f0f3;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
       }
-      .top {
-        background: #18181b;
-        padding: 28px;
+      .header {
+        background: #f4f4f5;
+        border-bottom: 1px solid #e8e8eb;
+        padding: 32px;
         text-align: center;
       }
       .logo {
-        display: inline-block;
-        width: 48px;
-        height: 48px;
-        background: #3b82f6;
-        border-radius: 10px;
+        width: 56px;
+        height: 56px;
+        line-height: 56px;
+        background: #2563eb;
+        border-radius: 12px;
         font-size: 22px;
         font-weight: 700;
-        color: #fff;
-        line-height: 48px;
+        color: #ffffff;
         text-align: center;
+        margin: 0 auto 12px;
       }
-      .body {
-        padding: 36px 36px 28px;
+      .inviter {
+        font-size: 14px;
+        color: #71717a;
+        margin: 0 0 4px;
       }
-      h1 {
-        margin: 0 0 6px;
+      .ws-name {
         font-size: 20px;
         font-weight: 700;
-        color: #18181b;
+        color: #09090b;
+        margin: 0 0 10px;
+        letter-spacing: -0.02em;
       }
-      .ws {
+      .role-badge {
         display: inline-block;
-        background: #f4f4f5;
+        background: #ffffff;
         border: 1px solid #e4e4e7;
         border-radius: 6px;
-        padding: 5px 14px;
-        font-size: 14px;
+        padding: 4px 10px;
+        font-size: 12px;
+        font-weight: 500;
+        color: #52525b;
+        text-transform: capitalize;
+      }
+      .features {
+        padding: 20px 32px;
+        border-bottom: 1px solid #f0f0f3;
+      }
+      .features-label {
+        font-size: 11px;
         font-weight: 600;
-        color: #18181b;
-        margin: 16px 0 24px;
+        color: #a1a1aa;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin: 0 0 12px;
       }
-      p {
-        margin: 0 0 16px;
-        color: #52525b;
-        font-size: 15px;
-        line-height: 1.6;
+      .feature-list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
       }
-      ul {
-        margin: 0 0 28px;
-        padding-left: 20px;
-        color: #52525b;
+      .feature-list li {
+        display: flex;
+        align-items: center;
+        gap: 10px;
         font-size: 14px;
-        line-height: 2;
+        color: #3f3f46;
+        padding: 5px 0;
+      }
+      .feature-icon {
+        width: 16px;
+        height: 16px;
+        color: #2563eb;
+        flex-shrink: 0;
+      }
+      .cta {
+        padding: 24px 32px;
+      }
+      .sent-to {
+        font-size: 12px;
+        color: #a1a1aa;
+        text-align: center;
+        margin: 0 0 14px;
       }
       .btn {
         display: block;
-        background: #3b82f6;
-        color: #fff;
+        background: #2563eb;
+        color: #ffffff !important;
         text-decoration: none;
         border-radius: 8px;
-        padding: 14px 24px;
+        padding: 13px 24px;
         font-size: 15px;
         font-weight: 600;
         text-align: center;
+        margin-bottom: 10px;
+      }
+      .btn-outline {
+        display: block;
+        background: #ffffff;
+        color: #18181b !important;
+        text-decoration: none;
+        border-radius: 8px;
+        padding: 13px 24px;
+        font-size: 15px;
+        font-weight: 600;
+        text-align: center;
+        border: 1px solid #e4e4e7;
       }
       .foot {
-        padding: 20px 36px;
-        border-top: 1px solid #f4f4f5;
+        padding: 16px 32px;
+        background: #fafafa;
+        border-top: 1px solid #f0f0f3;
         font-size: 12px;
         color: #a1a1aa;
-        line-height: 1.6;
       }
     </style>
   </head>
   <body>
     <div class="wrap">
-      <div class="top"><div class="logo">{{initial}}</div></div>
-      <div class="body">
-        <h1>{{inviter}} invited you to join</h1>
-        <div class="ws">{{workspace_name}}</div>
-        <p>
-          You'll join as <strong>{{role}}</strong>. Here's what your team gets:
+      <div class="header">
+        <div class="logo">J</div>
+        <p class="inviter">
+          <strong style="color: #18181b">{{inviter}}</strong> invited you to join
         </p>
-        <ul>
-          <li>Kanban boards, sprints &amp; task management</li>
-          <li>Real-time collaboration &amp; notifications</li>
-          <li>Wiki, forms, analytics &amp; more — all in one workspace</li>
-        </ul>
-        <a href="{{accept_url}}" class="btn">Accept invitation →</a>
+        <h1 class="ws-name">{{workspace_name}}</h1>
+        <!-- <span class="role-badge">Joining as {{role}}</span> -->
       </div>
+
+      <div class="features">
+        <p class="features-label">What you'll get</p>
+        <ul class="feature-list">
+          <li>
+            <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+              <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+            </svg>
+            Kanban boards, sprints &amp; task management
+          </li>
+          <li>
+            <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            Real-time collaboration &amp; notifications
+          </li>
+          <li>
+            <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            Wiki, forms, analytics &amp; more — all in one workspace
+          </li>
+        </ul>
+      </div>
+
+      <div class="cta">
+        <p class="sent-to">
+          Invite sent to <strong style="color: #3f3f46">{{recipient_email}}</strong>
+        </p>
+        <a href="{{accept_url}}" class="btn">Create account to join</a>
+        <a href="{{login_url}}" class="btn-outline">I already have an account</a>
+      </div>
+
       <div class="foot">
-        This invite was sent to {{recipient_email}}. If you weren't expecting
-        it, you can safely ignore this email.
+        This invite was sent to {{recipient_email}}. If you weren't expecting it, you can safely ignore this email.
       </div>
     </div>
   </body>
