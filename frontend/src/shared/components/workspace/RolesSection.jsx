@@ -234,8 +234,11 @@ function PermissionPreview({ perms, appAccess, registry }) {
 }
 
 // ── Role Editor ───────────────────────────────────────────────────────────────
-function RoleEditor({ role, workspaceId }) {
+const DRAFT_ID = "__new__";
+
+function RoleEditor({ role, workspaceId, isDraft, onCreated }) {
   const updateRole = useUpdateRole(workspaceId);
+  const createRole = useCreateRole(workspaceId);
   const { data: registry } = usePermissions(workspaceId);
 
   const [name, setName] = useState(role.name);
@@ -265,92 +268,134 @@ function RoleEditor({ role, workspaceId }) {
 
   const handleSave = () => {
     setSaveMsg("");
-    updateRole.mutate(
-      { roleId: role.id, name, description: desc, permissions: perms, app_access: appAccess },
-      {
+    const payload = { name, description: desc, permissions: perms, app_access: appAccess };
+    if (isDraft) {
+      createRole.mutate(payload, {
+        onSuccess: (r) => onCreated?.(r),
+        onError: (err) => setSaveMsg(err?.response?.data?.detail ?? "Save failed."),
+      });
+    } else {
+      updateRole.mutate({ roleId: role.id, ...payload }, {
         onSuccess: () => setSaveMsg("Saved!"),
-        onError: (err) => {
-          setSaveMsg(err?.response?.data?.detail ?? "Save failed.");
-        },
-      },
-    );
+        onError: (err) => setSaveMsg(err?.response?.data?.detail ?? "Save failed."),
+      });
+    }
   };
 
+  const isPending = isDraft ? createRole.isPending : updateRole.isPending;
   const isSystem = role.is_system;
   const regApps = registry?.apps ?? {};
   const regPerms = registry?.permissions ?? {};
-
-  // "workspace" group has no app_access gate — show it separately.
   const workspacePermDefs = regPerms.workspace ?? {};
-  // All other apps
   const productApps = Object.keys(regApps);
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
-      <div className="p-5 border-b space-y-3">
-        <div>
-          <Label htmlFor="role-name" className="text-xs">Role name</Label>
-          <Input
-            id="role-name"
-            className="mt-1"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            disabled={isSystem}
-          />
+    <div className="flex-1 flex flex-col min-h-0">
+
+      {/* Draft role — unsaved prompt */}
+      {isDraft && (
+        <div className="flex items-center gap-2.5 px-5 py-2.5 bg-primary/5 border-b border-primary/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse flex-shrink-0" />
+          <p className="text-xs text-primary font-medium">
+            Draft role — fill in the details and save to create it.
+          </p>
         </div>
-        <div>
-          <Label htmlFor="role-desc" className="text-xs">Description</Label>
-          <textarea
-            id="role-desc"
-            className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring resize-none disabled:opacity-50"
-            rows={2}
-            value={desc}
-            onChange={(e) => setDesc(e.target.value)}
-            disabled={isSystem}
-          />
+      )}
+
+      {/* System role notice */}
+      {isSystem && (
+        <div className="flex items-center gap-2.5 px-5 py-2.5 bg-amber-50 dark:bg-amber-950/25 border-b border-amber-200/70 dark:border-amber-800/40">
+          <Lock className="w-3.5 h-3.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+          <p className="text-xs text-amber-700 dark:text-amber-400">
+            System role — built-in and cannot be modified.
+          </p>
+        </div>
+      )}
+
+      {/* Identity fields */}
+      <div className="px-5 py-4 border-b bg-muted/20 space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <Label htmlFor="role-name" className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1.5">
+              {isSystem && <Lock className="w-3 h-3" />}
+              Role name
+            </Label>
+            <Input
+              id="role-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              readOnly={isSystem}
+              className={cn(
+                "bg-background",
+                isSystem && "cursor-default text-muted-foreground select-none focus:ring-0 focus-visible:ring-0",
+              )}
+            />
+          </div>
+          <div>
+            <Label htmlFor="role-desc" className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1.5">
+              {isSystem && <Lock className="w-3 h-3" />}
+              Description
+            </Label>
+            <textarea
+              id="role-desc"
+              rows={1}
+              value={desc}
+              onChange={(e) => setDesc(e.target.value)}
+              readOnly={isSystem}
+              className={cn(
+                "w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring resize-none",
+                isSystem && "cursor-default text-muted-foreground select-none focus:ring-0",
+              )}
+            />
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-5 space-y-3">
-        {/* Workspace permissions — always-on group */}
-        {Object.keys(workspacePermDefs).length > 0 && (
-          <WorkspaceSection
-            permDefs={workspacePermDefs}
-            perms={perms}
-            onPermToggle={handlePermToggle}
-            disabled={isSystem}
-          />
-        )}
+      {/* Permissions area */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="px-5 pt-4 pb-1 flex items-center gap-2">
+          <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+            Permissions
+          </span>
+          <div className="flex-1 h-px bg-border/50" />
+        </div>
 
-        {/* Product apps — each gated by app_access */}
-        {productApps.map((appKey) => (
-          <AppSection
-            key={appKey}
-            appKey={appKey}
-            appMeta={regApps[appKey]}
-            permDefs={regPerms[appKey] ?? {}}
-            appAccess={appAccess}
-            perms={perms}
-            onAccessToggle={handleAccessToggle}
-            onPermToggle={handlePermToggle}
-            disabled={isSystem}
-          />
-        ))}
+        <div className="px-5 pb-5 space-y-3">
+          {Object.keys(workspacePermDefs).length > 0 && (
+            <WorkspaceSection
+              permDefs={workspacePermDefs}
+              perms={perms}
+              onPermToggle={handlePermToggle}
+              disabled={isSystem}
+            />
+          )}
 
-        <PermissionPreview perms={perms} appAccess={appAccess} registry={registry} />
+          {productApps.map((appKey) => (
+            <AppSection
+              key={appKey}
+              appKey={appKey}
+              appMeta={regApps[appKey]}
+              permDefs={regPerms[appKey] ?? {}}
+              appAccess={appAccess}
+              perms={perms}
+              onAccessToggle={handleAccessToggle}
+              onPermToggle={handlePermToggle}
+              disabled={isSystem}
+            />
+          ))}
+
+          <PermissionPreview perms={perms} appAccess={appAccess} registry={registry} />
+        </div>
       </div>
 
       {!isSystem && (
-        <div className="p-4 border-t flex items-center gap-3">
-          <Button size="sm" onClick={handleSave} disabled={updateRole.isPending}>
+        <div className="px-5 py-3 border-t bg-muted/10 flex items-center gap-3">
+          <Button size="sm" onClick={handleSave} disabled={isPending}>
             <Save className="w-3.5 h-3.5 mr-1.5" />
-            {updateRole.isPending ? "Saving…" : "Save role"}
+            {isPending ? "Saving…" : isDraft ? "Create role" : "Save role"}
           </Button>
           {saveMsg && (
-            <span className={cn(
-              "text-sm",
-              saveMsg === "Saved!" ? "text-green-600" : "text-destructive",
-            )}>
+            <span className={cn("text-xs", saveMsg === "Saved!" ? "text-emerald-600" : "text-destructive")}>
               {saveMsg}
             </span>
           )}
@@ -368,12 +413,14 @@ export default function RolesSection({ workspaceId, isAdmin, onOpenPermissionsRe
   const deleteRole = useDeleteRole(workspaceId);
 
   const [selectedId, setSelectedId] = useState(null);
+  const [draftRole, setDraftRole] = useState(null);
   const [deleteError, setDeleteError] = useState("");
 
-  const selectedRole = roles.find((r) => r.id === selectedId) ?? roles[0] ?? null;
+  // Merge real roles with the local draft (if one exists)
+  const displayRoles = draftRole ? [...roles, draftRole] : roles;
+  const selectedRole = displayRoles.find((r) => r.id === selectedId) ?? displayRoles[0] ?? null;
 
   const handleCreate = () => {
-    // Build a default permissions structure from the registry with all false
     const regPerms = registry?.permissions ?? {};
     const defaultPerms = Object.fromEntries(
       Object.entries(regPerms).map(([appKey, perms]) => [
@@ -381,20 +428,29 @@ export default function RolesSection({ workspaceId, isAdmin, onOpenPermissionsRe
         Object.fromEntries(Object.keys(perms).map((k) => [k, false])),
       ]),
     );
-    const regApps = registry?.apps ?? {};
     const defaultAccess = Object.fromEntries(
-      Object.keys(regApps).map((k) => [k, true]),
+      Object.keys(registry?.apps ?? {}).map((k) => [k, true]),
     );
+    setDraftRole({
+      id: DRAFT_ID,
+      name: "",
+      description: "",
+      permissions: defaultPerms,
+      app_access: defaultAccess,
+      is_system: false,
+      member_count: 0,
+    });
+    setSelectedId(DRAFT_ID);
+  };
 
-    createRole.mutate(
-      {
-        name: "New Role",
-        description: "",
-        permissions: defaultPerms,
-        app_access: defaultAccess,
-      },
-      { onSuccess: (r) => setSelectedId(r.id) },
-    );
+  const handleDraftCreated = (newRole) => {
+    setDraftRole(null);
+    setSelectedId(newRole.id);
+  };
+
+  const handleDraftDiscard = () => {
+    setDraftRole(null);
+    setSelectedId(null);
   };
 
   const handleDuplicate = (role) => {
@@ -418,6 +474,8 @@ export default function RolesSection({ workspaceId, isAdmin, onOpenPermissionsRe
     });
   };
 
+  const hasDraft = !!draftRole;
+
   return (
     <div className="rounded-md border bg-card overflow-hidden">
       <div className="px-4 py-3 border-b flex items-center justify-between">
@@ -440,10 +498,21 @@ export default function RolesSection({ workspaceId, isAdmin, onOpenPermissionsRe
             </Button>
           </ShortcutTooltip>
           {isAdmin && (
-            <Button size="sm" variant="outline" onClick={handleCreate} disabled={createRole.isPending}>
-              <Plus className="w-3.5 h-3.5 mr-1.5" />
-              New role
-            </Button>
+            <ShortcutTooltip
+              label={hasDraft ? "Save or discard the draft role first" : "Create a new role"}
+              side="bottom"
+              delayDuration={200}
+            >
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleCreate}
+                disabled={hasDraft}
+              >
+                <Plus className="w-3.5 h-3.5 mr-1.5" />
+                New role
+              </Button>
+            </ShortcutTooltip>
           )}
         </div>
       </div>
@@ -451,79 +520,113 @@ export default function RolesSection({ workspaceId, isAdmin, onOpenPermissionsRe
       {isLoading ? (
         <div className="p-6 text-sm text-muted-foreground">Loading…</div>
       ) : (
-        <div className="flex min-h-[420px]" style={{ maxHeight: 600 }}>
-          {/* Left — role list */}
-          <div className="w-56 border-r flex flex-col overflow-y-auto flex-shrink-0">
-            {roles.map((role) => (
-              <button
-                key={role.id}
-                onClick={() => { setSelectedId(role.id); setDeleteError(""); }}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2.5 text-left text-sm transition-colors border-b border-border/40 last:border-0",
-                  (selectedRole?.id === role.id)
-                    ? "bg-primary/8 text-primary font-medium"
-                    : "hover:bg-accent/60 text-foreground",
-                )}
-              >
-                {role.is_system
-                  ? <Lock className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
-                  : <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
-                }
-                <span className="flex-1 truncate">{role.name}</span>
-                <span className="text-[10px] text-muted-foreground ml-auto flex-shrink-0">
-                  {role.member_count}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          {/* Right — role editor */}
-          {selectedRole ? (
-            <div className="flex-1 flex flex-col min-h-0">
-              <div className="flex items-center justify-between px-4 py-2.5 border-b bg-muted/30">
-                <span className="text-sm font-medium flex items-center gap-1.5">
-                  {selectedRole.is_system && (
-                    <Lock className="w-3.5 h-3.5 text-muted-foreground" />
-                  )}
-                  {selectedRole.name}
-                  {selectedRole.is_system && (
-                    <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded ml-1">system</span>
-                  )}
-                </span>
-                <div className="flex items-center gap-1">
+        <div className="flex flex-col min-h-[420px]" style={{ maxHeight: 620 }}>
+          {/* Tab bar + inline actions */}
+          <div className="flex items-stretch border-b">
+            <div className="flex items-center gap-0.5 px-3 flex-1 overflow-x-auto">
+              {displayRoles.map((role) => {
+                const isActive = selectedRole?.id === role.id;
+                const isDraftTab = role.id === DRAFT_ID;
+                return (
                   <button
-                    onClick={() => handleDuplicate(selectedRole)}
-                    className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                    title="Duplicate role"
-                    disabled={createRole.isPending}
+                    key={role.id}
+                    onClick={() => {
+                      setSelectedId(role.id);
+                      setDeleteError("");
+                      // Switching away from draft discards it
+                      if (!isDraftTab && hasDraft) setDraftRole(null);
+                    }}
+                    className={cn(
+                      "relative flex items-center gap-1.5 px-3 py-2.5 text-sm whitespace-nowrap transition-colors border-b-2 -mb-px",
+                      isActive
+                        ? isDraftTab
+                          ? "border-amber-400 text-amber-600 font-medium"
+                          : "border-primary text-primary font-medium"
+                        : "border-transparent text-muted-foreground hover:text-foreground hover:border-border/60",
+                    )}
                   >
-                    <Copy className="w-3.5 h-3.5" />
+                    {isDraftTab
+                      ? <span className="w-2 h-2 rounded-full border-2 border-current opacity-70 flex-shrink-0" />
+                      : role.is_system
+                        ? <Lock className="w-3 h-3 flex-shrink-0 opacity-60" />
+                        : <ShieldCheck className="w-3 h-3 flex-shrink-0 opacity-60" />
+                    }
+                    {isDraftTab ? (role.name || "New role") : role.name}
+                    {isDraftTab && (
+                      <span className="text-[10px] bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 rounded px-1 py-0.5 leading-none">
+                        draft
+                      </span>
+                    )}
+                    {!isDraftTab && role.member_count > 0 && (
+                      <span className={cn(
+                        "text-[10px] rounded-full px-1.5 py-0.5 leading-none font-medium",
+                        isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
+                      )}>
+                        {role.member_count}
+                      </span>
+                    )}
                   </button>
-                  {isAdmin && !selectedRole.is_system && (
+                );
+              })}
+            </div>
+
+            {/* Actions — scoped to the selected role */}
+            {selectedRole && (
+              <div className="flex items-center gap-0.5 px-3 border-l flex-shrink-0">
+                {selectedRole.id === DRAFT_ID ? (
+                  <ShortcutTooltip label="Discard draft" side="bottom" delayDuration={400}>
                     <button
-                      onClick={() => handleDelete(selectedRole)}
-                      disabled={selectedRole.member_count > 0 || deleteRole.isPending}
-                      title={
-                        selectedRole.member_count > 0
-                          ? "Remove all assigned members first"
-                          : "Delete role"
-                      }
-                      className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      onClick={handleDraftDiscard}
+                      className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
-                  )}
-                </div>
+                  </ShortcutTooltip>
+                ) : (
+                  <>
+                    <ShortcutTooltip label="Duplicate role" side="bottom" delayDuration={400}>
+                      <button
+                        onClick={() => handleDuplicate(selectedRole)}
+                        disabled={createRole.isPending}
+                        className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </ShortcutTooltip>
+                    {isAdmin && !selectedRole.is_system && (
+                      <ShortcutTooltip
+                        label={selectedRole.member_count > 0 ? "Remove all members first" : "Delete role"}
+                        side="bottom"
+                        delayDuration={400}
+                      >
+                        <button
+                          onClick={() => handleDelete(selectedRole)}
+                          disabled={selectedRole.member_count > 0 || deleteRole.isPending}
+                          className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </ShortcutTooltip>
+                    )}
+                  </>
+                )}
               </div>
-              {deleteError && (
-                <p className="px-4 py-2 text-xs text-destructive bg-destructive/5">{deleteError}</p>
-              )}
-              <RoleEditor
-                key={selectedRole.id}
-                role={selectedRole}
-                workspaceId={workspaceId}
-              />
-            </div>
+            )}
+          </div>
+
+          {deleteError && (
+            <p className="px-4 py-2 text-xs text-destructive bg-destructive/5 border-b">{deleteError}</p>
+          )}
+
+          {/* Editor */}
+          {selectedRole ? (
+            <RoleEditor
+              key={selectedRole.id}
+              role={selectedRole}
+              workspaceId={workspaceId}
+              isDraft={selectedRole.id === DRAFT_ID}
+              onCreated={handleDraftCreated}
+            />
           ) : (
             <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
               Select a role to edit

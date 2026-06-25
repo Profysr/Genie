@@ -1072,7 +1072,7 @@ export default function MembersPage() {
   return (
     <div className="flex h-full">
       {/* Main content */}
-      <div className="flex-1 overflow-y-auto p-8 space-y-6">
+      <div className="flex-1 overflow-y-auto p-8 px-4 space-y-6">
         {/* Page header */}
         <div className="flex items-center justify-between">
           <div>

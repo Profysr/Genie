@@ -8,6 +8,12 @@ import {
   Check,
   AlertTriangle,
   ExternalLink,
+  Terminal,
+  PlugZap,
+  LayoutDashboard,
+  Wrench,
+  Download,
+  Smartphone,
 } from "lucide-react";
 import Modal from "@/shared/components/ui/Modal";
 import { EmptyState } from "@/shared/components/ui/empty-state";
@@ -388,6 +394,61 @@ export default function APIKeysPage() {
         >
           <ExternalLink className="w-3.5 h-3.5" /> View interactive API docs
         </a>
+
+        {/* Use cases */}
+        <div className="pt-4 border-t border-border">
+          <h2 className="text-sm font-semibold text-foreground mb-1">When are API Keys useful?</h2>
+          <p className="text-xs text-muted-foreground mb-4">
+            API keys are most impactful when you need programmatic, persistent access to your workspace outside of the browser.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {[
+              {
+                icon: Terminal,
+                title: "CI/CD Pipelines",
+                desc: "Create tasks, update statuses, and post comments directly from your deployment or test scripts.",
+              },
+              {
+                icon: PlugZap,
+                title: "Third-party Integrations",
+                desc: "Connect JCN to Zapier, Make, or any automation platform that supports REST APIs.",
+              },
+              {
+                icon: LayoutDashboard,
+                title: "Custom Dashboards",
+                desc: "Pull live workspace data into your own reporting, BI, or analytics tools.",
+              },
+              {
+                icon: Wrench,
+                title: "Internal Tooling",
+                desc: "Build Slack bots, CLI scripts, or internal admin panels powered by your workspace.",
+              },
+              {
+                icon: Download,
+                title: "Data Exports & Backups",
+                desc: "Automate periodic exports of tasks and projects to spreadsheets or databases.",
+              },
+              {
+                icon: Smartphone,
+                title: "Custom Client Apps",
+                desc: "Power your own mobile or web app with full, scoped access to workspace data.",
+              },
+            ].map(({ icon: Icon, title, desc }) => (
+              <div
+                key={title}
+                className="flex gap-3 p-3.5 rounded-lg bg-muted/40 border border-border/60"
+              >
+                <div className="mt-0.5 flex-shrink-0 w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center">
+                  <Icon className="w-3.5 h-3.5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-foreground">{title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {showCreate && (

@@ -15,6 +15,12 @@ import {
   Eye,
   EyeOff,
   AlertTriangle,
+  Bell,
+  GitBranch,
+  ArrowLeftRight,
+  Shield,
+  Mail,
+  Zap,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { EmptyState } from "@/shared/components/ui/empty-state";
@@ -599,6 +605,61 @@ export default function WebhooksPage() {
             ))}
           </div>
         )}
+
+        {/* Use cases */}
+        <div className="pt-4 border-t border-border">
+          <h2 className="text-sm font-semibold text-foreground mb-1">When are Webhooks useful?</h2>
+          <p className="text-xs text-muted-foreground mb-4">
+            Webhooks are most impactful when you need to react to events the moment they happen — without polling the API.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {[
+              {
+                icon: Bell,
+                title: "Instant Notifications",
+                desc: "Post a Slack or Teams message the moment a task is created, assigned, or completed.",
+              },
+              {
+                icon: GitBranch,
+                title: "Trigger CI/CD",
+                desc: "Kick off a deployment or test run automatically when a sprint starts or a task is closed.",
+              },
+              {
+                icon: ArrowLeftRight,
+                title: "Sync External Systems",
+                desc: "Keep your CRM, time-tracker, or analytics platform in sync without ever polling the API.",
+              },
+              {
+                icon: Shield,
+                title: "Audit & Compliance Logs",
+                desc: "Stream every task and member event to your own immutable audit or compliance log.",
+              },
+              {
+                icon: Mail,
+                title: "Custom Alerts",
+                desc: "Fire tailored email or SMS notifications to teammates or clients on critical events.",
+              },
+              {
+                icon: Zap,
+                title: "Automation Flows",
+                desc: "Power Zapier, Make, or n8n automations that react to real-time events in your workspace.",
+              },
+            ].map(({ icon: Icon, title, desc }) => (
+              <div
+                key={title}
+                className="flex gap-3 p-3.5 rounded-lg bg-muted/40 border border-border/60"
+              >
+                <div className="mt-0.5 flex-shrink-0 w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center">
+                  <Icon className="w-3.5 h-3.5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-foreground">{title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {showCreate && (
