@@ -42,8 +42,9 @@ function useWorkspaceOnlineUsers(workspaceId) {
  */
 export function useAnnouncePresence(workspaceId, resourceType, resourceId) {
   const timerRef = useRef(null);
+  // Persists across StrictMode's cleanup+remount cycle (unlike a local `let` variable).
+  const mountedRef = useRef(false);
 
-  // Create an entry onto backend saying that I'm Online
   const announce = useCallback(() => {
     if (!workspaceId || !resourceType || !resourceId) return;
     api
@@ -54,7 +55,6 @@ export function useAnnouncePresence(workspaceId, resourceType, resourceId) {
       .catch(() => {});
   }, [workspaceId, resourceType, resourceId]);
 
-  // Delete the presence record from the backend so the system will identify, ok the user has left
   const leave = useCallback(() => {
     if (!workspaceId || !resourceType || !resourceId) return;
     api
@@ -64,14 +64,17 @@ export function useAnnouncePresence(workspaceId, resourceType, resourceId) {
       .catch(() => {});
   }, [workspaceId, resourceType, resourceId]);
 
-  // Main effect that keeps updating user presence
   useEffect(() => {
+    mountedRef.current = true;
     announce();
     timerRef.current = setInterval(announce, HEARTBEAT_MS);
 
     return () => {
+      mountedRef.current = false;
       clearInterval(timerRef.current);
-      leave();
+      setTimeout(() => {
+        if (!mountedRef.current) leave();
+      }, 0);
     };
   }, [announce, leave]);
 }

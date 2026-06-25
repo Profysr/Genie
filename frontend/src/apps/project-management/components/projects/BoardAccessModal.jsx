@@ -11,14 +11,7 @@ import {
   Search,
   X,
 } from "lucide-react";
-import {
-  useBoardMembers,
-  useUpdateBoardMember,
-  useRemoveBoardMember,
-  useBulkAddBoardMembers,
-} from "@/apps/project-management/hooks/useProjectMembers";
 import { useMembers } from "@/shared/hooks/useMembers";
-import { useUpdateBoard } from "@/apps/project-management/hooks/useProjects";
 import { useToast } from "@/shared/components/ui/toast";
 import { Button } from "@/shared/components/ui/button";
 import { Avatar } from "@/shared/components/ui/avatar";
@@ -31,34 +24,41 @@ import {
   ROLE_PERMS,
   PERMISSION_MATRIX_ACTIONS,
 } from "@/shared/lib/constants";
+import {
+  useBoardMembers,
+  useUpdateBoardMember,
+  useRemoveBoardMember,
+  useBulkAddBoardMembers,
+} from "../../hooks/useBoardMembers";
+import { useUpdateBoard } from "../../hooks/useProjects";
 
 const TABS = ["members", "permissions"];
 
-export default function ProjectMembersModal({
+export default function BoardAccessModal({
   open,
   onClose,
   workspaceId,
   boardId,
-  project,
+  board,
   canAdmin,
 }) {
   const [tab, setTab] = useState("members");
   const [pickerOpen, setPickerOpen] = useState(false);
   const toast = useToast();
 
-  const { data: projectMembers = [] } = useBoardMembers(workspaceId, boardId, {
+  const { data: boardMembers = [] } = useBoardMembers(workspaceId, boardId, {
     enabled: open,
   });
   const { data: wsMembers = [] } = useMembers(workspaceId);
 
   const updateMember = useUpdateBoardMember(workspaceId, boardId);
   const removeMember = useRemoveBoardMember(workspaceId, boardId);
-  const updateProject = useUpdateBoard(workspaceId, boardId);
+  const updateBoard = useUpdateBoard(workspaceId, boardId);
   const bulkAdd = useBulkAddBoardMembers(workspaceId, boardId);
 
   const alreadyAdded = useMemo(
-    () => new Set(projectMembers.map((m) => m.user.id)),
-    [projectMembers],
+    () => new Set(boardMembers.map((m) => m.user.id)),
+    [boardMembers],
   );
 
   const addableMembers = useMemo(
@@ -70,7 +70,7 @@ export default function ProjectMembersModal({
     <Modal
       isOpen={open}
       onClose={onClose}
-      title={`Project Access — ${project?.name}`}
+      title={`Project Access — ${board?.name}`}
       icon={Users}
       showFooter={false}
       maxWidth="672px"
@@ -100,15 +100,15 @@ export default function ProjectMembersModal({
           <div className="space-y-4">
             {canAdmin && (
               <PrivateProjectToggle
-                isPrivate={project?.is_private}
+                isPrivate={board?.is_private}
                 onToggle={() =>
-                  updateProject.mutate({ is_private: !project?.is_private })
+                  updateBoard.mutate({ is_private: !board?.is_private })
                 }
               />
             )}
 
             <div className="space-y-1.5">
-              {projectMembers.map((member) => (
+              {boardMembers.map((member) => (
                 <MemberListItem
                   key={member.id}
                   member={member}
@@ -120,9 +120,9 @@ export default function ProjectMembersModal({
                 />
               ))}
 
-              {projectMembers.length === 0 && !pickerOpen && (
+              {boardMembers.length === 0 && !pickerOpen && (
                 <p className="text-sm text-muted-foreground text-center py-6">
-                  No project-specific members set — all workspace members
+                  No board-specific members set — all workspace members
                   inherit their workspace role.
                 </p>
               )}
@@ -160,10 +160,10 @@ function PrivateProjectToggle({ isPrivate, onToggle }) {
           <Unlock className="w-4 h-4 text-muted-foreground" />
         )}
         <div>
-          <p className="text-sm font-medium">Private project</p>
+          <p className="text-sm font-medium">Private board</p>
           <p className="text-xs text-muted-foreground">
             {isPrivate
-              ? "Only members listed below can see this project."
+              ? "Only members listed below can see this board."
               : "Visible to all workspace members."}
           </p>
         </div>
@@ -432,7 +432,7 @@ function PermissionsTab() {
     <div>
       <p className="text-xs text-muted-foreground mb-4">
         Effective permissions per role. The workspace role always caps the
-        project role — the most restrictive wins.
+        board role — the most restrictive wins.
       </p>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -484,11 +484,11 @@ function PermissionsTab() {
         </p>
         <p>
           <strong>Workspace Member</strong> → defaults to Editor; can be
-          restricted per project.
+          restricted per board.
         </p>
         <p>
           <strong>Workspace Viewer</strong> → capped at Viewer regardless of
-          project role.
+          board role.
         </p>
       </div>
     </div>

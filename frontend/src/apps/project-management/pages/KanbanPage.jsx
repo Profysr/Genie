@@ -22,7 +22,7 @@ import {
 } from "@/apps/project-management/hooks/useSavedViews";
 import { useSprints } from "@/apps/project-management/hooks/useSprints";
 import { useBoardSocket } from "@/shared/hooks/useWorkspaceSocket";
-import { useBoardPermissions } from "@/apps/project-management/hooks/useProjectPermissions";
+import { useBoardPermissions } from "@/apps/project-management/hooks/useBoardPermissions";
 import { usePresence, useAnnouncePresence } from "@/shared/hooks/usePresence";
 import { useAuthStore } from "@/store/authStore";
 import { usePermission } from "@/contexts/PermissionsContext";
@@ -33,7 +33,7 @@ import CreateTaskModal from "@/apps/project-management/components/tasks/CreateTa
 import FilterBar from "@/apps/project-management/components/tasks/FilterBar";
 import ListView from "@/apps/project-management/components/tasks/ListView";
 import BoardSettingsModal from "@/apps/project-management/components/projects/BoardSettingsModal";
-import ProjectMembersModal from "@/apps/project-management/components/projects/ProjectMembersModal";
+import BoardAccessModal from "@/apps/project-management/components/projects/BoardAccessModal";
 import BulkActionBar from "@/apps/project-management/components/tasks/BulkActionBar";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
@@ -694,7 +694,7 @@ export default function KanbanPage() {
         statuses={statuses || []}
       />
 
-      <ProjectMembersModal
+      <BoardAccessModal
         open={membersModal}
         onClose={() => setMembersModal(false)}
         workspaceId={workspaceId}

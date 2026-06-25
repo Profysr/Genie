@@ -36,7 +36,7 @@ class BoardQuerySet(models.QuerySet):
             return qs
 
         return qs.filter(
-            Q(is_private=False) | Q(is_private=True, members__user=user)
+            Q(is_private=False) | Q(is_private=True, board_members__user=user)
         ).distinct()
 
 

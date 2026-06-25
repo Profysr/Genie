@@ -50,7 +50,6 @@ class UserSerializer(serializers.ModelSerializer):
     theme = serializers.CharField(source="profile.theme", required=False)
     accent_color = serializers.CharField(source="profile.accent_color", required=False)
     density_mode = serializers.CharField(source="profile.density_mode", required=False)
-
     class Meta:
         model = User
         fields = [

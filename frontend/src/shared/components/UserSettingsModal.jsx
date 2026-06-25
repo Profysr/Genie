@@ -314,11 +314,7 @@ function PwField({ id, label, value, onChange }) {
 // ── Password tab ──────────────────────────────────────────────────────────────
 function PasswordTab() {
   const { user } = useAuthStore();
-  const [form, setForm] = useState({
-    old_password: "",
-    new_password1: "",
-    new_password2: "",
-  });
+  const [form, setForm] = useState({ new_password1: "", new_password2: "" });
   const [success, setSuccess] = useState(false);
   const [serverError, setError] = useState("");
   const [resetSent, setResetSent] = useState(false);
@@ -335,7 +331,7 @@ function PasswordTab() {
     }
     change.mutate(form, {
       onSuccess: () => {
-        setForm({ old_password: "", new_password1: "", new_password2: "" });
+        setForm({ new_password1: "", new_password2: "" });
         setError("");
         setSuccess(true);
         setTimeout(() => setSuccess(false), 4000);
@@ -343,7 +339,6 @@ function PasswordTab() {
       onError: (err) => {
         const data = err?.response?.data || {};
         const msg =
-          data.old_password?.[0] ||
           data.new_password1?.[0] ||
           data.new_password2?.[0] ||
           data.detail ||
@@ -355,13 +350,8 @@ function PasswordTab() {
   };
 
   const PASSWORD_FIELDS = [
-    { id: "old_password", label: "Current password", name: "old_password" },
     { id: "new_password1", label: "New password", name: "new_password1" },
-    {
-      id: "new_password2",
-      label: "Confirm new password",
-      name: "new_password2",
-    },
+    { id: "new_password2", label: "Confirm new password", name: "new_password2" },
   ];
 
   return (
