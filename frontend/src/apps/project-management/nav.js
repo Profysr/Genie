@@ -43,7 +43,7 @@ export const PM_NAV_ITEMS = [
     label: "Analytics",
     desc: "Velocity, flow & team metrics",
     path: "analytics",
-    permission: "report.view",
+    permission: "pm.view_analytics",
   },
   {
     key: "import",
@@ -51,6 +51,7 @@ export const PM_NAV_ITEMS = [
     label: "Import",
     desc: "Migrate from Jira, Trello, ClickUp…",
     path: "import",
+    permission: "pm.import_jobs",
   },
 ];
 

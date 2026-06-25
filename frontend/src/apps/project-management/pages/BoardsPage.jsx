@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { usePortfolio } from "@/shared/hooks/useMyWork";
+import { usePermission } from "@/contexts/PermissionsContext";
 import { Button } from "@/shared/components/ui/button";
 import { EmptyState } from "@/shared/components/ui/empty-state";
 import CreateBoardModal from "@/apps/project-management/components/projects/CreateBoardModal";
 import { Plus, ArrowRight, AlertTriangle, Zap } from "lucide-react";
-import { APP_COLORS as PROJECT_COLORS } from "@/shared/lib/constants";
 import BoardTypeIcon from "@/shared/components/ui/BoardTypeIcon";
 import { cn } from "@/shared/lib/utils";
 import { Loader } from "@/shared/components/ui/Loader";
@@ -53,7 +53,10 @@ export default function ProjectsPage() {
   const { workspaceId } = useParams();
   const navigate = useNavigate();
   const { data: projects, isLoading } = usePortfolio(workspaceId);
+  const { can, isOwner } = usePermission();
   const [showCreate, setShowCreate] = useState(false);
+
+  const canCreateBoard = isOwner || can("board.create");
 
   const list = projects ?? [];
   return (
@@ -68,9 +71,11 @@ export default function ProjectsPage() {
             </p>
           </div>
         </div>
-        <Button onClick={() => setShowCreate(true)}>
-          <Plus className="w-4 h-4 mr-1.5" /> New Board
-        </Button>
+        {canCreateBoard && (
+          <Button onClick={() => setShowCreate(true)}>
+            <Plus className="w-4 h-4 mr-1.5" /> New Board
+          </Button>
+        )}
       </div>
 
       {isLoading && <Loader className="min-h-screen" />}
@@ -85,8 +90,6 @@ export default function ProjectsPage() {
 
       <div className="flex flex-wrap gap-4">
         {list.map((itm) => {
-          const color =
-            PROJECT_COLORS[itm.name.charCodeAt(0) % PROJECT_COLORS.length];
           const done = itm.done_tasks ?? 0;
           const total = itm.total_tasks ?? 0;
           const pct =

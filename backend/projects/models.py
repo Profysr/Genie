@@ -29,7 +29,7 @@ class BoardQuerySet(models.QuerySet):
         from workspaces.rbac import has_workspace_permission
         is_admin = (
             workspace.owner_id == user.pk
-            or has_workspace_permission(user, workspace, "project.admin")
+            or has_workspace_permission(user, workspace, "board.admin")
         )
 
         if is_admin:

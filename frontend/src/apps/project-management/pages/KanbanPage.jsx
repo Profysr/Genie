@@ -441,13 +441,13 @@ export default function KanbanPage() {
                 label: "Board members & access",
                 Icon: Users,
                 onClick: () => setMembersModal(true),
-                show: true,
+                show: perms.canAdmin || isWsOwner || can("board.admin"),
               },
               {
                 label: "Board settings",
                 Icon: Settings2,
                 onClick: () => setBoardSettings(true),
-                show: perms.canAdmin || isWsOwner || can("project.admin"),
+                show: perms.canAdmin || isWsOwner || can("board.admin"),
               },
             ]
               .filter(({ show }) => show)

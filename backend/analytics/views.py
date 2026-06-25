@@ -647,7 +647,7 @@ def _metric_overdue_aging(workspace, params):
         due_date__isnull=False,
         status__is_done=False,
     ).values(
-        "id", "title", "due_date", "priority",
+        "id", "title", "due_date", "priority", "estimate_points",
         "assignee__full_name", "assignee__email",
         "status__name", "board__name",
     )
@@ -678,7 +678,9 @@ def _metric_overdue_aging(workspace, params):
             "id": str(t["id"]),
             "title": t["title"],
             "days_overdue": days_overdue,
+            "due_date": t["due_date"].isoformat() if t["due_date"] else None,
             "priority": t["priority"],
+            "estimate_points": t["estimate_points"],
             "assignee": assignee,
             "status": t["status__name"],
             "board": t["board__name"],

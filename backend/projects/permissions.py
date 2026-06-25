@@ -17,7 +17,7 @@ Action → permission key mapping (_ACTION_TO_PERM):
   "delete" → "task.delete"
   "move"   → "task.move"
   "comment"→ "task.comment"
-  "admin"  → "project.admin"
+  "admin"  → "board.admin"
 
 Adding a new board action requires only one new entry in _ACTION_TO_PERM — no
 weight constants, no threshold tables.
@@ -31,12 +31,12 @@ from workspaces.rbac import has_workspace_permission
 # Maps board actions to workspace-level CustomRole permission keys.
 # To add a new action: add one entry here. No other code change needed.
 _ACTION_TO_PERM = {
-    "view":    "task.view",
-    "edit":    "task.edit",
-    "delete":  "task.delete",
-    "move":    "task.move",
-    "comment": "task.comment",
-    "admin":   "project.admin",
+    "view":           "task.view",
+    "edit":           "task.edit",
+    "delete":         "task.delete",
+    "move":           "task.move",
+    "comment":        "task.comment",
+    "admin":          "board.admin",
 }
 
 # Board-level role weights — used only for BoardMember override fallback.

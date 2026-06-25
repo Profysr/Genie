@@ -219,14 +219,16 @@ class BoardSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         workspace = self.context["workspace"]
+        user = self.context["request"].user
         board = Board.objects.create(
             workspace=workspace,
-            created_by=self.context["request"].user,
+            created_by=user,
             **validated_data,
         )
         TaskStatus.objects.bulk_create(
             [TaskStatus(board=board, **s) for s in DEFAULT_TASK_STATUSES]
         )
+        # BoardMember.objects.create(board=board, user=user, role=BoardMember.Role.ADMIN)
         return board
 
 
