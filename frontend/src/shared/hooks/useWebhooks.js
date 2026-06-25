@@ -50,6 +50,18 @@ export function useTestWebhook(workspaceId) {
   });
 }
 
+export function useWebhookEvents(workspaceId) {
+  return useQuery({
+    queryKey: ["webhook-events", workspaceId],
+    queryFn: () =>
+      api
+        .get(`/api/workspaces/${workspaceId}/webhooks/events/`)
+        .then((r) => r.data),
+    enabled: !!workspaceId,
+    staleTime: Infinity,
+  });
+}
+
 export function useWebhookDeliveries(workspaceId, hookId) {
   return useQuery({
     queryKey: ["webhooks", workspaceId, hookId, "deliveries"],

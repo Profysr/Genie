@@ -22,6 +22,7 @@ export const useInviteMember = (workspaceId) =>
         .post(`/api/workspaces/${workspaceId}/invites/`, data)
         .then((r) => r.data),
     membersKey(workspaceId),
+    ["workspace-invites", workspaceId],
   );
 
 export const useUpdateMemberRole = (workspaceId) =>

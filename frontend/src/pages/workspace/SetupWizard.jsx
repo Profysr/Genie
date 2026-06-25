@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import confetti from "canvas-confetti";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -10,10 +10,12 @@ import {
   Users,
   Eye,
   CheckCircle2,
-  Clock,
+  Loader2,
 } from "lucide-react";
 import { useUpdateOnboarding } from "@/shared/hooks/useOnboarding";
-import { usePendingInvites, useInviteMember } from "@/shared/hooks/useMembers";
+import { useInviteMember } from "@/shared/hooks/useMembers";
+import { useRoles } from "@/shared/hooks/useRoles";
+import { useToast } from "@/shared/components/ui/toast";
 import { Button } from "@/shared/components/ui/button";
 import { cn } from "@/shared/lib/utils";
 
@@ -57,15 +59,11 @@ const TEAM_TYPES = [
   },
 ];
 
-const ROLES = [
-  {
-    key: "member",
-    icon: Users,
-    label: "Member",
-    desc: "Can create and edit tasks",
-  },
-  { key: "viewer", icon: Eye, label: "Viewer", desc: "Read-only access" },
-];
+function roleIcon(name = "") {
+  const n = name.toLowerCase();
+  if (n.includes("viewer")) return Eye;
+  return Users;
+}
 
 const STEPS = ["Team type", "Invite", "Ready!"];
 
@@ -253,10 +251,13 @@ function InviteStep({
   onEmailsChange,
   inviteRole,
   onRoleChange,
+  roles,
   onBack,
   onFinish,
   isPending,
 }) {
+  const systemRoles = roles.filter((r) => r.is_system);
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-center mb-1">Invite your team</h1>
@@ -271,45 +272,53 @@ function InviteStep({
           Invite as
         </p>
         <div className="grid grid-cols-2 gap-2">
-          {ROLES.map(({ key: r, icon: Icon, label, desc }) => (
-            <button
-              key={r}
-              onClick={() => onRoleChange(r)}
-              className={cn(
-                "relative flex items-start gap-3 p-3.5 rounded-xl border-2 text-left transition-all",
-                inviteRole === r
-                  ? "border-primary bg-primary/5"
-                  : "border-border bg-card hover:border-primary/40 hover:bg-muted/40",
-              )}
-            >
-              <div
+          {systemRoles.map((r) => {
+            const Icon = roleIcon(r.name);
+            const selected = inviteRole === r.name;
+            return (
+              <button
+                key={r.id}
+                onClick={() => onRoleChange(r.name)}
                 className={cn(
-                  "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5",
-                  inviteRole === r
-                    ? "bg-primary/15 text-primary"
-                    : "bg-muted text-muted-foreground",
+                  "relative flex items-start gap-3 p-3.5 rounded-xl border-2 text-left transition-all",
+                  selected
+                    ? "border-primary bg-primary/5"
+                    : "border-border bg-card hover:border-primary/40 hover:bg-muted/40",
                 )}
               >
-                <Icon className="w-4 h-4" />
-              </div>
-              <div>
-                <p
+                <div
                   className={cn(
-                    "text-sm font-semibold",
-                    inviteRole === r ? "text-primary" : "text-foreground",
+                    "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5",
+                    selected
+                      ? "bg-primary/15 text-primary"
+                      : "bg-muted text-muted-foreground",
                   )}
                 >
-                  {label}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
-              </div>
-              {inviteRole === r && (
-                <div className="absolute top-2.5 right-2.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
-                  <Check className="w-2.5 h-2.5 text-white" />
+                  <Icon className="w-4 h-4" />
                 </div>
-              )}
-            </button>
-          ))}
+                <div>
+                  <p
+                    className={cn(
+                      "text-sm font-semibold",
+                      selected ? "text-primary" : "text-foreground",
+                    )}
+                  >
+                    {r.name}
+                  </p>
+                  {r.description && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {r.description}
+                    </p>
+                  )}
+                </div>
+                {selected && (
+                  <div className="absolute top-2.5 right-2.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                    <Check className="w-2.5 h-2.5 text-white" />
+                  </div>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -321,15 +330,17 @@ function InviteStep({
           <Button variant="outline" onClick={onFinish} disabled={isPending}>
             Skip for now
           </Button>
-          <Button onClick={onFinish} disabled={isPending}>
-            {emails.length > 0 ? (
-              <>
-                <Send className="w-3.5 h-3.5 mr-1.5" /> Send {emails.length}{" "}
-                invite{emails.length > 1 ? "s" : ""}
-              </>
+          <Button onClick={onFinish} disabled={isPending || emails.length === 0}>
+            {isPending ? (
+              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
             ) : (
-              "Finish setup"
+              <Send className="w-3.5 h-3.5 mr-1.5" />
             )}
+            {isPending
+              ? "Sending…"
+              : emails.length > 0
+                ? `Send ${emails.length} invite${emails.length !== 1 ? "s" : ""}`
+                : "Send invites"}
           </Button>
         </div>
       </div>
@@ -338,13 +349,7 @@ function InviteStep({
 }
 
 /* ── Component: ReadyStep ─────────────────────────────────────────────────── */
-function ReadyStep({ onComplete, workspaceId, sentCount }) {
-  const { data: pending = [] } = usePendingInvites(
-    sentCount > 0 ? workspaceId : null,
-    { refetchInterval: 5000 },
-  );
-  const accepted = Math.max(0, sentCount - pending.length);
-
+function ReadyStep({ onComplete, sentCount }) {
   return (
     <div className="text-center space-y-6">
       <div className="text-6xl animate-bounce">🎉</div>
@@ -356,15 +361,10 @@ function ReadyStep({ onComplete, workspaceId, sentCount }) {
       </div>
 
       {sentCount > 0 && (
-        <div className="flex items-center justify-center gap-6 py-3 px-6 bg-muted/50 border rounded-lg text-sm">
-          <span className="flex items-center gap-1.5 text-green-600 font-medium">
-            <CheckCircle2 className="w-4 h-4" />
-            {accepted} accepted
-          </span>
-          <span className="text-muted-foreground/40">·</span>
-          <span className="flex items-center gap-1.5 text-muted-foreground">
-            <Clock className="w-4 h-4" />
-            {pending.length} pending
+        <div className="flex items-center justify-center gap-2 py-3 px-6 bg-muted/50 border rounded-lg text-sm">
+          <CheckCircle2 className="w-4 h-4 text-green-600" />
+          <span className="font-medium">
+            {sentCount} teammate{sentCount !== 1 ? "s" : ""} invited
           </span>
         </div>
       )}
@@ -384,27 +384,69 @@ export default function SetupWizard() {
   const [step, setStep] = useState(0);
   const [teamType, setTeamType] = useState(null);
   const [emails, setEmails] = useState([]);
-  const [inviteRole, setInviteRole] = useState("member");
+  const [inviteRole, setInviteRole] = useState("");
   const [sentCount, setSentCount] = useState(0);
+  const [isSending, setIsSending] = useState(false);
 
   const fireConfetti = useConfetti();
   const updateOnboarding = useUpdateOnboarding(workspaceId);
-
   const inviteMutation = useInviteMember(workspaceId);
+  const { data: roles = [] } = useRoles(workspaceId);
+  const { toast } = useToast();
+
+  // Auto-select first system role once roles are loaded
+  useEffect(() => {
+    if (!inviteRole && roles.length > 0) {
+      const first = roles.find((r) => r.is_system);
+      if (first) setInviteRole(first.id);
+    }
+  }, [roles]);
 
   const handleFinish = async () => {
-    setSentCount(emails.length);
-    await Promise.allSettled(
-      emails.map((email) =>
-        inviteMutation.mutateAsync({ email, role: inviteRole }),
-      ),
-    );
-    await updateOnboarding.mutateAsync({
-      wizard_completed: true,
-      team_type: teamType,
-    });
-    fireConfetti();
-    setTimeout(() => setStep(2), 400);
+    setIsSending(true);
+    try {
+      if (emails.length > 0) {
+        const results = await Promise.allSettled(
+          emails.map((email) =>
+            inviteMutation.mutateAsync({ email, role: inviteRole }),
+          ),
+        );
+
+        const failed = results.filter((r) => r.status === "rejected");
+        const succeeded = results.length - failed.length;
+
+        if (failed.length === results.length) {
+          // All failed — show error and stay on this step
+          const msg = failed[0]?.reason?.response?.data;
+          const detail = msg?.email?.[0] ?? msg?.role?.[0] ?? msg?.non_field_errors?.[0];
+          toast({
+            title: "Invites could not be sent",
+            description: detail ?? "Something went wrong. Please try again.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        setSentCount(succeeded);
+
+        if (failed.length > 0) {
+          toast({
+            title: `${failed.length} invite${failed.length !== 1 ? "s" : ""} failed`,
+            description: `${succeeded} sent successfully, ${failed.length} failed.`,
+            variant: "destructive",
+          });
+        }
+      }
+
+      await updateOnboarding.mutateAsync({
+        wizard_completed: true,
+        team_type: teamType,
+      });
+      fireConfetti();
+      setTimeout(() => setStep(2), 400);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleGoToWorkspace = () => navigate(`/w/${workspaceId}`);
@@ -429,9 +471,10 @@ export default function SetupWizard() {
               onEmailsChange={setEmails}
               inviteRole={inviteRole}
               onRoleChange={setInviteRole}
+              roles={roles}
               onBack={() => setStep(0)}
               onFinish={handleFinish}
-              isPending={updateOnboarding.isPending}
+              isPending={isSending}
             />
           )}
 

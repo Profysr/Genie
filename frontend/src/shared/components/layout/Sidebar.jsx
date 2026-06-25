@@ -165,25 +165,25 @@ export default function Sidebar({
             )}
             {navGroups.flatMap((group) =>
               group.items.map(({ to, icon: Icon, label, key, end }) => (
-                <ShortcutTooltip key={to} label={label} shortcut={NAV_SHORTCUTS[key]} side="right" delayDuration={100}>
-                  <NavLink
-                    to={to}
-                    end={end}
-                    className={({ isActive }) =>
-                      cn(
-                        "w-8 h-8 flex items-center justify-center rounded transition-colors relative",
-                        isActive
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                      )
-                    }
-                  >
-                    <Icon className="w-4 h-4 flex-shrink-0" />
-                    {key === "inbox" && inboxUnread > 0 && (
-                      <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-primary" />
-                    )}
-                  </NavLink>
-                </ShortcutTooltip>
+                <NavLink key={to} to={to} end={end}>
+                  {({ isActive }) => (
+                    <ShortcutTooltip label={label} shortcut={NAV_SHORTCUTS[key]} side="right" delayDuration={100}>
+                      <span
+                        className={cn(
+                          "w-8 h-8 flex items-center justify-center rounded transition-colors relative",
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                        )}
+                      >
+                        <Icon className="w-4 h-4 flex-shrink-0" />
+                        {key === "inbox" && inboxUnread > 0 && (
+                          <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-primary" />
+                        )}
+                      </span>
+                    </ShortcutTooltip>
+                  )}
+                </NavLink>
               )),
             )}
           </div>

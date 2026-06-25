@@ -21,6 +21,7 @@ import { EmptyState } from "@/shared/components/ui/empty-state";
 import Modal from "@/shared/components/ui/Modal";
 import {
   useWebhooks,
+  useWebhookEvents,
   useCreateWebhook,
   useUpdateWebhook,
   useDeleteWebhook,
@@ -31,18 +32,6 @@ import { formatDistanceToNow } from "date-fns";
 import { useToast } from "@/shared/components/ui/toast";
 import { Loader } from "@/shared/components/ui/Loader";
 
-const ALL_EVENTS = [
-  { id: "task.created", label: "task.created" },
-  { id: "task.updated", label: "task.updated" },
-  { id: "task.deleted", label: "task.deleted" },
-  { id: "task.assigned", label: "task.assigned" },
-  { id: "task.commented", label: "task.commented" },
-  { id: "task.completed", label: "task.completed" },
-  { id: "sprint.started", label: "sprint.started" },
-  { id: "sprint.completed", label: "sprint.completed" },
-  { id: "member.added", label: "member.added" },
-  { id: "member.removed", label: "member.removed" },
-];
 
 // ── Delivery log ──────────────────────────────────────────────────────────────
 
@@ -140,7 +129,7 @@ function DeliveryLog({ workspaceId, hookId }) {
 }
 
 // ── Webhook row ───────────────────────────────────────────────────────────────
-function WebhookRow({ hook, workspaceId }) {
+function WebhookRow({ hook, workspaceId, allEvents }) {
   const [open, setOpen] = useState(false);
   const [showSecret, setShowSecret] = useState(false);
   const [showLog, setShowLog] = useState(false);
@@ -157,8 +146,8 @@ function WebhookRow({ hook, workspaceId }) {
     is_active: hook.is_active,
   });
 
-  const allEvents =
-    form.events.length === 0 || form.events.length === ALL_EVENTS.length;
+  const allSelected =
+    form.events.length === 0 || form.events.length === allEvents.length;
 
   const toggleEvent = (id) => {
     const next = form.events.includes(id)
@@ -166,7 +155,7 @@ function WebhookRow({ hook, workspaceId }) {
       : [...form.events, id];
     setForm((f) => ({
       ...f,
-      events: next.length === ALL_EVENTS.length ? [] : next,
+      events: next.length === allEvents.length ? [] : next,
     }));
   };
 
@@ -342,11 +331,11 @@ function WebhookRow({ hook, workspaceId }) {
                 onClick={() => setForm((f) => ({ ...f, events: [] }))}
                 className="text-[10px] text-primary hover:underline"
               >
-                {allEvents ? "All" : "Select all"}
+                {allSelected ? "All" : "Select all"}
               </button>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
-              {ALL_EVENTS.map((ev) => {
+              {allEvents.map((ev) => {
                 const active =
                   form.events.length === 0 || form.events.includes(ev.id);
                 return (
@@ -410,7 +399,7 @@ function WebhookRow({ hook, workspaceId }) {
 const INPUT_CLS =
   "w-full text-sm bg-background border border-border rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-ring";
 
-function CreateWebhookModal({ workspaceId, onClose, onCreated }) {
+function CreateWebhookModal({ workspaceId, onClose, onCreated, allEvents }) {
   const [form, setForm] = useState({ name: "", url: "", events: [] });
   const create = useCreateWebhook(workspaceId);
 
@@ -461,7 +450,7 @@ function CreateWebhookModal({ workspaceId, onClose, onCreated }) {
             Events <span className="opacity-60">(empty = all)</span>
           </label>
           <div className="grid grid-cols-2 gap-1">
-            {ALL_EVENTS.map((ev) => {
+            {allEvents.map((ev) => {
               const active = form.events.includes(ev.id);
               return (
                 <label
@@ -545,6 +534,8 @@ function SecretReveal({ secret, onClose }) {
 export default function WebhooksPage() {
   const { workspaceId } = useParams();
   const { data: hooks = [], isLoading } = useWebhooks(workspaceId);
+  const { data: eventNames = [] } = useWebhookEvents(workspaceId);
+  const allEvents = eventNames.map((e) => ({ id: e, label: e }));
   const [showCreate, setShowCreate] = useState(false);
   const [newSecret, setNewSecret] = useState(null);
 
@@ -604,7 +595,7 @@ export default function WebhooksPage() {
         ) : (
           <div className="space-y-4">
             {hooks.map((h) => (
-              <WebhookRow key={h.id} hook={h} workspaceId={workspaceId} />
+              <WebhookRow key={h.id} hook={h} workspaceId={workspaceId} allEvents={allEvents} />
             ))}
           </div>
         )}
@@ -615,6 +606,7 @@ export default function WebhooksPage() {
           workspaceId={workspaceId}
           onClose={() => setShowCreate(false)}
           onCreated={handleCreated}
+          allEvents={allEvents}
         />
       )}
       {newSecret && (

@@ -557,6 +557,15 @@ class WebhookDeliveryListView(APIView):
         return Response(WebhookDeliverySerializer(deliveries, many=True).data)
 
 
+class WebhookEventsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, workspace_id):
+        from .constants import WEBHOOK_EVENTS
+        _get_workspace(workspace_id, request.user)
+        return Response(WEBHOOK_EVENTS)
+
+
 # ==============================================================================
 # ── DATA IMPORT & MIGRATION TOOLS ─────────────────────────────────────────────
 # ==============================================================================

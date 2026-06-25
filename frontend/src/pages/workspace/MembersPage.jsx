@@ -1121,7 +1121,7 @@ export default function MembersPage() {
 
         {/* ── Members tab ── */}
         {activeTab === "members" && (
-          <>
+          <div key="members" className="animate-slide-up space-y-6">
             {/* Pending invites */}
             {isAdmin && pendingInvites.length > 0 && (
               <div className="rounded-lg border bg-card overflow-hidden">
@@ -1227,29 +1227,33 @@ export default function MembersPage() {
                 )}
               </div>
             </div>
-          </>
+          </div>
         )}
 
         {/* ── App Access tab ── */}
         {activeTab === "app-access" && (
-          <AppAccessTab
-            workspaceId={workspaceId}
-            members={members}
-            roles={roles}
-            isAdmin={isAdmin}
-            user={user}
-            workspace={workspace}
-            onSwitchToRoles={() => setActiveTab("roles")}
-          />
+          <div key="app-access" className="animate-slide-up">
+            <AppAccessTab
+              workspaceId={workspaceId}
+              members={members}
+              roles={roles}
+              isAdmin={isAdmin}
+              user={user}
+              workspace={workspace}
+              onSwitchToRoles={() => setActiveTab("roles")}
+            />
+          </div>
         )}
 
         {/* ── Roles & Permissions tab ── */}
         {activeTab === "roles" && (
-          <RolesSection
-            workspaceId={workspaceId}
-            isAdmin={isAdmin}
-            onOpenPermissionsRef={() => setPermsRefOpen(true)}
-          />
+          <div key="roles" className="animate-slide-up">
+            <RolesSection
+              workspaceId={workspaceId}
+              isAdmin={isAdmin}
+              onOpenPermissionsRef={() => setPermsRefOpen(true)}
+            />
+          </div>
         )}
       </div>
 

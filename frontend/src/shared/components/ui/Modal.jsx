@@ -71,7 +71,7 @@ const BaseModal = ({
       {/* Backdrop */}
       <div
         onClick={onClose}
-        className="absolute inset-0 bg-background/50 backdrop-blur-md"
+        className="absolute inset-0 bg-background/5 backdrop-blur-md"
       />
 
       {/* Modal Content */}

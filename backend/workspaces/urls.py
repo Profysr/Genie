@@ -23,6 +23,7 @@ from .views import (
     WebhookDetailView,
     WebhookTestView,
     WebhookDeliveryListView,
+    WebhookEventsView,
     # v4.6.0
     ImportSourcesView,
     ImportJobListCreateView,
@@ -73,6 +74,7 @@ urlpatterns = [
 
     # Webhooks (v4.5.0)
     path(f"{_ws}/webhooks/", WebhookListCreateView.as_view()),
+    path(f"{_ws}/webhooks/events/", WebhookEventsView.as_view()),
     path(f"{_ws}/webhooks/<str:hook_id>/", WebhookDetailView.as_view()),
     path(f"{_ws}/webhooks/<str:hook_id>/test/", WebhookTestView.as_view()),
     path(f"{_ws}/webhooks/<str:hook_id>/deliveries/", WebhookDeliveryListView.as_view()),
