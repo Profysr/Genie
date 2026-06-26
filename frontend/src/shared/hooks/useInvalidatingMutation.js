@@ -1,24 +1,20 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/shared/components/ui/toast";
 
 /**
- * A `useMutation` that invalidates one or more query keys on success.
+ * A `useMutation` that invalidates one or more query keys on success and shows
+ * a generic error toast on failure.
  *
- * Collapses the repeated CRUD-hook boilerplate
- *   const qc = useQueryClient();
- *   return useMutation({ mutationFn, onSuccess: () => qc.invalidateQueries({ queryKey }) });
- * into a single call. Pass as many query keys as the mutation should invalidate.
- *
- * For mutations that need richer onSuccess behaviour (setQueryData, navigation,
- * reading the response), use `useMutation` directly instead.
- *
- * @param {Function} mutationFn - the async request, e.g. `(data) => api.post(url, data).then((r) => r.data)`
- * @param {...Array} queryKeys - query keys to invalidate on success
+ * @param {Function} mutationFn - the async request
+ * @param {...Array} queryKeys  - query keys to invalidate on success
  */
 export function useInvalidatingMutation(mutationFn, ...queryKeys) {
   const qc = useQueryClient();
+  const { toast } = useToast();
   return useMutation({
     mutationFn,
     onSuccess: () =>
       queryKeys.forEach((queryKey) => qc.invalidateQueries({ queryKey })),
+    onError: () => toast({ title: "Something went wrong", type: "error" }),
   });
 }

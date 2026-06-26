@@ -7,6 +7,7 @@ import {
 import api from "@/shared/lib/api";
 import { SOCKET_BACKED } from "@/shared/lib/queryClient";
 import { useInvalidatingMutation } from "@/shared/hooks/useInvalidatingMutation";
+import { useToast } from "@/shared/components/ui/toast";
 
 // ── Query key factories ───────────────────────────────────────────────────────
 
@@ -95,8 +96,7 @@ export const useTaskComments = (workspaceId, boardId, taskId) =>
     },
     getNextPageParam: (lastPage) => lastPage.next ?? undefined,
     enabled: !!taskId,
-    // Live via board socket (comment.created/deleted); focus refetch would also
-    // reset the infinite scroll position, so disable it.
+    // Live via board socket (comment.created/deleted); focus refetch would also reset the infinite scroll position, so disable it.
     ...SOCKET_BACKED,
   });
 
@@ -143,6 +143,7 @@ const mergeTaskInLists = (qc, workspaceId, boardId, task) => {
   );
 };
 
+// Created custom invalidating sprint function
 const SPRINT_AFFECTING = ["status_id", "sprint_id", "sprint"];
 const maybeInvalidateSprint = (qc, workspaceId, boardId, changed) => {
   if (!changed || !SPRINT_AFFECTING.some((k) => k in changed)) return;
@@ -174,6 +175,7 @@ const maybeInvalidateSprint = (qc, workspaceId, boardId, changed) => {
 // Used by board-level views (Kanban, Calendar, Gantt, Sprint) — refreshes the task list
 export const useUpdateTask = (workspaceId, boardId) => {
   const qc = useQueryClient();
+  const { toast } = useToast();
   return useMutation({
     mutationFn: ({ taskId, ...data }) =>
       api
@@ -183,20 +185,21 @@ export const useUpdateTask = (workspaceId, boardId) => {
         )
         .then((r) => r.data),
     onSuccess: (updated, { taskId, ...data }) => {
-      // Merge sent fields first so sprint_id (etc.) land even if the list
-      // serializer doesn't echo every field back; server response wins on conflicts.
+      // Merge sent fields first so sprint_id (etc.) land even if the list serializer doesn't echo every field back; server response wins on conflicts.
       mergeTaskInLists(qc, workspaceId, boardId, { id: taskId, ...data, ...updated });
       qc.setQueryData(detailKey(workspaceId, boardId, updated.id), (old) =>
         old ? { ...old, ...updated } : old,
       );
       maybeInvalidateSprint(qc, workspaceId, boardId, data);
     },
+    onError: () => toast({ title: "Failed to update task", type: "error" }),
   });
 };
 
 // Used by the task detail panel — also writes into the detail cache immediately
 export const useUpdateTaskDetail = (workspaceId, boardId, taskId) => {
   const qc = useQueryClient();
+  const { toast } = useToast();
   return useMutation({
     mutationFn: (data) =>
       api
@@ -213,11 +216,13 @@ export const useUpdateTaskDetail = (workspaceId, boardId, taskId) => {
       mergeTaskInLists(qc, workspaceId, boardId, { id: taskId, ...data, ...updated });
       maybeInvalidateSprint(qc, workspaceId, boardId, data);
     },
+    onError: () => toast({ title: "Failed to save changes", type: "error" }),
   });
 };
 
 export const useDeleteTask = (workspaceId, boardId) => {
   const qc = useQueryClient();
+  const { toast } = useToast();
   return useMutation({
     mutationFn: (taskId) =>
       api.delete(
@@ -231,11 +236,13 @@ export const useDeleteTask = (workspaceId, boardId) => {
       // Deletion can change sprint completion — always refresh.
       qc.invalidateQueries({ queryKey: ["sprint", workspaceId, boardId] });
     },
+    onError: () => toast({ title: "Failed to delete task", type: "error" }),
   });
 };
 
 export const useMoveTask = (workspaceId, boardId) => {
   const qc = useQueryClient();
+  const { toast } = useToast();
   return useMutation({
     mutationFn: ({ taskId, status_id, order }) =>
       api
@@ -258,8 +265,9 @@ export const useMoveTask = (workspaceId, boardId) => {
       );
       return { snapshots };
     },
-    onError: (_err, _, ctx) => {
-      ctx.snapshots.forEach(([key, data]) => qc.setQueryData(key, data));
+    onError: (_err, _vars, ctx) => {
+      ctx?.snapshots.forEach(([key, data]) => qc.setQueryData(key, data));
+      toast({ title: "Failed to move task", type: "error" });
     },
     onSuccess: (data) => {
       // Merge full server response — fixes partial optimistic state (status_id + order only)
@@ -378,9 +386,7 @@ export const useDeleteComment = (workspaceId, boardId, taskId) => {
 
 // ── Subtasks ──────────────────────────────────────────────────────────────────
 
-// Patch subtask progress counts into the detail + every task-list variant from
-// the authoritative subtasks array — no full task-list refetch per toggle.
-// (Task list serializer exposes subtask_count + done_subtask_count per card.)
+// Patch subtask progress counts into the detail + every task-list variant from the authoritative subtasks array — no full task-list refetch per toggle. (Task list serializer exposes subtask_count + done_subtask_count per card.)
 const patchSubtaskCounts = (qc, workspaceId, boardId, taskId, subtasks) => {
   const subtask_count = subtasks.length;
   const done_subtask_count = subtasks.filter((s) => s.is_done).length;

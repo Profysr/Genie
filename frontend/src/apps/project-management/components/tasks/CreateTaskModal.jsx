@@ -5,6 +5,7 @@ import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { ChevronDown } from "lucide-react";
 import Modal from "@/shared/components/ui/Modal";
+import { useToast } from "@/shared/components/ui/toast";
 import { PRIORITIES, TASK_TYPES } from "@/shared/lib/constants";
 import { cn } from "@/shared/lib/utils";
 
@@ -20,6 +21,7 @@ export default function CreateTaskModal({
   defaultDate = null,
 }) {
   const { mutate, isPending } = useCreateTask(workspaceId, boardId);
+  const { toast } = useToast();
 
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState("no_priority");
@@ -56,9 +58,10 @@ export default function CreateTaskModal({
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!title.trim()) return;
     mutate(
       {
-        title,
+        title: title.trim(),
         priority,
         task_type: taskType,
         status_id: statusId || defaultStatusId || null,
@@ -75,6 +78,7 @@ export default function CreateTaskModal({
           onClose();
           reset();
         },
+        onError: () => toast({ title: "Failed to create task", type: "error" }),
       },
     );
   };

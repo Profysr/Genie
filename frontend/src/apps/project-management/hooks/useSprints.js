@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/lib/api";
 import { SOCKET_BACKED } from "@/shared/lib/queryClient";
 import { useInvalidatingMutation } from "@/shared/hooks/useInvalidatingMutation";
+import { useToast } from "@/shared/components/ui/toast";
 
 const sprintsKey = (ws, proj) => ["sprints", ws, proj];
 const sprintDetailKey = (ws, proj, sprintId) => ["sprint", ws, proj, sprintId];
@@ -43,6 +44,7 @@ export const useCreateSprint = (workspaceId, boardId) =>
 
 export const useUpdateSprint = (workspaceId, boardId) => {
   const qc = useQueryClient();
+  const { toast } = useToast();
   return useMutation({
     mutationFn: ({ sprintId, ...data }) =>
       api
@@ -57,6 +59,7 @@ export const useUpdateSprint = (workspaceId, boardId) => {
         queryKey: sprintDetailKey(workspaceId, boardId, data.id),
       });
     },
+    onError: () => toast({ title: "Failed to update sprint", type: "error" }),
   });
 };
 
