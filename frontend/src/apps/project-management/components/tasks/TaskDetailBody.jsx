@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import {
   X,
   ChevronDown,
@@ -11,6 +12,7 @@ import {
   Search,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
+import { useTasks } from "@/apps/project-management/hooks/useTasks";
 
 export function TaskTitle({ task, canEdit, update, setConflict }) {
   const [editing, setEditing] = useState(false);
@@ -178,13 +180,18 @@ export function ChildTasksSection({
   task,
   canEdit,
   taskId,
-  allTasks,
   attachChild,
   createChild,
   navigate,
   projectStatuses,
 }) {
+  const { workspaceId, boardId } = useParams();
   const [showPicker, setShowPicker] = useState(false);
+  // Only fetch all board tasks when the attach picker is opened — avoids a full
+  // board-tasks request on every task detail open. Cache hit if board is already loaded.
+  const { data: allTasks = [] } = useTasks(workspaceId, boardId, {}, {
+    enabled: showPicker,
+  });
   const [addingNew, setAddingNew] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const newInputRef = useRef(null);

@@ -9,6 +9,7 @@ import {
   Trash2,
   ChevronRight,
   X,
+  LayoutGrid,
 } from "lucide-react";
 import { Tooltip } from "@/shared/components/ui/tooltip";
 import { Loader } from "@/shared/components/ui/Loader";
@@ -21,7 +22,6 @@ import { useAuthStore } from "@/store/authStore";
 import { useToast } from "@/shared/components/ui/toast";
 import {
   useDeleteTask,
-  useTasks,
   useTaskDetail,
   useTaskSubtasks,
   useUpdateTaskDetail,
@@ -49,14 +49,18 @@ import {
   IconStrip,
   PanelSectionHeader,
   PropertiesPanel,
-  CommentsPanel,
-  ActivityPanel,
   AttachmentsPanel,
   DependenciesPanel,
-  ApprovalsPanel,
   LayoutPanel,
-  RequestApprovalDropdown,
+  RequestApprovalDropdown
 } from "./TaskDetailPanels";
+import {
+  ActivityTabsSection,
+} from "./TaskActivityTabs";
+import { useBoard } from "@/apps/project-management/hooks/useBoards";
+import BoardTypeIcon from "@/shared/components/ui/BoardTypeIcon";
+import { workspaceUrl } from "@/shared/lib/navLinks";
+
 
 const DESC_SIZE_CLASSES = {
   compact: "min-h-[80px]",
@@ -86,10 +90,10 @@ export default function TaskDetailPanel({
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { data: members = [] } = useMembers(workspaceId);
+  const { data: board } = useBoard(workspaceId, boardId);
   const { data: task, isLoading } = useTaskDetail(workspaceId, boardId, taskId);
   const { data: subtasks = [] } = useTaskSubtasks(workspaceId, boardId, taskId);
   const { data: childTasks = [] } = useChildTasks(workspaceId, boardId, taskId);
-  const { data: allTasks = [] } = useTasks(workspaceId, boardId);
   const { data: approvals = [] } = useApprovals(workspaceId, boardId, taskId);
   const update = useUpdateTaskDetail(workspaceId, boardId, taskId);
   const createSubtask = useCreateSubtask(workspaceId, boardId, taskId);
@@ -113,10 +117,8 @@ export default function TaskDetailPanel({
   const qc = useQueryClient();
 
   const [layoutPrefs, setLayoutPrefs] = useState(getLayoutPrefs);
-  const [activePanel, setActivePanel] = useState(() =>
-    focusCommentId
-      ? "comments"
-      : (getLayoutPrefs().defaultPanel ?? "properties"),
+  const [activePanel, setActivePanel] = useState(
+    () => getLayoutPrefs().defaultPanel ?? "properties",
   );
   const [approvalDropdown, setApprovalDropdown] = useState(false);
   const approvalBtnRef = useRef(null);
@@ -204,6 +206,9 @@ export default function TaskDetailPanel({
     >
       <PanelHeader
         task={task}
+        board={board}
+        workspaceId={workspaceId}
+        boardId={boardId}
         canEdit={canEdit}
         approvals={approvals}
         approvalDropdown={approvalDropdown}
@@ -287,7 +292,6 @@ export default function TaskDetailPanel({
                 task={task}
                 canEdit={canEdit}
                 taskId={taskId}
-                allTasks={allTasks}
                 attachChild={attachChild}
                 createChild={createChild}
                 navigate={navigate}
@@ -303,6 +307,20 @@ export default function TaskDetailPanel({
               />
             </>
           )}
+
+          <div className="h-px bg-border/30 -mx-6" />
+
+          <ActivityTabsSection
+            workspaceId={workspaceId}
+            boardId={boardId}
+            taskId={taskId}
+            user={user}
+            members={members}
+            typingUsers={typingUsers}
+            focusCommentId={focusCommentId}
+            commentCount={task.comment_count}
+            approvals={approvals}
+          />
         </div>
 
         {/* ── Side panel — only mounted when a panel is active ──── */}
@@ -323,24 +341,6 @@ export default function TaskDetailPanel({
                   onCreateLabel={onCreateLabel}
                 />
               )}
-              {activePanel === "comments" && (
-                <CommentsPanel
-                  workspaceId={workspaceId}
-                  boardId={boardId}
-                  taskId={taskId}
-                  user={user}
-                  members={members}
-                  typingUsers={typingUsers}
-                  focusCommentId={focusCommentId}
-                />
-              )}
-              {activePanel === "activity" && (
-                <ActivityPanel
-                  workspaceId={workspaceId}
-                  boardId={boardId}
-                  taskId={taskId}
-                />
-              )}
               {activePanel === "attachments" && (
                 <AttachmentsPanel
                   workspaceId={workspaceId}
@@ -350,15 +350,6 @@ export default function TaskDetailPanel({
               )}
               {activePanel === "dependencies" && (
                 <DependenciesPanel
-                  workspaceId={workspaceId}
-                  boardId={boardId}
-                  taskId={taskId}
-                />
-              )}
-              {activePanel === "approvals" && (
-                <ApprovalsPanel
-                  approvals={approvals}
-                  user={user}
                   workspaceId={workspaceId}
                   boardId={boardId}
                   taskId={taskId}
@@ -375,9 +366,6 @@ export default function TaskDetailPanel({
         <IconStrip
           activePanel={activePanel}
           onSelect={handlePanelSelect}
-          commentCount={task.comment_count}
-          approvalCount={approvals.length}
-          approvalPending={approvals.some((a) => a.status === "pending")}
         />
       </div>
 
@@ -397,9 +385,11 @@ export default function TaskDetailPanel({
 }
 
 // ── Header ────────────────────────────────────────────────────────────────────
-
 function PanelHeader({
   task,
+  board,
+  workspaceId,
+  boardId,
   canEdit,
   approvals,
   approvalDropdown,
@@ -415,15 +405,54 @@ function PanelHeader({
   onClone,
   isCloning,
 }) {
-  return (
-    <div className="flex items-center justify-between px-5 py-2 border-b flex-shrink-0">
-      {task.task_type && (
-        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-primary/10 text-primary capitalize">
-          {task.task_type}
-        </span>
-      )}
+  const navigate = useNavigate();
 
-      <div className="flex items-center gap-1">
+  return (
+    <div className="flex items-center justify-between px-4 py-2 border-b flex-shrink-0 bg-background/95 backdrop-blur-sm sticky top-0 z-10 gap-3">
+      {/* ── Breadcrumb ──────────────────────────────────────────── */}
+      <nav className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
+        {/* Boards root */}
+        <button
+          onClick={() => navigate(workspaceUrl(workspaceId, "boards"))}
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
+        >
+          <LayoutGrid className="w-3 h-3" />
+          <span>Boards</span>
+        </button>
+
+        {board && (
+          <>
+            <ChevronRight className="w-3 h-3 text-muted-foreground/50 flex-shrink-0" />
+            {/* Board name + icon */}
+            <button
+              onClick={() =>
+                navigate(workspaceUrl(workspaceId, `boards/${boardId}`))
+              }
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors min-w-0 max-w-[160px] group"
+            >
+              <BoardTypeIcon
+                board_type={board.board_type}
+                size="xs"
+                // variant="circular"
+                className="flex-shrink-0 opacity-70 group-hover:opacity-100 transition-opacity"
+              />
+              <span className="truncate">{board.name}</span>
+            </button>
+          </>
+        )}
+
+        {task.task_type && (
+          <>
+            <ChevronRight className="w-3 h-3 text-muted-foreground/50 flex-shrink-0" />
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-primary/10 text-primary capitalize flex-shrink-0">
+              {task.task_type}
+            </span>
+          </>
+        )}
+      </nav>
+
+      {/* ── Action buttons ──────────────────────────────────────── */}
+      <div className="flex items-center gap-1 flex-shrink-0">
         <Tooltip content="Copy link">
           <button
             onClick={() => {

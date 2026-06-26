@@ -52,15 +52,15 @@ export default function SprintHeader({
   const createSprint = useCreateSprint(workspaceId, boardId);
   const updateSprint = useUpdateSprint(workspaceId, boardId);
   const deleteSprint = useDeleteSprint(workspaceId, boardId);
-  const { data: burndown } = useSprintBurndown(
-    workspaceId,
-    boardId,
-    activeSprint?.id,
-  );
+  // const { data: burndown } = useSprintBurndown(
+  //   workspaceId,
+  //   boardId,
+  //   activeSprint?.id,
+  // );
 
   const [showDropdown, setShowDropdown] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [showBurndown, setShowBurndown] = useState(false);
+  // const [showBurndown, setShowBurndown] = useState(false);
   const [confirmState, setConfirmState] = useState(null);
   const dropdownRef = useRef(null);
 
@@ -93,9 +93,9 @@ export default function SprintHeader({
             activeSprint={activeSprint}
             sprintView={sprintView}
             onSprintViewChange={onSprintViewChange}
-            burndown={burndown}
-            showBurndown={showBurndown}
-            setShowBurndown={setShowBurndown}
+            // burndown={burndown}
+            // showBurndown={showBurndown}
+            // setShowBurndown={setShowBurndown}
             updateSprint={updateSprint}
             deleteSprint={deleteSprint}
             onSelectSprint={onSelectSprint}
@@ -118,8 +118,8 @@ export default function SprintHeader({
         )}
       </div>
 
-      {/* Burndown chart panel */}
-      <BurndownSection showBurndown={showBurndown} burndown={burndown} />
+      {/* Burndown chart panel — disabled for now */}
+      {/* <BurndownSection showBurndown={showBurndown} burndown={burndown} /> */}
 
       {/* Create sprint modal */}
       <CreateSprintModal
@@ -361,8 +361,8 @@ function SprintDetails({
         </div>
       )}
 
-      {/* Burndown toggle */}
-      {burndown && burndown.total > 0 && (
+      {/* Burndown toggle — disabled for now */}
+      {/* {burndown && burndown.total > 0 && (
         <button
           onClick={() => setShowBurndown(!showBurndown)}
           className={cn(
@@ -375,7 +375,7 @@ function SprintDetails({
           <TrendingDown className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Burndown</span>
         </button>
-      )}
+      )} */}
 
       {/* Start sprint */}
       {activeSprint.status === "planning" && (

@@ -11,13 +11,20 @@ const sizeMap = {
 };
 
 /**
- * Renders a board's type icon inside a primary-tinted rounded container.
+ * Renders a board's type icon inside a primary-tinted container.
  *
- * @param {string}  board_type  - board.board_type value (e.g. "software")
- * @param {"xs"|"sm"|"md"|"lg"|"xl"|"2xl"} size - container size (default "sm")
- * @param {string}  className   - extra classes on the outer container
+ * @param {Object} props
+ * @param {string} props.board_type - board.board_type value (e.g. "software")
+ * @param {"xs"|"sm"|"md"|"lg"|"xl"|"2xl"} [props.size="sm"] - container size
+ * @param {"plain"|"circular"} [props.variant="plain"] - shape style variation
+ * @param {string} [props.className] - extra classes on the outer container
  */
-export default function BoardTypeIcon({ board_type, size = "sm", className }) {
+export default function BoardTypeIcon({
+  board_type,
+  size = "sm",
+  variant = "plain",
+  className,
+}) {
   const Icon = getBoardIcon(board_type);
   const s = sizeMap[size] ?? sizeMap.sm;
 
@@ -26,10 +33,11 @@ export default function BoardTypeIcon({ board_type, size = "sm", className }) {
       className={cn(
         "flex items-center justify-center shrink-0 bg-primary/10 border border-primary/20",
         s.outer,
+        variant === "circular" && "rounded-full",
         className,
       )}
     >
-      <Icon className={cn("text-primary", s.icon)} />
+      {Icon && <Icon className={cn("text-primary", s.icon)} />}
     </div>
   );
 }

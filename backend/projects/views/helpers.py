@@ -216,6 +216,7 @@ def _task_detail_qs():
     ).prefetch_related(
         "labels",
         "field_values__field",
+        "blocked_by_deps",
     )
 
 

@@ -39,8 +39,9 @@ function buildTaskParams(filters = {}) {
 
 // ── Task list ─────────────────────────────────────────────────────────────────
 
-export const useTasks = (workspaceId, boardId, filters = {}) => {
+export const useTasks = (workspaceId, boardId, filters = {}, options = {}) => {
   const qs = buildTaskParams(filters);
+  const { enabled: optEnabled = true, ...restOptions } = options;
   return useQuery({
     queryKey: tasksKey(workspaceId, boardId, filters),
     queryFn: () =>
@@ -49,9 +50,10 @@ export const useTasks = (workspaceId, boardId, filters = {}) => {
           `/api/workspaces/${workspaceId}/boards/${boardId}/tasks/${qs ? `?${qs}` : ""}`,
         )
         .then((r) => r.data),
-    enabled: !!workspaceId && !!boardId,
+    enabled: optEnabled && !!workspaceId && !!boardId,
     // Live via board socket (task.created/updated/moved/deleted) — see SOCKET_BACKED
     ...SOCKET_BACKED,
+    ...restOptions,
   });
 };
 
@@ -104,7 +106,7 @@ export const useTaskActivities = (workspaceId, boardId, taskId) =>
     queryFn: ({ pageParam }) => {
       const url = pageParam
         ? pageParam
-        : `/api/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/activities/`;
+        : `/api/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/activity/`;
       return api.get(url).then((r) => r.data);
     },
     getNextPageParam: (lastPage) => lastPage.next ?? undefined,
@@ -141,15 +143,32 @@ const mergeTaskInLists = (qc, workspaceId, boardId, task) => {
   );
 };
 
-// Sprint completion is a server-computed aggregate that only moves when a task's
-// status or sprint assignment changes — not on every field edit. Invalidate it
-// (immediate refetch when SprintView is open; it's a tiny counts payload) only
-// when the changed fields can actually affect it.
 const SPRINT_AFFECTING = ["status_id", "sprint_id", "sprint"];
 const maybeInvalidateSprint = (qc, workspaceId, boardId, changed) => {
-  if (!changed || SPRINT_AFFECTING.some((k) => k in changed)) {
-    qc.invalidateQueries({ queryKey: ["sprint", workspaceId, boardId] });
+  if (!changed || !SPRINT_AFFECTING.some((k) => k in changed)) return;
+
+  const newSprintId = changed.sprint_id;
+
+  // Adding to a specific sprint: patch the counts in-place — no extra request
+  if ("sprint_id" in changed && newSprintId) {
+    qc.setQueryData(
+      ["sprint", workspaceId, boardId, newSprintId],
+      (old) => old ? { ...old, task_count: (old.task_count || 0) + 1 } : old,
+    );
+    qc.setQueryData(["sprints", workspaceId, boardId], (old) =>
+      Array.isArray(old)
+        ? old.map((s) =>
+            s.id === newSprintId
+              ? { ...s, task_count: (s.task_count || 0) + 1 }
+              : s,
+          )
+        : old,
+    );
+    return;
   }
+
+  // Removing from sprint or status change — server recomputes counts; refetch
+  qc.invalidateQueries({ queryKey: ["sprint", workspaceId, boardId] });
 };
 
 // Used by board-level views (Kanban, Calendar, Gantt, Sprint) — refreshes the task list
@@ -164,7 +183,9 @@ export const useUpdateTask = (workspaceId, boardId) => {
         )
         .then((r) => r.data),
     onSuccess: (updated, { taskId, ...data }) => {
-      mergeTaskInLists(qc, workspaceId, boardId, updated);
+      // Merge sent fields first so sprint_id (etc.) land even if the list
+      // serializer doesn't echo every field back; server response wins on conflicts.
+      mergeTaskInLists(qc, workspaceId, boardId, { id: taskId, ...data, ...updated });
       qc.setQueryData(detailKey(workspaceId, boardId, updated.id), (old) =>
         old ? { ...old, ...updated } : old,
       );
@@ -189,7 +210,7 @@ export const useUpdateTaskDetail = (workspaceId, boardId, taskId) => {
         ...old,
         ...updated,
       }));
-      mergeTaskInLists(qc, workspaceId, boardId, updated);
+      mergeTaskInLists(qc, workspaceId, boardId, { id: taskId, ...data, ...updated });
       maybeInvalidateSprint(qc, workspaceId, boardId, data);
     },
   });

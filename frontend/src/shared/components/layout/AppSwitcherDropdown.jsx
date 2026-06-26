@@ -156,6 +156,7 @@ export default function AppSwitcherDropdown({ workspaceId, collapsed }) {
             activeApp={activeApp}
             visibleApps={visibleApps}
             onNavigate={handleNavigate}
+            onGoHome={handleGoHome}
           />
         </div>
       )}

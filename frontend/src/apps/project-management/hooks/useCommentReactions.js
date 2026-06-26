@@ -14,15 +14,25 @@ export function useToggleReaction(workspaceId, boardId, taskId) {
         .then((r) => r.data),
 
     onSuccess: (data, { commentId }) => {
-      qc.setQueryData(["task-detail", workspaceId, boardId, taskId], (old) => {
+      qc.setQueryData(["comments", workspaceId, boardId, taskId], (old) => {
         if (!old) return old;
-        return {
-          ...old,
-          comments:
-            old.comments?.map((c) =>
-              c.id === commentId ? { ...c, reactions: data.reactions } : c,
-            ) || [],
-        };
+        const pages = old.pages.map((page) => ({
+          ...page,
+          results: page.results.map((c) => {
+            if (c.id === commentId) return { ...c, reactions: data.reactions };
+            // also patch reactions on replies
+            if (c.replies?.some((r) => r.id === commentId)) {
+              return {
+                ...c,
+                replies: c.replies.map((r) =>
+                  r.id === commentId ? { ...r, reactions: data.reactions } : r,
+                ),
+              };
+            }
+            return c;
+          }),
+        }));
+        return { ...old, pages };
       });
     },
   });

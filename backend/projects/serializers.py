@@ -289,6 +289,14 @@ class SprintSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at"]
 
 
+class MiniSprintSerializer(serializers.ModelSerializer):
+    """Minimal sprint projection embedded in task serializers — id + name + dates only."""
+
+    class Meta:
+        model = Sprint
+        fields = ["id", "name", "start_date", "end_date"]
+
+
 class SubTaskSerializer(serializers.ModelSerializer):
     class Meta:
         model = SubTask
@@ -395,7 +403,7 @@ class TaskSerializer(serializers.ModelSerializer):
         child=serializers.UUIDField(), write_only=True, required=False
     )
     sprint_id = serializers.UUIDField(write_only=True, required=False, allow_null=True)
-    sprint_detail = SprintSerializer(source="sprint", read_only=True)
+    sprint_detail = MiniSprintSerializer(source="sprint", read_only=True)
     parent_id = serializers.UUIDField(write_only=True, required=False, allow_null=True)
     parent_detail = serializers.SerializerMethodField()
     subtask_count = serializers.SerializerMethodField()
@@ -989,10 +997,11 @@ class ApprovalSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "status", "requested_by", "created_at", "updated_at"]
 
     def get_approved_count(self, obj):
-        return sum(1 for r in obj.reviewers.all() if r.status == ApprovalReviewer.Status.APPROVED)
+        reviewers = obj.reviewers.all()
+        return sum(1 for r in reviewers if r.status == ApprovalReviewer.Status.APPROVED)
 
     def get_total_count(self, obj):
-        return len(obj.reviewers.all())
+        return obj.reviewers.all().count()
 
     def create(self, validated_data):
         reviewer_ids = validated_data.pop("reviewer_ids")

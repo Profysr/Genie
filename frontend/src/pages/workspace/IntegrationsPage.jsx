@@ -29,7 +29,7 @@ import {
   useUpdateChannelMapping,
   useDeleteChannelMapping,
 } from "@/shared/hooks/useIntegrations";
-import { useBoards } from "@/apps/project-management/hooks/useProjects";
+import { useBoards } from "@/apps/project-management/hooks/useBoards";
 import { useToast } from "@/shared/components/ui/toast";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
