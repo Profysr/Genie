@@ -41,7 +41,7 @@ class MiniUserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "email", "full_name", "avatar", "avatar_type", "avatar_icon"]
+        fields = ["id", "email", "full_name"]  # "avatar_type", "avatar_icon"
         read_only_fields = fields
 
 
@@ -54,12 +54,11 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             "id", "email", "full_name",
-            "avatar", "avatar_type", "avatar_icon",
+            # "avatar_type", "avatar_icon",
             "theme", "accent_color", "density_mode",
             "can_create_workspace", "created_at",
         ]
-        # avatar is set by the Google OAuth adapter only, never by user PATCH
-        read_only_fields = ["email", "created_at", "avatar"]
+        read_only_fields = ["email", "created_at"]
 
     def update(self, instance, validated_data):
         profile_data = validated_data.pop("profile", {})

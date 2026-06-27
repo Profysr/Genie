@@ -34,13 +34,11 @@ const sizeMap = {
 };
 
 /**
- * Renders a user avatar in one of three modes:
- *   1. Google / external image  — pass `src` or a user with avatar_type="google"
- *   2. Emoji icon               — pass `icon` or a user with avatar_type="icon"
- *   3. Initials fallback        — derives a letter + color from `name`
+ * Renders a user avatar in one of two modes:
+ *   1. Emoji icon    — pass `icon` or a user with avatar_type="icon"
+ *   2. Initials      — derives a letter + color from `name`
  *
- * Shortcut: pass the raw `user` object and the component resolves the mode
- * automatically using avatar_type, so existing call sites don't all need editing.
+ * Pass the raw `user` object and the component resolves the mode automatically.
  */
 export function Avatar({
   name,
@@ -54,10 +52,10 @@ export function Avatar({
   const { outer, text, emoji: emojiSize } = sizeMap[size] || sizeMap.md;
 
   // Resolve display values from a user object if provided.
-  const resolvedSrc =
-    src ?? (user?.avatar_type === "google" ? user.avatar : null);
-  const resolvedIcon =
-    icon ?? (user?.avatar_type === "icon" ? user.avatar_icon : null);
+  const resolvedSrc = src ?? null;
+  // const resolvedIcon =
+  //   icon ?? (user?.avatar_type === "icon" ? user.avatar_icon : null);
+  const resolvedIcon = null;
   const resolvedName = name ?? user?.full_name ?? user?.email;
 
   const color = getAvatarColor(resolvedName);

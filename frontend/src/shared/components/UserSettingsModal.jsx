@@ -79,8 +79,6 @@ function AvatarPicker({ user }) {
   const updateProfile = useUpdateProfile();
   const saving = updateProfile.isPending;
 
-  const hasGoogle = Boolean(user?.avatar);
-
   const applyAvatar = (payload) =>
     updateProfile.mutate(payload, {
       onSuccess: (data) => setMode(data.avatar_type),
@@ -89,8 +87,7 @@ function AvatarPicker({ user }) {
   const selectMode = (m) => {
     if (m === mode) return;
     if (m === "initials") applyAvatar({ avatar_type: "initials" });
-    if (m === "google") applyAvatar({ avatar_type: "google" });
-    if (m === "icon") setMode("icon");
+    // if (m === "icon") setMode("icon");
   };
 
   const selectIcon = (emoji) => {
@@ -133,23 +130,16 @@ function AvatarPicker({ user }) {
             Initials
           </button>
 
-          {hasGoogle && (
-            <button className={optionCls(mode === "google")} onClick={() => selectMode("google")}>
-              <img src={user.avatar} className="w-5 h-5 rounded-full object-cover flex-shrink-0" alt="" />
-              Google Profile
-            </button>
-          )}
-
-          <button className={optionCls(mode === "icon")} onClick={() => selectMode("icon")}>
+          {/* <button className={optionCls(mode === "icon")} onClick={() => selectMode("icon")}>
             <span className="text-base leading-none">
               {user?.avatar_type === "icon" ? user.avatar_icon : "🎨"}
             </span>
             Choose Icon
-          </button>
+          </button> */}
         </div>
       </div>
 
-      {mode === "icon" && (
+      {/* {mode === "icon" && (
         <div>
           <SectionLabel>Pick an icon</SectionLabel>
           <div className="grid grid-cols-8 gap-1 p-3 rounded-xl bg-muted/20 border border-border/50">
@@ -170,7 +160,7 @@ function AvatarPicker({ user }) {
             ))}
           </div>
         </div>
-      )}
+      )} */}
     </div>
   );
 }

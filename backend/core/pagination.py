@@ -34,3 +34,19 @@ class AnalyticsPagination(PageNumberPagination):
     page_size = 25
     page_size_query_param = "page_size"
     max_page_size = 100
+
+
+class TaskDrilldownPagination(CursorPagination):
+    """
+    Keyset (cursor) pagination for the analytics task drill-down.
+
+    Tickets are the only unbounded-cardinality axis in analytics, so the
+    drill-down paginates by ticket — and uses cursor (not offset) pagination so
+    deep scrolling stays O(page_size) and is stable under concurrent inserts.
+    Default ordering is `-id`; because PKs are UUIDv7 (time-sortable) this yields
+    newest-first for free. The view overrides `ordering` per `?order=` value.
+    """
+    page_size = 25
+    page_size_query_param = "page_size"
+    max_page_size = 100
+    ordering = ("-id",)
