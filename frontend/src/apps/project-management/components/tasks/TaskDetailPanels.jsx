@@ -111,6 +111,8 @@ function DateField({
   disabled,
   placeholder = "Not set",
   openSignal = 0,
+  min,
+  max,
 }) {
   const inputRef = useRef(null);
 
@@ -158,6 +160,8 @@ function DateField({
         value={value || ""}
         onChange={onChange}
         disabled={disabled}
+        min={min}
+        max={max}
         tabIndex={-1}
       />
     </div>
@@ -499,6 +503,7 @@ export function PropertiesPanel({
                 update.mutate({ start_date: e.target.value || null })
               }
               disabled={!canEdit}
+              max={task.due_date || undefined}
             />
           </PropCell>
           <PropCell
@@ -512,6 +517,7 @@ export function PropertiesPanel({
               }
               disabled={!canEdit}
               openSignal={sig("due-date")}
+              min={task.start_date || undefined}
             />
           </PropCell>
         </div>

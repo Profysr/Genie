@@ -222,8 +222,9 @@ export default function KanbanPage() {
     setFocusCommentId(searchParams.get("comment") || null);
   }, [searchParams]);
 
-  // Keyboard-focus state — tracks which task the arrow keys have highlighted.
-  // Distinct from selectedTaskId (which opens the detail panel).
+  const tasks = allTasks;
+  // Keyboard-focus state — tracks which task the arrow keys have highlighted. Distinct from selectedTaskId (which opens the detail panel).
+  
   const [focusedTaskId, setFocusedTaskId] = useState(null);
 
   // Use for bulk updates
@@ -293,8 +294,6 @@ export default function KanbanPage() {
     () => Object.fromEntries(sprints.map((s) => [s.id, s])),
     [sprints],
   );
-
-  const tasks = allTasks;
 
   const [dragSourceColumnId, setDragSourceColumnId] = useState(null);
 

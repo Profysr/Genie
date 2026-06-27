@@ -59,6 +59,13 @@ export default function CreateTaskModal({
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!title.trim()) return;
+    if (startDate && dueDate && startDate > dueDate) {
+      toast({
+        title: "Start date cannot be after the due date",
+        type: "error",
+      });
+      return;
+    }
     mutate(
       {
         title: title.trim(),
@@ -214,6 +221,7 @@ export default function CreateTaskModal({
               <Label className="text-xs font-medium">Due Date</Label>
               <input
                 type="date"
+                min={startDate || undefined}
                 className="mt-1 w-full h-9 rounded-md border border-input bg-background px-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
@@ -243,6 +251,7 @@ export default function CreateTaskModal({
                 <Label className="text-xs font-medium">Start Date</Label>
                 <input
                   type="date"
+                  max={dueDate || undefined}
                   className="mt-1 w-full h-9 rounded-md border border-input bg-background px-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}

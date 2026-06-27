@@ -498,6 +498,18 @@ class TaskSerializer(serializers.ModelSerializer):
             }
         return None
 
+    def validate(self, data):
+        # Resolve effective start/due dates, falling back to the existing
+        # instance values so partial (PATCH) updates of one field still
+        # validate against the other.
+        start = data.get("start_date", getattr(self.instance, "start_date", None))
+        due = data.get("due_date", getattr(self.instance, "due_date", None))
+        if start and due and start > due:
+            raise serializers.ValidationError(
+                {"start_date": "Start date cannot be after the due date."}
+            )
+        return data
+
     def create(self, validated_data):
         label_ids = validated_data.pop("label_ids", [])
         validated_data["created_by"] = self.context["request"].user
