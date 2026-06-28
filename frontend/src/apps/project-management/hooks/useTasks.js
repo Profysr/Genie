@@ -302,13 +302,17 @@ export const useMoveTask = (workspaceId, boardId) => {
     // FIX: async so cancelQueries is awaited before the snapshot is taken,
     // preventing a race where an in-flight refetch overwrites the rollback data.
     onMutate: async ({ taskId, status_id, order }) => {
-      await qc.cancelQueries({ queryKey: ["tasks", workspaceId, boardId] });
+      // Snapshot + patch synchronously (before any await) so they batch with the
+      // library's drag-state reset into one React render — prevents the drop flicker.
+      // cancelQueries is awaited after to stop in-flight refetches from overwriting
+      // the optimistic state.
       const snapshots = qc.getQueriesData({
         queryKey: ["tasks", workspaceId, boardId],
       });
       qc.setQueriesData({ queryKey: ["tasks", workspaceId, boardId] }, (old) =>
         old?.map((t) => (t.id === taskId ? { ...t, status_id, order } : t)),
       );
+      await qc.cancelQueries({ queryKey: ["tasks", workspaceId, boardId] });
       return { snapshots };
     },
     onError: (_err, _vars, ctx) => {

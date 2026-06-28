@@ -570,7 +570,7 @@ class TaskCardSerializer(serializers.ModelSerializer):
             "due_date",
             "start_date",
             "status_id",
-            "assignee_id",
+            # "assignee_id",
             "assignee",
             "label_ids",
             "sprint_id",
@@ -580,7 +580,7 @@ class TaskCardSerializer(serializers.ModelSerializer):
             "pending_approval_count",
             "approved_approval_count",
             "child_count",
-            "version",
+            # "version",
         ]
         read_only_fields = fields
 

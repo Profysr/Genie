@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Droppable } from "@hello-pangea/dnd";
 import {
   Plus,
-  ChevronLeft,
   CheckCircle,
   PlayCircle,
   Expand,
@@ -21,8 +20,6 @@ export default function KanbanColumn({
   selectedTaskId,
   selectedIds = new Set(),
   onToggleSelect,
-  workspaceId,
-  boardId,
   canEdit,
   labelsById = {},
   dragSourceName = null,
@@ -72,8 +69,10 @@ export default function KanbanColumn({
       <Droppable droppableId={column.id}>
         {(provided, snapshot) => {
           const isReceiving = snapshot.isDraggingOver && !!dragSourceName;
+          // isUsingPlaceholder stays true until the library removes the placeholder element,
+          // which is later than draggingFromThisWith clearing — prevents the drop flicker.
           const leavingColumn =
-            !!snapshot.draggingFromThisWith && !snapshot.isDraggingOver;
+            snapshot.isUsingPlaceholder && !snapshot.isDraggingOver;
 
           return (
             <div
@@ -187,10 +186,13 @@ export default function KanbanColumn({
                   />
                 ))}
 
-                {/* Placeholder collapses with a smooth transition when task leaves */}
+                {/* Placeholder collapses when task leaves; no transition on expand to avoid drop flicker */}
                 <div
-                  className="overflow-hidden transition-all duration-250 ease-out"
-                  style={{ maxHeight: leavingColumn ? 0 : undefined }}
+                  className="overflow-hidden"
+                  style={{
+                    maxHeight: leavingColumn ? 0 : undefined,
+                    transition: leavingColumn ? "max-height 250ms ease-out" : "none",
+                  }}
                 >
                   {provided.placeholder}
                 </div>
