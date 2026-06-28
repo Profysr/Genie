@@ -237,9 +237,11 @@ hr:         hr.manage_leave, hr.manage_attendance
 |--------|------|-------------|
 | GET | `/api/workspaces/{ws}/boards/{pid}/statuses/` | List board statuses ordered by `order` |
 | POST | `/api/workspaces/{ws}/boards/{pid}/statuses/` | Create status column |
-| POST | `/api/workspaces/{ws}/boards/{pid}/statuses/bulk/` | Bulk reorder / update statuses |
-| PATCH | `/api/workspaces/{ws}/boards/{pid}/statuses/{id}/` | Rename/reorder/recolor status |
-| DELETE | `/api/workspaces/{ws}/boards/{pid}/statuses/{id}/` | Delete status (tasks moved to first remaining) |
+| POST | `/api/workspaces/{ws}/boards/{pid}/statuses/bulk/` | **The only mutation path for existing statuses** — rename, recolor, reorder, set `is_done`/`is_started`, AND delete (any existing status absent from the payload is deleted). |
+
+> **No per-status `PATCH`/`DELETE` routes exist** (`urls.py` defines only the two routes above). All edits/deletions go through `POST …/statuses/bulk/` (`TaskStatusBulkUpdateView`). Two guards in `views/tasks.py`:
+> - `_guard_deletions` — if a status omitted from the payload **still has tasks**, the whole request is rejected with **400** `{"error": ...}`. Tasks are **not** auto-reassigned — move tasks off a column before deleting it. (`Task.status` is `SET_NULL`, so this guard is what prevents orphaned tasks.)
+> - `BulkStatusUpdateSerializer.validate_statuses` — enforces a **single `is_done=True`** column (if several are sent, the last one wins).
 
 ### Tasks
 
@@ -386,7 +388,7 @@ Views live in `projects/views/comments.py` (extracted from `tasks.py`).
 | GET | `/api/workspaces/{ws}/boards/{pid}/forms/` | List intake forms |
 | POST | `/api/workspaces/{ws}/boards/{pid}/forms/` | Create form |
 | GET/PATCH/DELETE | `/api/workspaces/{ws}/boards/{pid}/forms/{id}/` | Form CRUD |
-| POST | `/api/workspaces/{ws}/boards/{pid}/forms/{id}/fields/` | Bulk update form fields |
+| PUT | `/api/workspaces/{ws}/boards/{pid}/forms/{id}/fields/` | Bulk-replace form fields (`FormFieldsBulkUpdateView`) |
 | GET | `/api/workspaces/{ws}/boards/{pid}/forms/{id}/submissions/` | List form submissions |
 | GET | `/forms/{token}/` | **Public** — get form schema (AllowAny) |
 | POST | `/forms/{token}/submit/` | **Public** — submit form, creates task (AllowAny) |
@@ -495,6 +497,74 @@ Four dedicated views replace the old `AnalyticsMetricView` dynamic router. All f
 | POST | `/api/workspaces/{ws}/presence/` | Update user's current resource (task/board) |
 | GET | `/api/schema/` | OpenAPI schema (YAML) |
 | GET | `/api/docs/` | Swagger UI |
+
+---
+
+## Projects — Behavior, Validation & Permissions (test reference)
+
+> Everything a test case needs that the URL/model tables don't capture: who is allowed to do what, what gets rejected, and what side effects fire. Scoped to the `projects` app. Sources: `projects/permissions.py`, `projects/serializers.py`, `projects/views/*.py`, `projects/signals.py`.
+
+### Board-level permission model (`projects/permissions.py`)
+
+`has_project_permission(user, board, action)` resolves in this **order** (first hit wins):
+
+1. Not a workspace member → **False**.
+2. Workspace **owner** → **True** (always).
+3. Workspace **CustomRole** has the mapped permission (`_ACTION_TO_PERM`) → **True**.
+4. **BoardMember** override role allows the action (`BOARD_ROLE_PERMISSIONS`) → its value.
+5. Otherwise → **False**.
+
+> Note the precedence: a workspace CustomRole grant is checked **before** the per-board `BoardMember` role. A board-level role can therefore only *add* access a member doesn't already have via their workspace role — it can't *revoke* it.
+
+**`_ACTION_TO_PERM`** (board action → workspace permission key): `view→task.view`, `edit→task.edit`, `delete→task.delete`, `move→task.move`, `comment→task.comment`, `admin→board.admin`.
+
+**`BOARD_ROLE_PERMISSIONS`** (BoardMember fallback matrix):
+
+| Role | view | edit | delete | move | comment | admin |
+|------|:----:|:----:|:------:|:----:|:-------:|:-----:|
+| `admin`  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `editor` | ✓ | ✓ | — | ✓ | ✓ | — |
+| `viewer` | ✓ | — | — | — | ✓ | — |
+| `guest`  | ✓ | — | — | — | — | — |
+
+`GET …/boards/{pid}/role-permissions/` returns this table verbatim (consumed by the frontend `useBoardRoleDefinitions`).
+
+**Where checks are enforced** (helpers `_require_board_perm` / `_require_board_admin` / `_is_workspace_admin`):
+
+| Endpoint | Required |
+|----------|----------|
+| Board list/detail | `has_app_access(user, ws, "projects")` + board visibility (`Board.objects.for_user` filters private boards) |
+| `DELETE /boards/{pid}/` | workspace admin |
+| Board member add/remove (`POST/DELETE …/members/`) | board `admin` |
+| `DELETE /tasks/{tid}/` and bulk-delete | board `delete` |
+| `POST /tasks/{tid}/clone/`, apply-template | board `edit` |
+| `POST /forms/` | board `edit`; `DELETE /forms/{id}/` → board `admin` |
+| `PATCH`/`DELETE /comments/{id}/` | **author only** (else 403) |
+| Public form `GET/POST /forms/{token}/…` | `AllowAny` (no auth) |
+
+> **Gap to be aware of when testing:** `PATCH /tasks/{tid}/` and `…/move/` do not call an explicit `_require_board_perm("edit"/"move")` — they rely on board visibility via `_get_task`. A viewer who can load a task could currently PATCH it. Treat as a known soft spot, not documented intent.
+
+### Validation rules (serializers)
+
+- **Task** (`TaskSerializer`): `title` required (max 500). `validate()` rejects `start_date > due_date` → **400** `{"start_date": "Start date cannot be after the due date."}`; it merges incoming values with the existing instance so a partial PATCH validates against stored fields. Write-only: `assignee_id`, `status_id`, `label_ids`, `sprint_id`, `parent_id`. Read-only: `id`, `created_by`, `created_at`, `updated_at`, `version`. Defaults: `priority=medium`, `task_type=task`, `order=0`, `version=1`. On create sets `created_by=request.user`; `label_ids` → `task.labels.set(...)`.
+- **Version conflict**: `PATCH /tasks/{tid}/` calls `_check_version_conflict` — if the body's `version` is present and ≠ the stored `version`, returns **409** `{detail, current_version, updated_at}`. On success the task's `version` is incremented. (Test optimistic-concurrency by PATCHing with a stale `version`.)
+- **Status bulk** (`BulkStatusUpdateSerializer`): `statuses` list (≥1). Per item: `id?`, `name`, `color`, `is_done`, `is_started`. Enforces a single `is_done=True` (last wins). Deletion guard described in the Task Statuses section above.
+- **Approval** (`ApprovalSerializer`): `reviewer_ids` (≥1) required, write-only; `due_date`/`note` optional. On create, idempotently `get_or_create`s an `ApprovalReviewer` (status `PENDING`) per reviewer. Review (`ApprovalReviewSerializer`): `status` ∈ {approved, rejected, changes_requested}, `comment?`. Resubmit (`ApprovalResubmitSerializer`): empty body; **403** unless `request.user == approval.requested_by`; **400** if already `APPROVED`.
+- **Comment**: `body` required; `parent_id` (write-only) must reference a **top-level** comment (`parent__isnull=True`) on the same task — validated in the view, so reply-of-reply → 404/400.
+
+### Business logic & side effects worth testing
+
+- **Task move** (`TaskMoveView`): body `{status_id?, order?}`. If destination is a **done** column and the task has a **pending approval**, rejected with **403** `{approval_required: true}` (`_check_move_blocked`). If destination has `is_started=True` and the task has no `start_date`, it's auto-set to today. Activity (`task.moved`) logged + broadcast only when the status actually changed.
+- **Deep clone** (`Task.clone()`): recursively clones the task and all children; copies labels + subtasks (order preserved); appends `" (Copy)"` to title; **strips** `assignee`, `start_date`, `due_date`, `sprint`, `order`. Logs activity `CREATED` with `meta.cloned_from`.
+- **Comment notifications** (async `send_comment_notifications`): task assignee + creator, parent-comment author (on reply), and validated `@mentioned_user_ids` (must be workspace members) each notified once (deduped); the author is never notified of their own comment.
+- **Public form submission** (`PublicFormSubmitView`, `AllowAny`): creates a `FormSubmission`; if `config.create_task` (default true), creates a Task with `created_by=NULL`, title from `config.title_field_id` (else "Submission from …"), status from `config.default_status_id` (else the board's first status), then links `submission.task`.
+- **Bulk task update** (`TaskBulkUpdateView`): `{task_ids, action: update|delete, updates?}`. Skips rows already at the target value; re-serializes affected cards and broadcasts `tasks.bulk_updated`.
+- **Reactions**: `CommentReactionToggleView` toggles one emoji per user/comment; counts cached in Redis (`rxn:<comment_uuid>`), invalidated on toggle and on comment delete.
+
+### Signals (`projects/signals.py`)
+
+- `task_pre_save` — for existing tasks, snapshots old `status_id`/`assignee_id` onto the instance (`_status_changed`, `_assignee_changed`, `_old_status`) for activity logging; skips new rows.
+- `task_post_save` — currently a **no-op** (`pass`). The automation hooks (`fire_automation`) are commented out — consistent with **Automations being disabled** (see the Automations section). No automation/broadcast side effects fire from signals; broadcasts and inbox notifications are emitted explicitly from the views/Celery tasks.
 
 ---
 

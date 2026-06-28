@@ -6,6 +6,7 @@ import {
   useSubmitPublicForm,
 } from "@/apps/project-management/hooks/useForms";
 import { Button } from "@/shared/components/ui/button";
+import Select from "@/shared/components/ui/Select";
 import { CheckCircle } from "lucide-react";
 
 export default function PublicFormPage() {
@@ -155,18 +156,17 @@ function FieldInput({ field, value, onChange }) {
 
     case "dropdown":
       return (
-        <select
-          className={base}
+        <Select
+          variant="unstyled"
+          triggerClassName={base}
+          placeholder="Select…"
           value={value}
-          onChange={(e) => onChange(e.target.value)}
-        >
-          <option value="">Select…</option>
-          {(field.options || []).map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
+          onChange={onChange}
+          options={(field.options || []).map((opt) => ({
+            value: opt,
+            label: opt,
+          }))}
+        />
       );
 
     case "multiselect":

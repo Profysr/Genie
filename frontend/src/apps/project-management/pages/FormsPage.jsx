@@ -16,6 +16,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
+import Select from "@/shared/components/ui/Select";
 import { cn } from "@/shared/lib/utils";
 import {
   useForms,
@@ -398,17 +399,11 @@ function FieldCard({ field, index, onChange, onFlush, onRemove }) {
                 Type
               </label>
               {/* Type change fires immediately — it's a single click, not keystroke spam */}
-              <select
-                className="w-full border rounded-md px-2.5 py-1.5 text-sm bg-background outline-none"
+              <Select
                 value={field.field_type}
-                onChange={(e) => onFlush({ field_type: e.target.value })}
-              >
-                {FIELD_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => onFlush({ field_type: v })}
+                options={FIELD_TYPES}
+              />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -500,18 +495,19 @@ function SubmissionsPanel({ workspaceId, boardId, formId, form }) {
                   {format(new Date(sub.submitted_at), "MMM d, yyyy · h:mm a")}
                 </p>
               </div>
-              <select
-                className="text-xs border rounded-md px-2 py-1 bg-background outline-none"
-                value={sub.status}
-                onChange={(e) => {
-                  updateStatus.mutate({ id: sub.id, status: e.target.value });
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <option value="new">New</option>
-                <option value="in_review">In Review</option>
-                <option value="closed">Closed</option>
-              </select>
+              <span onClick={(e) => e.stopPropagation()}>
+                <Select
+                  size="sm"
+                  className="w-32"
+                  value={sub.status}
+                  onChange={(v) => updateStatus.mutate({ id: sub.id, status: v })}
+                  options={[
+                    { value: "new", label: "New" },
+                    { value: "in_review", label: "In Review" },
+                    { value: "closed", label: "Closed" },
+                  ]}
+                />
+              </span>
               {sub.task_title && (
                 <span className="text-xs text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full">
                   Task created

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
+import Select from "@/shared/components/ui/Select";
 import {
   Key,
   Plus,
@@ -134,17 +135,11 @@ function NewKeyModal({ workspaceId, onClose, onCreated }) {
         </FormField>
 
         <FormField label="Expiry (optional)">
-          <select
+          <Select
             value={expiryDays}
-            onChange={(e) => setExpiry(e.target.value)}
-            className={INPUT_CLS}
-          >
-            {EXPIRY_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+            onChange={setExpiry}
+            options={EXPIRY_OPTIONS}
+          />
         </FormField>
       </div>
     </Modal>

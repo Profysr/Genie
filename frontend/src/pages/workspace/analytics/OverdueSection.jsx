@@ -3,6 +3,7 @@ import { useAggregate } from "@/shared/hooks/useAnalyticsV2";
 import ChartCard from "@/shared/components/charts/ChartCard";
 import BarChart from "@/shared/components/charts/BarChart";
 import TaskDrilldownTable, { TaskDrilldownModal } from "./TaskDrilldownTable";
+import Select from "@/shared/components/ui/Select";
 
 // The three lenses on the overdue backlog — one chart, switchable. Each maps to
 // a group_by dimension + the drill-down filter key used when a bar is clicked.
@@ -14,17 +15,15 @@ const DIMENSIONS = [
 
 function DimensionToggle({ value, onChange }) {
   return (
-    <select
+    <Select
+      size="sm"
+      variant="ghost"
+      triggerClassName="border border-border bg-popover"
+      className="w-32"
       value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="text-[11px] font-medium bg-popover border border-border rounded-md px-2 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer"
-    >
-      {DIMENSIONS.map((d) => (
-        <option key={d.key} value={d.key}>
-          {d.label}
-        </option>
-      ))}
-    </select>
+      onChange={onChange}
+      options={DIMENSIONS.map((d) => ({ value: d.key, label: d.label }))}
+    />
   );
 }
 

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { X, Plus, Check } from "lucide-react";
+import { Plus, Check } from "lucide-react";
 import { PRIORITIES, LABEL_COLORS } from "@/shared/lib/constants";
 import { cn } from "@/shared/lib/utils";
 
@@ -21,121 +21,6 @@ export const REVIEWER_STATUS_CONFIG = {
     cls: "bg-amber-500/10 text-amber-700",
   },
 };
-
-export function Dropdown({
-  value,
-  options,
-  onChange,
-  disabled = false,
-  placeholder = "Select…",
-  renderTrigger,
-  renderOption,
-  placement = "right",
-  openSignal = 0,
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e) => {
-      if (!ref.current?.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  // Opened programmatically by a keyboard shortcut (openSignal increments).
-  useEffect(() => {
-    if (openSignal > 0 && !disabled) setOpen(true);
-  }, [openSignal]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const selected = options.find((o) => o.value === value);
-
-  return (
-    <div className="relative w-full" ref={ref}>
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => setOpen((o) => !o)}
-        className={cn(
-          "flex items-center justify-between gap-1.5 text-sm w-full text-left px-2 py-1.5 rounded-lg transition-all duration-150",
-          disabled
-            ? "cursor-not-allowed opacity-50"
-            : "cursor-pointer active:scale-[0.97]",
-          open ? "bg-accent/80" : "hover:bg-accent/50",
-        )}
-      >
-        <span className="flex-1 truncate min-w-0">
-          {renderTrigger
-            ? renderTrigger(selected)
-            : selected?.label || (
-                <span className="text-muted-foreground text-xs">
-                  {placeholder}
-                </span>
-              )}
-        </span>
-        <svg
-          className={cn(
-            "w-3 h-3 text-muted-foreground/50 flex-shrink-0 transition-transform duration-200",
-            open && "rotate-180",
-          )}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2.5}
-        >
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-      </button>
-
-      <div
-        className={cn(
-          "absolute z-[60] min-w-[11rem] bg-popover border border-border/60 rounded-xl shadow-2xl overflow-hidden",
-          "transition-[opacity,transform] duration-[160ms] ease-[cubic-bezier(0.16,1,0.3,1)]",
-          placement === "left" ? "left-0" : "right-0",
-          open
-            ? "opacity-100 scale-100 translate-y-1 pointer-events-auto"
-            : "opacity-0 scale-[0.96] -translate-y-1 pointer-events-none",
-        )}
-        style={{
-          transformOrigin: placement === "left" ? "top left" : "top right",
-        }}
-      >
-        <div className="py-1">
-          {options.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => {
-                onChange(opt.value);
-                setOpen(false);
-              }}
-              className={cn(
-                "w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors text-left",
-                opt.value === value
-                  ? "bg-primary/8 font-semibold"
-                  : "hover:bg-accent/70",
-              )}
-            >
-              <span className="flex-1 min-w-0">
-                {renderOption ? renderOption(opt) : opt.label}
-              </span>
-              <span
-                className={cn(
-                  "w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-150",
-                  opt.value === value ? "bg-primary scale-100" : "scale-0",
-                )}
-              >
-                <Check className="w-2 h-2 text-primary-foreground" />
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export function DetailRow({ label, children }) {
   return (

@@ -8,6 +8,7 @@ import {
 import { Button } from "@/shared/components/ui/button";
 import { Loader } from "@/shared/components/ui/Loader";
 import { Avatar } from "@/shared/components/ui/avatar";
+import Select from "@/shared/components/ui/Select";
 import { useToast } from "@/shared/components/ui/toast";
 import Modal from "@/shared/components/ui/Modal";
 import { cn } from "@/shared/lib/utils";
@@ -190,17 +191,12 @@ function RequestFormModal({ workspaceId, open, onClose }) {
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-muted-foreground">Leave type</label>
-          <select
-            className="h-9 rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          <Select
+            placeholder="Select policy…"
             value={policyId}
-            onChange={(e) => setPolicyId(e.target.value)}
-            required
-          >
-            <option value="">Select policy…</option>
-            {policies.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
+            onChange={setPolicyId}
+            options={policies.map((p) => ({ value: p.id, label: p.name }))}
+          />
           {selectedBalance && (
             <p className="text-xs text-muted-foreground">
               Available: <span className="font-medium text-foreground">{selectedBalance.remaining_days} days</span>
@@ -450,15 +446,11 @@ function PolicyFormModal({ workspaceId, open, onClose, existing }) {
 
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-muted-foreground">Leave type</label>
-          <select
-            className="h-9 rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          <Select
             value={form.leave_type}
-            onChange={(e) => set("leave_type", e.target.value)}
-          >
-            {LEAVE_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>{t.label}</option>
-            ))}
-          </select>
+            onChange={(v) => set("leave_type", v)}
+            options={LEAVE_TYPES}
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-3">

@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
+import Select from "@/shared/components/ui/Select";
 import { EmptyState } from "@/shared/components/ui/empty-state";
 import { Loader } from "@/shared/components/ui/Loader";
 import { Avatar, AvatarGroup } from "@/shared/components/ui/avatar";
@@ -441,18 +442,15 @@ function TeamFormModal({ isOpen, onClose, initialData, departments, members, wor
           <label className="text-xs font-medium text-muted-foreground">
             Department <span className="text-muted-foreground/50">(optional)</span>
           </label>
-          <select
+          <Select
+            placeholder="No department (cross-functional)"
             value={form.department_id || ""}
-            onChange={(e) => set("department_id", e.target.value || null)}
-            className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
-            <option value="">No department (cross-functional)</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => set("department_id", v || null)}
+            options={[
+              { value: "", label: "No department (cross-functional)" },
+              ...departments.map((d) => ({ value: d.id, label: d.name })),
+            ]}
+          />
         </div>
 
         {/* Lead */}
@@ -460,18 +458,20 @@ function TeamFormModal({ isOpen, onClose, initialData, departments, members, wor
           <label className="text-xs font-medium text-muted-foreground">
             Team Lead <span className="text-muted-foreground/50">(optional)</span>
           </label>
-          <select
+          <Select
+            searchable
+            placeholder="No lead assigned"
             value={form.lead_id || ""}
-            onChange={(e) => set("lead_id", e.target.value || null)}
-            className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
-            <option value="">No lead assigned</option>
-            {members.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.user.full_name || m.user.email}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => set("lead_id", v || null)}
+            options={[
+              { value: "", label: "No lead assigned" },
+              ...members.map((m) => ({
+                value: m.id,
+                label: m.user.full_name || m.user.email,
+                avatar: { name: m.user.full_name || m.user.email, src: m.user.avatar },
+              })),
+            ]}
+          />
         </div>
       </div>
     </Modal>

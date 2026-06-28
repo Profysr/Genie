@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Loader } from "@/shared/components/ui/Loader";
+import Select from "@/shared/components/ui/Select";
 import { useParams } from "react-router-dom";
 import { SiGooglechat } from "react-icons/si";
 import { BsMicrosoftTeams } from "react-icons/bs";
@@ -311,18 +312,15 @@ function AddMappingInline({ projects, onAdd, onClose, isPending }) {
     <div className="border border-dashed border-primary/40 rounded-md px-4 py-3 bg-primary/5 space-y-3">
       <p className="text-xs font-semibold">Add mapping</p>
       <FieldRow label="Project scope">
-        <select
+        <Select
+          placeholder="Workspace-wide (all projects)"
           value={boardId}
-          onChange={(e) => setProjectId(e.target.value)}
-          className="w-full text-sm bg-background border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-ring"
-        >
-          <option value="">Workspace-wide (all projects)</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
+          onChange={setProjectId}
+          options={[
+            { value: "", label: "Workspace-wide (all projects)" },
+            ...projects.map((p) => ({ value: p.id, label: p.name })),
+          ]}
+        />
       </FieldRow>
       <div className="flex justify-end gap-2">
         <button

@@ -21,10 +21,10 @@ import TaskAttachmentsSection from "@/apps/project-management/components/tasks/T
 import TaskDependenciesSection from "@/apps/project-management/components/tasks/TaskDependenciesSection";
 import { Switch } from "@/shared/components/ui/switch";
 import {
-  Dropdown,
   LabelPicker,
   PRIORITY_OPTIONS,
 } from "@/apps/project-management/components/tasks/TaskDetailShared";
+import Select from "@/shared/components/ui/Select";
 import { getShortcutDisplay } from "@/shared/lib/shortcutsRegistry";
 
 // ── Icon strip ────────────────────────────────────────────────────────────────
@@ -294,7 +294,9 @@ export function PropertiesPanel({
       {/* Status ── full width prominent */}
       <div className="rounded-lg border border-border/50 bg-background/60 p-2.5 space-y-2">
         <PropCell label="Status" shortcut={getShortcutDisplay("task:status")}>
-          <Dropdown
+          <Select
+            variant="ghost"
+            align="end"
             disabled={!canEdit}
             openSignal={sig("status")}
             value={task.status_detail?.id || ""}
@@ -339,13 +341,14 @@ export function PropertiesPanel({
             label="Priority"
             shortcut={getShortcutDisplay("task:priority")}
           >
-            <Dropdown
+            <Select
+              variant="ghost"
+              align="start"
               disabled={!canEdit}
               openSignal={sig("priority")}
               value={task.priority}
               options={PRIORITY_OPTIONS}
               onChange={(v) => update.mutate({ priority: v })}
-              placement="left"
               renderTrigger={(opt) => {
                 if (!opt) return null;
                 const Icon = opt.icon;
@@ -379,12 +382,13 @@ export function PropertiesPanel({
           </PropCell>
 
           <PropCell label="Type">
-            <Dropdown
+            <Select
+              variant="ghost"
+              align="end"
               disabled={!canEdit}
               value={task.task_type || "task"}
               options={TASK_TYPES.map((t) => ({ ...t }))}
               onChange={(v) => update.mutate({ task_type: v })}
-              placement="right"
               renderTrigger={(opt) => {
                 if (!opt) return null;
                 const Icon = opt.icon;
@@ -420,7 +424,9 @@ export function PropertiesPanel({
 
         {/* Assignee ── full width */}
         <PropCell label="Assignee" shortcut={getShortcutDisplay("task:assign")}>
-          <Dropdown
+          <Select
+            variant="ghost"
+            align="end"
             disabled={!canEdit}
             openSignal={sig("assign")}
             value={task.assignee?.id || ""}

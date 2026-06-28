@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { Plus, ChevronRight, Pencil, Trash2, Users } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
+import Select from "@/shared/components/ui/Select";
 import { EmptyState } from "@/shared/components/ui/empty-state";
 import { Loader } from "@/shared/components/ui/Loader";
 import { Avatar } from "@/shared/components/ui/avatar";
@@ -284,18 +285,15 @@ function DeptFormModal({ isOpen, onClose, initialData, allDepts, members, worksp
           <label className="text-xs font-medium text-muted-foreground">
             Parent Department <span className="text-muted-foreground/50">(optional)</span>
           </label>
-          <select
+          <Select
+            placeholder="No parent (top-level)"
             value={form.parent_id || ""}
-            onChange={(e) => set("parent_id", e.target.value || null)}
-            className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
-            <option value="">No parent (top-level)</option>
-            {parentOptions.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => set("parent_id", v || null)}
+            options={[
+              { value: "", label: "No parent (top-level)" },
+              ...parentOptions.map((d) => ({ value: d.id, label: d.name })),
+            ]}
+          />
         </div>
 
         {/* Head */}
@@ -303,18 +301,20 @@ function DeptFormModal({ isOpen, onClose, initialData, allDepts, members, worksp
           <label className="text-xs font-medium text-muted-foreground">
             Head <span className="text-muted-foreground/50">(optional)</span>
           </label>
-          <select
+          <Select
+            searchable
+            placeholder="No head assigned"
             value={form.head_id || ""}
-            onChange={(e) => set("head_id", e.target.value || null)}
-            className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
-            <option value="">No head assigned</option>
-            {members.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.user.full_name || m.user.email}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => set("head_id", v || null)}
+            options={[
+              { value: "", label: "No head assigned" },
+              ...members.map((m) => ({
+                value: m.id,
+                label: m.user.full_name || m.user.email,
+                avatar: { name: m.user.full_name || m.user.email, src: m.user.avatar },
+              })),
+            ]}
+          />
         </div>
       </div>
     </Modal>

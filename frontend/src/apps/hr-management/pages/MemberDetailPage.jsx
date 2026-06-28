@@ -8,6 +8,7 @@ import {
 import { Avatar } from "@/shared/components/ui/avatar";
 import { Button } from "@/shared/components/ui/button";
 import { Loader } from "@/shared/components/ui/Loader";
+import Select from "@/shared/components/ui/Select";
 import { EmptyState } from "@/shared/components/ui/empty-state";
 import { cn } from "@/shared/lib/utils";
 import { EMPLOYMENT_TYPES } from "@/shared/lib/constants";
@@ -142,28 +143,25 @@ function ProfileTab({ member, workspaceId, isAdmin }) {
           <div className="grid md:grid-cols-2 gap-4">
             <label className="block text-sm">
               <span className="text-muted-foreground">Employment type</span>
-              <select
-                className="mt-1 w-full border rounded px-3 py-2 text-sm bg-background"
+              <Select
+                className="mt-1"
                 value={form.employment_type}
-                onChange={(e) => setForm((f) => ({ ...f, employment_type: e.target.value }))}
-              >
-                {EMPLOYMENT_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </select>
+                onChange={(v) => setForm((f) => ({ ...f, employment_type: v }))}
+                options={EMPLOYMENT_TYPES}
+              />
             </label>
             <label className="block text-sm">
               <span className="text-muted-foreground">Job title</span>
-              <select
-                className="mt-1 w-full border rounded px-3 py-2 text-sm bg-background"
+              <Select
+                className="mt-1"
+                placeholder="— None —"
                 value={form.job_title}
-                onChange={(e) => setForm((f) => ({ ...f, job_title: e.target.value }))}
-              >
-                <option value="">— None —</option>
-                {jobTitles.map((jt) => (
-                  <option key={jt.id} value={jt.id}>{jt.name}</option>
-                ))}
-              </select>
+                onChange={(v) => setForm((f) => ({ ...f, job_title: v }))}
+                options={[
+                  { value: "", label: "— None —" },
+                  ...jobTitles.map((jt) => ({ value: jt.id, label: jt.name })),
+                ]}
+              />
             </label>
             <label className="block text-sm">
               <span className="text-muted-foreground">Employee ID</span>
@@ -280,15 +278,13 @@ function DocumentsTab({ workspaceId, memberId }) {
         <div className="flex flex-wrap gap-3 items-end">
           <label className="text-xs text-muted-foreground block">
             Type
-            <select
-              className="mt-1 block border rounded px-2 py-1.5 text-sm bg-background"
+            <Select
+              size="sm"
+              className="mt-1 w-44"
               value={docType}
-              onChange={(e) => setDocType(e.target.value)}
-            >
-              {DOC_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
-              ))}
-            </select>
+              onChange={setDocType}
+              options={DOC_TYPES}
+            />
           </label>
           <label className="text-xs text-muted-foreground block">
             Expiry date (optional)

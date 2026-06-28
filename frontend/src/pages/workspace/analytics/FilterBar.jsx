@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import { Calendar, ChevronDown, RefreshCw } from "lucide-react";
 import KanbanFilterBar from "@/apps/project-management/components/tasks/FilterBar";
+import Select from "@/shared/components/ui/Select";
 
 const DATE_PRESETS = [
   { label: "14d", days: 14 },
@@ -150,24 +151,19 @@ export default function FilterBar({
         <Divider />
 
         {/* Board selector */}
-        <div className="relative flex items-center">
-          <select
-            value={boardId || ""}
-            onChange={(e) => onBoardChange(e.target.value || undefined)}
-            className="text-xs appearance-none bg-popover border border-border rounded-md pl-2.5 pr-6 py-1 focus:outline-none focus:ring-1 focus:ring-ring text-foreground cursor-pointer"
-          >
-            <option value="">All boards</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-          <ChevronDown
-            size={12}
-            className="absolute right-1.5 pointer-events-none text-muted-foreground"
-          />
-        </div>
+        <Select
+          size="sm"
+          className="w-40"
+          variant="ghost"
+          triggerClassName="border border-border bg-popover"
+          placeholder="All boards"
+          value={boardId || ""}
+          onChange={(v) => onBoardChange(v || undefined)}
+          options={[
+            { value: "", label: "All boards" },
+            ...projects.map((p) => ({ value: p.id, label: p.name })),
+          ]}
+        />
 
         <Divider />
 

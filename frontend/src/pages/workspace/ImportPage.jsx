@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import api from "@/shared/lib/api";
 import { useParams } from "react-router-dom";
+import Select from "@/shared/components/ui/Select";
 import {
   Upload,
   ArrowRight,
@@ -228,17 +229,13 @@ function MappingTable({ mapping, headers, onChange, isCSV }) {
               <tr key={col}>
                 <td className="px-4 py-2 font-mono">{col}</td>
                 <td className="px-4 py-2">
-                  <select
+                  <Select
+                    size="sm"
+                    className="w-40"
                     value={normalised[col] || "skip"}
-                    onChange={(e) => update(col, e.target.value)}
-                    className="text-xs bg-background border border-border rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-ring"
-                  >
-                    {JCN_FIELDS.map((f) => (
-                      <option key={f.v} value={f.v}>
-                        {f.l}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => update(col, v)}
+                    options={JCN_FIELDS.map((f) => ({ value: f.v, label: f.l }))}
+                  />
                 </td>
                 <td className="px-4 py-2">
                   {conf != null && (

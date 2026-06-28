@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Avatar } from "@/shared/components/ui/avatar";
 import { Button } from "@/shared/components/ui/button";
+import Select from "@/shared/components/ui/Select";
 import { cn } from "@/shared/lib/utils";
 import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
@@ -196,22 +197,19 @@ function ActiveMemberItem({
 
       <div className="flex items-center gap-2">
         {isAdmin && !isSelf && !isWorkspaceOwner ? (
-          <select
-            className="text-xs border rounded px-2 py-1 bg-background outline-none focus:ring-1 focus:ring-ring max-w-[140px]"
-            value={roles.find((r) => r.name === member.role)?.id ?? ""}
-            onClick={(e) => e.stopPropagation()}
-            onChange={(e) => onRoleChange(member.id, e.target.value)}
-          >
-            <option value="" disabled>
-              Select role…
-            </option>
-            {roles.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-                {r.is_system ? " 🔒" : ""}
-              </option>
-            ))}
-          </select>
+          <span onClick={(e) => e.stopPropagation()}>
+            <Select
+              size="sm"
+              className="max-w-[140px]"
+              placeholder="Select role…"
+              value={roles.find((r) => r.name === member.role)?.id ?? ""}
+              onChange={(v) => onRoleChange(member.id, v)}
+              options={roles.map((r) => ({
+                value: r.id,
+                label: `${r.name}${r.is_system ? " 🔒" : ""}`,
+              }))}
+            />
+          </span>
         ) : (
           <span
             className={cn(
@@ -333,19 +331,15 @@ function MemberProfilePanel({ member, workspaceId, isAdmin, onClose }) {
             {/* Job Title */}
             <ProfileField label="Job Title" icon={Briefcase}>
               {isAdmin && editing.job_title_id ? (
-                <select
-                  autoFocus
-                  className="w-full text-sm border rounded px-2 py-1 bg-background"
-                  defaultValue={profile.job_title?.id ?? ""}
-                  onBlur={(e) => save("job_title_id", e.target.value || null)}
-                >
-                  <option value="">— None —</option>
-                  {jobTitles.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
+                <Select
+                  size="sm"
+                  value={profile.job_title?.id ?? ""}
+                  onChange={(v) => save("job_title_id", v || null)}
+                  options={[
+                    { value: "", label: "— None —" },
+                    ...jobTitles.map((t) => ({ value: t.id, label: t.name })),
+                  ]}
+                />
               ) : (
                 <button
                   onClick={() =>
@@ -365,19 +359,12 @@ function MemberProfilePanel({ member, workspaceId, isAdmin, onClose }) {
             {/* Employment type — admin editable */}
             {isAdmin && (
               <ProfileField label="Employment Type" icon={User}>
-                <select
-                  className="text-sm border rounded px-2 py-1 bg-background w-full"
+                <Select
+                  size="sm"
                   value={profile.employment_type || "full_time"}
-                  onChange={(e) =>
-                    updateProfile.mutate({ employment_type: e.target.value })
-                  }
-                >
-                  {EMPLOYMENT_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => updateProfile.mutate({ employment_type: v })}
+                  options={EMPLOYMENT_TYPES}
+                />
               </ProfileField>
             )}
 
@@ -751,19 +738,17 @@ function AppAccessTab({
           <span className="text-sm font-medium text-primary">
             {checkedIds.size} selected
           </span>
-          <select
-            className="ml-2 text-xs border rounded px-2 py-1 bg-background outline-none focus:ring-1 focus:ring-ring"
+          <Select
+            size="sm"
+            className="ml-2 w-44"
+            placeholder="Assign role…"
             value={bulkRoleId}
-            onChange={(e) => setBulkRoleId(e.target.value)}
-          >
-            <option value="">Assign role…</option>
-            {roles.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-                {r.is_system ? " 🔒" : ""}
-              </option>
-            ))}
-          </select>
+            onChange={setBulkRoleId}
+            options={roles.map((r) => ({
+              value: r.id,
+              label: `${r.name}${r.is_system ? " 🔒" : ""}`,
+            }))}
+          />
           <Button
             size="sm"
             disabled={!bulkRoleId || bulkAssignRole.isPending}
@@ -873,26 +858,18 @@ function AppAccessTab({
                 {/* Role — admin can change it inline */}
                 <div className="px-2 py-3">
                   {isAdmin && !isSelf && !isWorkspaceOwner ? (
-                    <select
-                      className="text-xs border rounded px-2 py-1 bg-background outline-none focus:ring-1 focus:ring-ring w-full"
+                    <Select
+                      size="sm"
+                      placeholder="Select…"
                       value={memberRole?.id ?? ""}
-                      onChange={(e) =>
-                        assignRole.mutate({
-                          memberId: member.id,
-                          roleId: e.target.value,
-                        })
+                      onChange={(v) =>
+                        assignRole.mutate({ memberId: member.id, roleId: v })
                       }
-                    >
-                      <option value="" disabled>
-                        Select…
-                      </option>
-                      {roles.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.name}
-                          {r.is_system ? " 🔒" : ""}
-                        </option>
-                      ))}
-                    </select>
+                      options={roles.map((r) => ({
+                        value: r.id,
+                        label: `${r.name}${r.is_system ? " 🔒" : ""}`,
+                      }))}
+                    />
                   ) : (
                     <span
                       className={cn(
@@ -1151,19 +1128,17 @@ export default function MembersPage() {
                   <span className="text-sm font-medium text-primary">
                     {checkedIds.size} selected
                   </span>
-                  <select
-                    className="ml-2 text-xs border rounded px-2 py-1 bg-background outline-none focus:ring-1 focus:ring-ring"
+                  <Select
+                    size="sm"
+                    className="ml-2 w-44"
+                    placeholder="Assign role…"
                     value={bulkRoleId}
-                    onChange={(e) => setBulkRoleId(e.target.value)}
-                  >
-                    <option value="">Assign role…</option>
-                    {roles.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.name}
-                        {r.is_system ? " 🔒" : ""}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setBulkRoleId}
+                    options={roles.map((r) => ({
+                      value: r.id,
+                      label: `${r.name}${r.is_system ? " 🔒" : ""}`,
+                    }))}
+                  />
                   <Button
                     size="sm"
                     disabled={!bulkRoleId || bulkAssignRole.isPending}

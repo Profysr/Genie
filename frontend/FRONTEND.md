@@ -27,7 +27,7 @@ Since **vB.0** the frontend is feature-sliced. Each product module is a self-con
 src/apps/project-management/   — PM: boards, tasks, sprints, kanban, gantt, wiki, forms, time
    ├── pages/        KanbanPage, BoardsPage, WikiPage, FormsPage, …
    ├── components/   tasks/*, projects/*, GettingStartedChecklist
-   └── hooks/        useTasks, useProjects, useSprints, … (see Hooks reference)
+   └── hooks/        useTasks, useBoards, useSprints, useBoardMembers, useBoardPermissions, useBulkActions, useBoardShortcuts, … (see Hooks reference)
 src/apps/org-structure/        — Org: departments, teams, org chart, job titles, profiles
    ├── pages/        DepartmentsPage, TeamsPage, OrgChartPage
    ├── components/   GettingStartedChecklist
@@ -186,6 +186,7 @@ The master index of every React Query key used in the codebase. Prefix-match inv
 ["statuses", workspaceId, boardId]
 ["saved-views", workspaceId, boardId]
 ["labels", workspaceId, boardId]
+["board-role-definitions", workspaceId, boardId]   ← role→action map, staleTime Infinity
 
 # Tasks
 ["tasks", workspaceId, boardId, filters]    ← 4-element; use 3-element prefix to invalidate all variants
@@ -234,19 +235,14 @@ The master index of every React Query key used in the codebase. Prefix-match inv
 ["import", workspaceId, "jobs"]
 ["import", workspaceId, "jobs", jobId]
 
-# Analytics
-["analytics", "overview", workspaceId, boardId]
-["analytics", "velocity", workspaceId, boardId, limit]
-["analytics", "cycle-time", workspaceId, boardId, days]
-["analytics", "lead-time", workspaceId, boardId, days]
-["analytics", "throughput", workspaceId, boardId, period, days]
-["analytics", "cfd", workspaceId, boardId, days]
-["analytics", "burnup", workspaceId, sprintId, boardId, days]
-["analytics", "workload-heatmap", workspaceId, boardId, days]
-["analytics", "time-in-status", workspaceId, boardId, days]
-["analytics", "overdue-aging", workspaceId, boardId]
-["analytics", "completion-rate", workspaceId, boardId, limit]
-["analytics", "estimation-accuracy", workspaceId, boardId, limit]
+# Analytics (V2 — 4 endpoints only; staleTime Infinity, manual Refresh)
+["analytics", "summary",   workspaceId, params]            ← KPI counts
+["analytics", "aggregate", workspaceId, query]             ← group_by counts (board/status/priority/type/assignee/date)
+["analytics", "team",      workspaceId, query, pageUrl]    ← per-member workload + heatmap
+["analytics", "tasks",     workspaceId, query]             ← infinite drill-down list
+# (The old per-metric keys — velocity, cycle-time, lead-time, throughput, cfd,
+#  burnup, workload-heatmap, time-in-status, overdue-aging, completion-rate,
+#  estimation-accuracy, overview — were REMOVED with the backend's AnalyticsMetricView.)
 
 # Goals / OKR
 ["objectives", workspaceId, timePeriod?]
@@ -299,7 +295,8 @@ How long data is considered fresh before React Query will refetch on next mount/
 | staleTime                     | Keys                                                                                                                                                                                                                                                                                                                                          |
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Infinity` (never auto-stale) | `workspace`, `workspaces`, `boards`, `board`, `workspace-members`, `labels`, `statuses`, `saved-views`, `onboarding`, `import sources`, `presence`, `org-departments`, `org-dept-members`, `org-teams`, `org-team-members`, `org-job-titles`, `hr-leave-policies`, `hr-attendance-policy`, `inbox-unread-count` (event-driven — see useInbox) |
-| `60_000` (1 min)              | `portfolio`, all `analytics` keys, `burndown`, `hr-leave-balances`, `hr-whos-off`, `hr-attendance-qr`, `hr-employee-docs`, `hr-employee-notes`                                                                                                                                                                                                |
+| `60_000` (1 min)              | `portfolio`, `burndown`, `hr-leave-balances`, `hr-whos-off`, `hr-attendance-qr`, `hr-employee-docs`, `hr-employee-notes`                                                                                                                                                                                                                       |
+| `Infinity` (analytics V2)     | **All `analytics` keys** (`summary`, `aggregate`, `team`, `tasks`) — never auto-stale; refreshed only by the AnalyticsPage **Refresh** button (`invalidateQueries(["analytics"])`). `STALE = Infinity` in `useAnalyticsV2.js`.                                                                                                                  |
 | `5 * 60_000` (5 min)          | `org-chart`, `workspace-modules`                                                                                                                                                                                                                                                                                                              |
 | `2 * 60_000` (2 min)          | `org-profile`, `hr-dashboard`                                                                                                                                                                                                                                                                                                                 |
 | `30_000` (30 s)               | `inbox`, `integrations`, `api-keys`, `sprint detail`, `hr-leave-requests`, `hr-attendance-my`, `hr-attendance-list`, `hr-attendance-summary`                                                                                                                                                                                                  |
@@ -464,6 +461,30 @@ commentsKey(ws, proj, taskId) → ["comments", ws, proj, taskId]
 
 ---
 
+### `useBulkActions.js` _(new)_
+
+Single export `useBulkUpdateTasks(ws, boardId)` — mutation only, no query.
+
+- `POST …/boards/{pid}/tasks/bulk/` — body carries the selected task ids + the field(s) to change (status / priority / assignee).
+- onSuccess: invalidates `["tasks", ws, boardId]` (3-element prefix → all filter variants).
+- Consumed by `BulkActionBar.jsx` (the slide-in bar shown when ≥1 task is checkbox-selected across Kanban/List).
+
+---
+
+### `useBoardShortcuts.js` _(new — not a React Query hook)_
+
+Effect-based keyboard handler for board views. Signature:
+
+```js
+useBoardShortcuts({ tasks, selectedTaskId, focusedTaskId, setFocusedTaskId, onOpenTask, onCloseTask });
+```
+
+- Reads the user's custom key bindings via `useShortcutBindings()` (`src/shared/hooks/`).
+- Handles `board:focus-up`, `board:focus-down`, `board:open-task`, `board:close`, plus 2-key task-action chords (e.g. `z` then `e`).
+- Task-property chords dispatch a DOM `window → "jcn:task-action"` custom event that the card/detail layer listens for.
+
+---
+
 ### `useSprints.js`
 
 Two separate keys: `sprints` (list) and `sprint` (detail). Note the singular vs plural.
@@ -487,9 +508,9 @@ All task mutations (`create`, `update`, `updateDetail`, `delete`, `move`) and al
 
 ---
 
-### `useProjects.js` (Boards)
+### `useBoards.js` (Boards) _(renamed from `useProjects.js`)_
 
-Despite the file name, this manages boards (the backend calls them "projects" in URLs).
+Manages boards (the backend calls them "projects" in URLs; the cache key is `boards`).
 
 | Hook        | Key                      | staleTime  |
 | ----------- | ------------------------ | ---------- |
@@ -498,6 +519,14 @@ Despite the file name, this manages boards (the backend calls them "projects" in
 
 `useBoard` has `retry: false` — a 403/404 response surfaces immediately (used for the "Access denied" error screen in KanbanPage).
 
+**Mutations** (all via the `useInvalidatingMutation` wrapper):
+
+| Hook            | URL                            | Invalidates                       |
+| --------------- | ------------------------------ | --------------------------------- |
+| `useCreateBoard`| `POST …/boards/`               | `["boards", ws]`, `["portfolio", ws]` |
+| `useUpdateBoard`| `PATCH …/boards/{boardId}/`    | `["board", ws, boardId]`, `["portfolio", ws]` |
+| `useDeleteBoard`| `DELETE …/boards/{boardId}/`   | `["portfolio", ws]`               |
+
 Board mutations also invalidate `["portfolio", ws]` since the portfolio shows board summaries.
 
 **Board icon convention:** Boards do not have a dedicated icon field. The `board_type` value (`general`, `software`, `marketing`, etc.) is the board's visual identifier.
@@ -505,7 +534,7 @@ Board mutations also invalidate `["portfolio", ws]` since the portfolio shows bo
 - **`src/lib/boardTypes.js`** — single source of truth. Exports `BOARD_TYPES` (array with `value`, `label`, `icon`) and `getBoardIcon(board_type)` (returns the Lucide component, falls back to `LayoutGrid`).
 - **`src/components/ui/BoardTypeIcon.jsx`** — reusable display component. Renders the icon inside a `bg-primary/10` rounded container. Props: `board_type` (string), `size` (`xs` | `sm` | `md` | `lg` | `xl` | `2xl`, default `sm`), `className`.
 
-Used in 6 locations: `CreateProjectModal` (2xl, icon picker preview), `BoardsPage` (lg, board card), `DashboardsPage` (md, recent boards), `KanbanPage` header (sm), `CommandPalette` board results (sm), `Sidebar` board nav items (xs).
+Used in 6 locations: `CreateBoardModal` (2xl, board-type picker preview), `BoardsPage` (lg, board card), `DashboardsPage` (md, recent boards), `KanbanPage` header (sm), `CommandPalette` board results (sm), `Sidebar` board nav items (xs).
 
 Never render a board avatar as a letter or generic icon — always use `<BoardTypeIcon board_type={board.board_type} size={...} />`.
 
@@ -594,11 +623,20 @@ Inbox key factory filters out falsy params. Both mutations (`useUpdateInboxItem`
 
 ---
 
-### `useAnalyticsV2.js`
+### `useAnalyticsV2.js` _(src/shared/hooks/)_
 
-All analytics hooks share a `STALE = 60_000` constant. All keys follow the pattern `["analytics", metricName, workspaceId, ...params]`. None are invalidated by task mutations — they're read-only aggregates that tolerate a 1-minute lag.
+The analytics layer was rewritten to match the backend's 4 flat-param endpoints (the old per-metric `/analytics/{metric}/` router and its ~12 hooks are gone). **`STALE = Infinity`** for all four — data never auto-staled; the AnalyticsPage **Refresh** button is the only refetch trigger (`invalidateQueries({ queryKey: ["analytics"] })`). None are touched by task mutations.
 
-URLs follow: `/api/workspaces/{workspaceId}/analytics/{metric_name}/` with params.
+| Hook | Key | URL | Type |
+| ---- | --- | --- | ---- |
+| `useWorkspaceSummary(ws, {params})` | `["analytics","summary",ws,params]` | `GET …/analytics/summary/` | query — KPI counts `{total, open, done, overdue}` |
+| `useAggregate(ws, {params})` | `["analytics","aggregate",ws,query]` | `GET …/analytics/aggregate/` | query — `group_by` counts; `metric:"count"` injected by default |
+| `useTeamWorkload(ws, {days=14, params, pageUrl})` | `["analytics","team",ws,query,pageUrl]` | `GET …/analytics/team/` | query — per-member rollup + heatmap; cursor page via `pageUrl` |
+| `useTaskDrilldown(ws, {params, pageSize=25, enabled})` | `["analytics","tasks",ws,query]` | `GET …/analytics/tasks/` | **infinite** query — `getNextPageParam: last.next` |
+
+**`buildTaskParams(filters, boardId)`** (exported here) — the single source that converts Kanban-style filter state (`search`, `priorities[]`, `assignees[]`, `types[]`, `labels[]`, `due[]`) + a board id into the flat comma-separated params (`priority=high,low`, `assignee=id1,id2`, …) every endpoint accepts. Use it so every tab/chart/drill-down filters identically.
+
+> **Known dead call:** `useSprintBurndown` (in `useSprints.js`) still GETs `/analytics/sprint_burndown/`, which no longer exists in `analytics/urls.py` (only `summary`/`team`/`tasks`/`aggregate`). The burndown chart is commented out in `SprintPanel`, so this hook is effectively unused — wire a real endpoint or remove it before relying on burndown.
 
 ---
 
@@ -909,9 +947,12 @@ Per-member, admin-scoped. Docs use multipart upload (`…/hr/members/:id/documen
 
 ---
 
-### `useProjectPermissions.js`
+### `useBoardPermissions.js` _(renamed from `useProjectPermissions.js`)_
 
-Not a React Query hook — wraps `useBoard()` and derives permissions.
+Two exports:
+
+- **`useBoardRoleDefinitions(ws, boardId)`** — React Query. Key `["board-role-definitions", ws, boardId]`, `GET …/boards/{pid}/role-permissions/`, `staleTime: Infinity`, `enabled: !!ws && !!boardId`. Role→action definitions are static at runtime.
+- **`useBoardPermissions(ws, boardId)`** — derived, not a query. Wraps `useBoard()` + `useBoardRoleDefinitions()` and returns:
 
 ```js
 // Returns
@@ -921,6 +962,8 @@ Not a React Query hook — wraps `useBoard()` and derives permissions.
   canView,      // always true if isLoaded
   canEdit,      // role !== "viewer"
   canDelete,    // canEdit
+  canMove,      // can drag tasks between columns
+  canComment,   // can post comments
   canAdmin,     // role === "admin"
   isViewer,     // role === "viewer"
 }
@@ -990,13 +1033,22 @@ Every section that sets `shadowBlur > 0` wraps the draw call in `ctx.save() / ct
 
 ---
 
-### `useProjectMembers.js`
+### `useBoardMembers.js` _(renamed from `useProjectMembers.js`)_
 
 ```
-["project-members", workspaceId, boardId]
+["project-members", workspaceId, boardId]   (key name unchanged)
 ```
 
-Board-level member management. Separate from workspace members. `useBulkAddBoardMembers` is for adding multiple members at once (used in the ProjectMembersModal).
+Board-level member management. Separate from workspace members. The query is gated by an `enabled` option so it only fetches when the access modal is open.
+
+| Hook                    | URL                                  | Notes                          |
+| ----------------------- | ------------------------------------ | ------------------------------ |
+| `useBoardMembers`       | `GET …/boards/{pid}/members/`        | `enabled: enabled && !!ws && !!proj` |
+| `useUpdateBoardMember`  | `PATCH …/members/{id}/`              | change board role              |
+| `useRemoveBoardMember`  | `DELETE …/members/{id}/`             |                                |
+| `useBulkAddBoardMembers`| `POST …/members/bulk/`               | add several at once (BoardAccessModal) |
+
+All mutations invalidate `["project-members", ws, boardId]`. (`useAddBoardMember` exists but is private/unexported — bulk-add is the public path.)
 
 ---
 
@@ -1226,6 +1278,122 @@ Lets the logged-in user choose their avatar mode. Three option pills:
 - **Choose Icon** — reveals a 24-emoji grid. Clicking an emoji PATCHes `{ avatar_type: "icon", avatar_icon: "🦊" }`.
 
 Auto-saves on selection (no separate Save button for avatar). Live preview updates immediately via optimistic `useAuthStore.setState`.
+
+---
+
+## Shared `<Select>` (`src/shared/components/ui/Select.jsx`)
+
+The single, dynamic select/dropdown primitive. **Every native `<select>` and the old task-property `Dropdown` have been migrated to it** — there are now **0** native `<select>` elements in `src/`. Build any new picker with this; do not hand-roll dropdowns or reach for `<select>`.
+
+**Why it's robust:** the menu is **portalled to `document.body`** and positioned with **`@floating-ui/dom`** (`offset`/`flip`/`shift`/`size`), so it never clips inside modals (`Modal` is `z-[999]`; the menu is `z-[1100]`) or scroll containers. Entrance animation via `framer-motion`. Full keyboard nav (↑/↓/Home/End/Enter/Esc, type-to-filter when `searchable`), `role="listbox"`/`option`.
+
+### Props
+
+| Prop | Purpose |
+| ---- | ------- |
+| `value` / `onChange(value)` | Selected value (single) or array (multi). `onChange` receives the raw value, **not** an event. |
+| `options` | `{ value, label, icon?, iconNode?, avatar?, color?, description?, disabled?, keywords?, options? }[]`. An entry with `options` is a **group** (label → header; children may nest → indented tree). |
+| `multiple` | Multi-select (checkbox rows; trigger shows "N selected"). |
+| `renderTrigger(selected)` / `renderOption(option)` | Custom render slots. `selected` is option\|null (single) or option[] (multi). |
+| `searchable` | Type-to-filter input (matches `label` + `keywords`). |
+| `clearable` | ✕ to reset (single). |
+| `onCreate(query,{onSuccess})` + `getCreateLabel` | "+ Create …" row (e.g. labels). |
+| `openSignal` | Increment to open programmatically — drives the ⇧S/⇧P/⇧A/⇧L/⇧D task shortcuts. |
+| `align` (`start`\|`end`), `side` (`bottom`\|`top`) | Placement (auto-flips). |
+| `size` (`sm`\|`md`\|`lg`), `variant` (`bordered`\|`ghost`\|`unstyled`) | `bordered` = native-field look; `ghost` = in-panel hover (task properties); `unstyled` = caller styles via `triggerClassName`. |
+| `className` / `triggerClassName` / `menuClassName` | Styling hooks. |
+| `placeholder`, `emptyText`, `disabled`, `name`, `ariaLabel`, `maxMenuHeight`, `contentWidth` | Misc. |
+
+Built-in option rendering shows an icon / avatar / colour-dot + label + optional description, so simple `{value,label,icon}` or `{value,label,color}` options need no `renderOption`.
+
+### Migrated call sites (all live)
+
+- **PM:** task properties — Status/Priority/Type/Assignee (`TaskDetailPanels.jsx`, ghost + `renderTrigger`/`renderOption` + `openSignal`); `CreateTaskModal` (status, assignee w/ search+avatars); `FormsPage` (field type, submission status).
+- **Workspace/accounts:** `MembersPage` (role ×3 contexts, job title, employment type); `IntegrationsPage`, `APIKeysPage`, `ImportPage`; `analytics/FilterBar` (board scope), `analytics/OverdueSection` (dimension).
+- **Org/HR/public:** `TeamsPage`, `DepartmentsPage`, `LeavePage`, `MemberDetailPage`, `PublicFormPage`.
+
+**Removed:** the bespoke `Dropdown` in `TaskDetailShared.jsx` (deleted; call sites now import `Select` directly). **Not yet migrated (bespoke, intentional):** `LabelPicker` (label multi-select with colour-swatch create UI), the `FilterBar` advanced filter panel, and `AppSwitcherDropdown` — these are specialized; fold them into `Select` only if the create/preview affordances are first generalized.
+
+---
+
+## Project Management — Pages & Components (behavior reference for test cases)
+
+> Behavioral map of the PM UI surface. Pair this with the Hooks reference (data layer) and the backend URL table when writing test cases. Files live under `src/apps/project-management/`.
+
+### Pages (`pages/`)
+
+| Page | Route | What it does / test surface |
+| ---- | ----- | --------------------------- |
+| `KanbanPage.jsx` | `/w/:ws/boards/:boardId` | The board hub. Loads board/tasks/statuses/labels/sprints/perms; hosts **5 views** (kanban, list, sprint, calendar, timeline) switched by tabs (no unmount). Selected task in `?task=<id>` URL param opens `TaskDetailPanel`. Owns: debounced search (350ms), filters, multi-select for bulk ops, board socket (`useBoardSocket`), keyboard shortcuts (`c`=create, arrows=focus, `/`=search). Mounts `useBoardSocket` here. |
+| `BoardsPage.jsx` | `/w/:ws/boards` | Board portfolio cards: icon (BoardTypeIcon), name, completion bar (% done), health badge (on-track/at-risk/off-track), overdue count, active sprint. Hover → delete. Create button → `CreateBoardModal`. Create gated by `project.create`, delete by `project.delete`. |
+| `WikiPage.jsx` | `/w/:ws/boards/:boardId/wiki` | Two-panel wiki: nested page tree (create/expand/select) + lazy Tiptap editor. Inline title edit, public/private toggle, revisions side-panel (preview + "Restore this version"), delete. |
+| `FormsPage.jsx` | `/w/:ws/boards/:boardId/forms` | Two-panel intake-form builder: form list + builder/submissions tabs. Builder = field cards (label, type `<select>`, placeholder, required, options). Header: name/desc (save on blur), active toggle, copy public link, preview, delete. Submissions tab: expandable rows + status `<select>`. |
+
+### Views (`components/tasks/` unless noted)
+
+| Component | Test surface |
+| --------- | ------------ |
+| KanbanView (inside `KanbanPage`) | `@hello-pangea/dnd` columns; drag fires `useMoveTask` (optimistic + rollback). |
+| `KanbanColumn.jsx` | One status column: header (name, count, add-task), collapse↔vertical-label, drag-receive flash, droppable. |
+| `TaskCard.jsx` | Card: priority bar, type badge, due date, assignee, subtask progress, labels (2 + overflow), child/approval/priority meta, optional bulk checkbox. Draggable. |
+| `ListView.jsx` | Virtualized table: column-visibility toggle, group-by (status/assignee/priority/sprint), multi-column sort (shift-click), lazy child-row expand (`useChildTasks`), per-row bulk checkbox. |
+| `CalendarView.jsx` | Month/week/day; draggable task chips set `due_date` (`useUpdateTask`); unscheduled sidebar; cell-click creates task with date prefilled. |
+| `GanttView.jsx` + `GanttCanvas.jsx` | Virtualized left panel + imperative canvas; zoom (day/week/month/quarter), bar drag = move, edge drag = start/due; critical path highlighted. (See GanttCanvas deep-dive above.) |
+| `FilterBar.jsx` | Search, assignee avatar picker, advanced filter panel (priority/type/due/labels), pending-my-approval toggle, active-count badge, save/apply/delete saved views. |
+| `KanbanSkeleton.jsx` | Shimmer placeholder, `task.child_count`-aware. |
+
+### Sprint (`components/projects/`)
+
+| Component | Test surface |
+| --------- | ------------ |
+| `SprintView.jsx` | Sprint-first wrapper; active-sprint dropdown; routes to planning vs columns/swimlanes by sprint status; backlog (no `sprint_id`) split out. |
+| `SprintPanel.jsx` | Sprint header: selector dropdown, status badge, dates, progress, start/complete actions, columns↔swimlanes switch. |
+| `SprintPlanningView.jsx` | Two-panel backlog ↔ sprint staging, drag to add/remove. |
+| `SprintSwimLanes.jsx` | Swimlane grid (by assignee/status). |
+| `CreateSprintModal.jsx` | Form: name, start/end dates, capacity → `useCreateSprint`. |
+| `BurndownChart.jsx` | Ideal vs actual remaining over time. |
+
+### Task detail (`components/tasks/`)
+
+| Component | Test surface |
+| --------- | ------------ |
+| `TaskDetailPanel.jsx` | Drawer opened by `?task=`. Inline title edit (⇧T), properties (status/priority/assignee/dates/sprint/labels — all `Dropdown`s, openable via ⇧S/P/A/L/D), lazy description editor (⇧E), tabs for comments/activity, ⇧Del delete, layout prefs in localStorage, version-conflict detection. |
+| `TaskDetailBody.jsx` | Title edit, subtasks (add/toggle/delete + progress), child tasks (expand/link/detach). |
+| `TaskDetailPanels.jsx` | Property dropdowns + attachments + dependencies + approvals (request, reviewer status chips). |
+| `TaskDetailShared.jsx` | Houses `Dropdown`, `LabelPicker`, `PANEL_ITEMS`, `REVIEWER_STATUS_CONFIG`, `QUICK_EMOJIS`. |
+| `TaskActivityTabs.jsx` | Comments tab (composer + list + reactions + delete) and activity changelog. |
+| `CommentEditor.jsx` | Tiptap with `@` mentions (filter, arrow-nav, Enter select); Enter submits, Shift+Enter newline. |
+| `TaskAttachmentsSection.jsx` | Upload zone, list, download/delete. |
+| `TaskDependenciesSection.jsx` | Add/remove blocks / blocked-by links via search. |
+| `CreateTaskModal.jsx` | Form: title (required), status, priority, type, assignee, start/due (start ≤ due validation), estimate, parent, description → `useCreateTask`. |
+| `BulkActionBar.jsx` | Slide-in bar when ≥1 selected: change status/priority/assignee (`useBulkUpdateTasks`), delete, close. |
+
+### Board modals (`components/projects/`)
+
+| Component | Test surface |
+| --------- | ------------ |
+| `CreateBoardModal.jsx` | name (required), description, board-type picker (gradient preview), private toggle → `useCreateBoard`; success confetti + auto-close. |
+| `BoardSettingsModal.jsx` | Edit name/description/type; manage statuses (add/edit/delete). |
+| `BoardAccessModal.jsx` | Board members: add/bulk-add, role dropdown (viewer/editor/admin), remove. Uses `useBoardMembers` (`enabled` while open). |
+
+---
+
+## Analytics UI (behavior reference for test cases)
+
+Workspace-level analytics. Page: `src/pages/workspace/AnalyticsPage.jsx`; sub-components in `src/pages/workspace/analytics/`. All data comes from the 4 `useAnalyticsV2` hooks. Charts use **Recharts** wrappers (`BarChart`, `DistributionDonut`, `ChartCard`).
+
+**Shared filtering (one state, all tabs):** `AnalyticsPage` owns date range + board + Kanban-style task filters. `FilterBar.jsx` edits them; `buildTaskParams` flattens them; the same `filterParams` is passed to every tab/section — changing any filter updates Board, Teams, and Overdue simultaneously. A **Refresh** button calls `invalidateQueries(["analytics"])` (the only refetch path, since staleTime is Infinity).
+
+| Component | Hook | Renders / test surface |
+| --------- | ---- | ---------------------- |
+| `AnalyticsPage.jsx` | — | Hosts the OverdueSection + a "Deep Dive" tab group: **Board**, **Sprints**, **Teams**. Owns shared filter state + refresh. |
+| `FilterBar.jsx` | — | Date presets (14d/30d/60d) + custom range (native `<input type=date>`), board `<select>` (from `useBoards`), embedded `KanbanFilterBar` (search/assignee/priority/type/labels/due), Refresh button (spinner while refreshing). |
+| `KpiSection.jsx` | `useWorkspaceSummary` | 4 count-up stat cards (Total/Open/Overdue/Done). **Currently commented out** in AnalyticsPage — display-only, no drill-down. |
+| `BoardTab.jsx` | `useAggregate` (`group_by: status,priority,type,assignee`) | Stat pills (Total/Open/Blocked/Stale) + status donut + priority/type bar charts + team workload. Clicking any pill/slice/bar/row opens the drill-down modal. |
+| `SprintsTab.jsx` | — | "Coming soon" placeholder; no data. |
+| `TeamsTab.jsx` | `useTeamWorkload` | Grouped bar (Open/Overdue/Done per member) + sortable table (sort by name/assigned/open/overdue/completed/points, asc/desc) + due-date heatmap strips + cursor pagination (Prev/Next via `pageUrl`, resets on filter change). Click bar/row → drill-down. |
+| `OverdueSection.jsx` | `useAggregate` (`group_by: <dim>, overdue: true`) | Left: bar chart switchable by dimension `<select>` (by assignee/priority/board); right: overdue task table. Click bar → drill-down; click row → task detail page. |
+| `TaskDrilldownTable.jsx` | `useTaskDrilldown` | Reusable drill-down (also the modal body): debounced (300ms) search, scrollable task table (Task/Board/Assignee/Priority/Status/Due/[Overdue]), "Load more" (infinite cursor). Row click → `/w/:ws/boards/:boardId?task=:id`. Props: `params`, `showOverdue`, `searchable`, `emptyText`, `maxHeight`. |
 
 ---
 

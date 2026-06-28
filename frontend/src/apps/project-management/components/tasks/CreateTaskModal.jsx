@@ -5,6 +5,7 @@ import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { ChevronDown } from "lucide-react";
 import Modal from "@/shared/components/ui/Modal";
+import Select from "@/shared/components/ui/Select";
 import { useToast } from "@/shared/components/ui/toast";
 import { PRIORITIES, TASK_TYPES } from "@/shared/lib/constants";
 import { cn } from "@/shared/lib/utils";
@@ -166,17 +167,17 @@ export default function CreateTaskModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs font-medium">Status</Label>
-              <select
-                className="mt-1 w-full h-9 rounded-md border border-input bg-background px-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+              <Select
+                className="mt-1"
                 value={statusId || defaultStatusId || ""}
-                onChange={(e) => setStatusId(e.target.value)}
-              >
-                {statuses.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
+                onChange={setStatusId}
+                placeholder="Select status"
+                options={statuses.map((s) => ({
+                  value: s.id,
+                  label: s.name,
+                  color: s.color,
+                }))}
+              />
             </div>
             <div>
               <Label className="text-xs font-medium">Priority</Label>
@@ -204,18 +205,24 @@ export default function CreateTaskModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs font-medium">Assignee</Label>
-              <select
-                className="mt-1 w-full h-9 rounded-md border border-input bg-background px-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+              <Select
+                className="mt-1"
                 value={assigneeId}
-                onChange={(e) => setAssigneeId(e.target.value)}
-              >
-                <option value="">Unassigned</option>
-                {members.map((m) => (
-                  <option key={m.user?.id} value={m.user?.id}>
-                    {m.user?.full_name || m.user?.email}
-                  </option>
-                ))}
-              </select>
+                onChange={setAssigneeId}
+                searchable
+                placeholder="Unassigned"
+                options={[
+                  { value: "", label: "Unassigned" },
+                  ...members.map((m) => ({
+                    value: m.user?.id,
+                    label: m.user?.full_name || m.user?.email,
+                    avatar: {
+                      name: m.user?.full_name || m.user?.email,
+                      src: m.user?.avatar,
+                    },
+                  })),
+                ]}
+              />
             </div>
             <div>
               <Label className="text-xs font-medium">Due Date</Label>
