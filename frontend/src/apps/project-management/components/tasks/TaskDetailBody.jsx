@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useTasks } from "@/apps/project-management/hooks/useTasks";
+import { useDetachChildTask } from "@/apps/project-management/hooks/useTaskHierarchy";
 
 export function TaskTitle({ task, canEdit, update, setConflict, editSignal = 0 }) {
   const [editing, setEditing] = useState(false);
@@ -195,7 +196,6 @@ function TaskSearchPicker({ tasks, label, onSelect, onClose }) {
 
 export function ChildTasksSection({
   childTasks,
-  task,
   canEdit,
   taskId,
   attachChild,
@@ -204,18 +204,18 @@ export function ChildTasksSection({
   projectStatuses,
 }) {
   const { workspaceId, boardId } = useParams();
+  const detachChild = useDetachChildTask(workspaceId, boardId, taskId);
   const [showPicker, setShowPicker] = useState(false);
-  // Only fetch all board tasks when the attach picker is opened — avoids a full
-  // board-tasks request on every task detail open. Cache hit if board is already loaded.
   const { data: allTasks = [] } = useTasks(workspaceId, boardId, {}, {
     enabled: showPicker,
+    staleTime: Infinity,
   });
   const [addingNew, setAddingNew] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const newInputRef = useRef(null);
 
   const total = childTasks.length;
-  const doneCount = task.done_child_count || 0;
+  const doneCount = childTasks.filter((t) => t.is_done).length;
   const allDone = total > 0 && doneCount === total;
 
   useEffect(() => {
@@ -314,39 +314,49 @@ export function ChildTasksSection({
       {/* Task rows */}
       <div className="px-2 pb-2 space-y-0.5">
         {childTasks.map((child) => (
-          <button
+          <div
             key={child.id}
-            onClick={() => navigate(`?task=${child.id}`, { replace: true })}
-            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent/50 transition-colors group text-left"
+            className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent/50 transition-colors group"
           >
             <div
-              className="w-2 h-2 rounded-full flex-shrink-0 ring-1 ring-black/10"
-              style={{
-                backgroundColor: child.status_detail?.color || "#94a3b8",
-              }}
+              className="w-2 h-2 rounded flex-shrink-0 ring-1 ring-black/10"
+              style={{ backgroundColor: child.status_detail?.color || "#94a3b8" }}
             />
-            <span
-              className={cn(
-                "text-sm flex-1 truncate transition-colors",
-                child.status_detail?.name?.toLowerCase() === "done" &&
-                  "line-through text-muted-foreground/60",
-              )}
+            <button
+              onClick={() => navigate(`?task=${child.id}`, { replace: true })}
+              className="flex-1 flex items-center gap-2 min-w-0 text-left"
             >
-              {child.title}
-            </span>
-            {child.status_detail && (
               <span
-                className="text-[10px] px-1.5 rounded font-medium leading-4 flex-shrink-0 opacity-60 group-hover:opacity-100 transition-opacity"
-                style={{
-                  backgroundColor: child.status_detail.color + "20",
-                  color: child.status_detail.color,
-                }}
+                className={cn(
+                  "text-xs flex-1 truncate transition-colors",
+                  child.is_done && "line-through text-muted-foreground/60",
+                )}
               >
-                {child.status_detail.name}
+                {child.title}
               </span>
+              {child.status_detail && (
+                <span
+                  className="text-[10px] px-1.5 rounded font-medium leading-4 flex-shrink-0 opacity-60 group-hover:opacity-100 transition-opacity"
+                  style={{
+                    backgroundColor: child.status_detail.color + "20",
+                    color: child.status_detail.color,
+                  }}
+                >
+                  {child.status_detail.name}
+                </span>
+              )}
+              <ChevronRight className="w-3 h-3 text-transparent group-hover:text-muted-foreground/40 transition-colors flex-shrink-0" />
+            </button>
+            {canEdit && (
+              <button
+                onClick={() => detachChild.mutate(child.id)}
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/10 hover:text-destructive text-muted-foreground/40 flex-shrink-0"
+                title="Detach child task"
+              >
+                <X className="w-3 h-3" />
+              </button>
             )}
-            <ChevronRight className="w-3 h-3 text-transparent group-hover:text-muted-foreground/40 transition-colors flex-shrink-0" />
-          </button>
+          </div>
         ))}
 
         {/* Add row */}
@@ -354,12 +364,12 @@ export function ChildTasksSection({
           (addingNew ? (
             <form
               onSubmit={handleAdd}
-              className="flex items-center gap-2 px-2 py-1.5"
+              className="flex items-center gap-2 px-2 py-1"
             >
               <div className="w-2 h-2 rounded-full bg-border flex-shrink-0" />
               <input
                 ref={newInputRef}
-                className="flex-1 text-sm bg-transparent outline-none placeholder:text-muted-foreground/50"
+                className="flex-1 text-xs bg-muted px-2 py-1 outline-none"
                 placeholder="New child task…"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
@@ -522,7 +532,7 @@ export function ChecklistSection({
               <div className="w-4 h-4 rounded border border-border flex-shrink-0" />
               <input
                 ref={inputRef}
-                className="flex-1 text-sm bg-transparent outline-none placeholder:text-muted-foreground/50"
+                className="flex-1 text-xs bg-transparent outline-none placeholder:text-muted-foreground/50"
                 placeholder="New item…"
                 value={newItem}
                 onChange={(e) => setNewItem(e.target.value)}
@@ -582,7 +592,7 @@ function ChecklistRow({ sub, canEdit, onToggle, onDelete }) {
       </button>
       <span
         className={cn(
-          "text-sm flex-1 leading-snug select-none transition-colors",
+          "text-xs flex-1 leading-snug select-none transition-colors",
           sub.is_done
             ? "line-through text-muted-foreground/50"
             : "text-foreground",

@@ -5,6 +5,7 @@ import {
   useReducer,
   useRef,
 } from "react";
+import { createPortal } from "react-dom";
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
@@ -53,46 +54,48 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
-      {/* Top-center stack */}
-      <div
-        className="fixed top-4 left-1/2 -translate-x-1/2 flex flex-col gap-2 pointer-events-none"
-        style={{ zIndex: "var(--z-toast)" }}
-      >
-        {toasts.map((t, i) => (
-          <div
-            key={t.id}
-            className={cn(
-              "pointer-events-auto w-full max-w-sm rounded-md border bg-card shadow-popover",
-              "flex items-start gap-3 px-4 py-3",
-              "animate-toast-in",
-              i > 0 && "opacity-70 scale-95",
-            )}
-            style={{ animationDelay: `${i * 20}ms` }}
-          >
-            {ICONS[t.type] && (
-              <div className="flex-shrink-0 mt-0.5">{ICONS[t.type]}</div>
-            )}
-            <div className="flex-1 min-w-0">
-              {t.title && (
-                <p className="text-sm font-semibold text-foreground leading-snug">
-                  {t.title}
-                </p>
+      {createPortal(
+        <div
+          className="fixed top-4 left-1/2 -translate-x-1/2 flex flex-col gap-2 pointer-events-none"
+          style={{ zIndex: "var(--z-toast)" }}
+        >
+          {toasts.map((t, i) => (
+            <div
+              key={t.id}
+              className={cn(
+                "pointer-events-auto w-full max-w-sm rounded-md border bg-card shadow-popover",
+                "flex items-start gap-3 px-4 py-3",
+                "animate-toast-in",
+                i > 0 && "opacity-70 scale-95",
               )}
-              {t.description && (
-                <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
-                  {t.description}
-                </p>
-              )}
-            </div>
-            <button
-              onClick={() => dismiss(t.id)}
-              className="flex-shrink-0 p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors mt-0.5"
+              style={{ animationDelay: `${i * 20}ms` }}
             >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        ))}
-      </div>
+              {ICONS[t.type] && (
+                <div className="flex-shrink-0 mt-0.5">{ICONS[t.type]}</div>
+              )}
+              <div className="flex-1 min-w-0">
+                {t.title && (
+                  <p className="text-sm font-semibold text-foreground leading-snug">
+                    {t.title}
+                  </p>
+                )}
+                {t.description && (
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                    {t.description}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => dismiss(t.id)}
+                className="flex-shrink-0 p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors mt-0.5"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>,
+        document.body,
+      )}
     </ToastContext.Provider>
   );
 }

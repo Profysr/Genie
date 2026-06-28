@@ -28,10 +28,20 @@ export function useCreateChildTask(workspaceId, boardId, taskId) {
       qc.invalidateQueries({
         queryKey: ["children", workspaceId, boardId, taskId],
       });
-      qc.invalidateQueries({
-        queryKey: ["task-detail", workspaceId, boardId, taskId],
-      });
-      qc.invalidateQueries({ queryKey: ["tasks", workspaceId, boardId] });
+      qc.setQueryData(
+        ["task-detail", workspaceId, boardId, taskId],
+        (old) => old ? { ...old, child_count: (old.child_count ?? 0) + 1 } : old,
+      );
+      // New child was never a standalone board card — just bump the parent's badge
+      qc.setQueriesData(
+        { queryKey: ["tasks", workspaceId, boardId], exact: false },
+        (old) =>
+          Array.isArray(old)
+            ? old.map((t) =>
+                t.id === taskId ? { ...t, child_count: (t.child_count ?? 0) + 1 } : t,
+              )
+            : old,
+      );
     },
   });
 }
@@ -46,14 +56,64 @@ export function useAttachChildTask(workspaceId, boardId, parentTaskId) {
           { parent_id: parentTaskId },
         )
         .then((r) => r.data),
-    onSuccess: () => {
+    onSuccess: (_, childTaskId) => {
       qc.invalidateQueries({
         queryKey: ["children", workspaceId, boardId, parentTaskId],
       });
-      qc.invalidateQueries({
-        queryKey: ["task-detail", workspaceId, boardId, parentTaskId],
-      });
-      qc.invalidateQueries({ queryKey: ["tasks", workspaceId, boardId] });
+      qc.setQueryData(
+        ["task-detail", workspaceId, boardId, parentTaskId],
+        (old) => old ? { ...old, child_count: (old.child_count ?? 0) + 1 } : old,
+      );
+      // Remove the attached task from board columns + bump the parent's badge
+      qc.setQueriesData(
+        { queryKey: ["tasks", workspaceId, boardId], exact: false },
+        (old) =>
+          Array.isArray(old)
+            ? old
+                .filter((t) => t.id !== childTaskId)
+                .map((t) =>
+                  t.id === parentTaskId
+                    ? { ...t, child_count: (t.child_count ?? 0) + 1 }
+                    : t,
+                )
+            : old,
+      );
+    },
+  });
+}
+
+export function useDetachChildTask(workspaceId, boardId, parentTaskId) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (childTaskId) =>
+      api
+        .patch(
+          `/api/workspaces/${workspaceId}/boards/${boardId}/tasks/${childTaskId}/`,
+          { parent_id: null },
+        )
+        .then((r) => r.data),
+    onSuccess: (_, childTaskId) => {
+      qc.setQueryData(
+        ["children", workspaceId, boardId, parentTaskId],
+        (old) => Array.isArray(old) ? old.filter((c) => c.id !== childTaskId) : old,
+      );
+      qc.setQueryData(
+        ["task-detail", workspaceId, boardId, parentTaskId],
+        (old) => old ? { ...old, child_count: Math.max(0, (old.child_count ?? 1) - 1) } : old,
+      );
+      qc.setQueriesData(
+        { queryKey: ["tasks", workspaceId, boardId], exact: false },
+        (old) =>
+          Array.isArray(old)
+            ? old.map((t) =>
+                t.id === parentTaskId
+                  ? { ...t, child_count: Math.max(0, (t.child_count ?? 1) - 1) }
+                  : t,
+              )
+            : old,
+      );
+      // Refetch board tasks to restore the detached child as a standalone card
+      // qc.invalidateQueries({ queryKey: ["tasks", workspaceId, boardId] });
     },
   });
 }

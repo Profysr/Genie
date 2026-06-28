@@ -60,6 +60,25 @@ class MiniTaskStatusSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class ChildTaskSerializer(serializers.ModelSerializer):
+    """Minimal read-only payload for the /children/ list.
+
+    Only the fields the UI actually renders: title, done flag, and the
+    status colour/name for the dot and badge. Everything else (description,
+    labels, estimates, sprints, counts…) is dropped to minimise wire size.
+    """
+
+    status_detail = MiniTaskStatusSerializer(source="status", read_only=True)
+    is_done = serializers.BooleanField(
+        source="status.is_done", read_only=True, default=False
+    )
+
+    class Meta:
+        model = Task
+        fields = ["id", "title", "is_done", "status_detail"]
+        read_only_fields = fields
+
+
 class BulkStatusItemSerializer(serializers.Serializer):
     # id is optional — omitted for new statuses, present for existing ones
     id = serializers.CharField(required=False, allow_null=True, allow_blank=True)

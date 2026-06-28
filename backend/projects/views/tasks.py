@@ -50,6 +50,7 @@ from ..serializers import (
     ApprovalReviewSerializer,
     ApprovalResubmitSerializer,
     MyWorkTaskSerializer,
+    ChildTaskSerializer,
 )
 from workspaces.models import InboxItem, WorkspaceMember
 from .helpers import (
@@ -754,10 +755,8 @@ class TaskChildrenView(APIView):
         workspace = get_workspace_for_user(workspace_id, request.user)
         board = get_object_or_404(Board, id=_parse_pk(board_id), workspace=workspace)
         task = get_object_or_404(Task, id=_parse_pk(task_id), board=board)
-        children = task.children.select_related("status", "assignee").all()
-        return Response(
-            TaskSerializer(children, many=True, context={"request": request}).data
-        )
+        children = task.children.select_related("status").all()
+        return Response(ChildTaskSerializer(children, many=True).data)
 
     def post(self, request, workspace_id, board_id, task_id):
         """Create a child task under this parent."""

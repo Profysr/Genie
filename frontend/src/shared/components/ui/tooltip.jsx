@@ -23,7 +23,7 @@ export function Tooltip({
           align={align}
           sideOffset={6}
           className={cn(
-            "z-[400] px-2.5 py-1.5 text-xs font-medium leading-none",
+            "z-[1100] px-2.5 py-1.5 text-xs font-medium leading-none",
             "bg-foreground text-background rounded-md shadow-md",
             "animate-scale-in",
             "select-none",

@@ -356,7 +356,6 @@ export default function TaskDetailPanel({
             <>
               <ChildTasksSection
                 childTasks={childTasks}
-                task={task}
                 canEdit={canEdit}
                 taskId={taskId}
                 attachChild={attachChild}
