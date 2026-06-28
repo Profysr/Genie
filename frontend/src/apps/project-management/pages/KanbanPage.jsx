@@ -1,6 +1,5 @@
 import { lazy, Suspense, useState, useMemo, useEffect } from "react";
 import { Loader } from "@/shared/components/ui/Loader";
-import { ModalSkeleton } from "@/shared/components/ui/Modal";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { DragDropContext } from "@hello-pangea/dnd";
 import { useBoard } from "@/apps/project-management/hooks/useBoards";
@@ -29,6 +28,7 @@ import { usePermission } from "@/contexts/PermissionsContext";
 import BoardTypeIcon from "@/shared/components/ui/BoardTypeIcon";
 import { useToast } from "@/shared/components/ui/toast";
 import KanbanColumn from "@/apps/project-management/components/tasks/KanbanColumn";
+import KanbanSkeleton from "@/apps/project-management/components/tasks/KanbanSkeleton";
 import CreateTaskModal from "@/apps/project-management/components/tasks/CreateTaskModal";
 import FilterBar from "@/apps/project-management/components/tasks/FilterBar";
 import ListView from "@/apps/project-management/components/tasks/ListView";
@@ -178,7 +178,7 @@ export default function KanbanPage() {
     isError: boardError,
     error: boardErrorDetail,
   } = useBoard(workspaceId, boardId);
-  const { data: allTasks = [] } = useTasks(workspaceId, boardId, apiFilters);
+  const { data: allTasks = [], isLoading: tasksLoading } = useTasks(workspaceId, boardId, apiFilters);
   const { data: labels = [] } = useLabels(workspaceId, boardId);
   const { data: members = [] } = useMembers(workspaceId);
   // Only fetch sprints when view is sprint, list or timeline cz we won't need it in board view
@@ -187,7 +187,7 @@ export default function KanbanPage() {
     boardId,
     view === "sprint" || view === "list" || view === "timeline",
   );
-  const { data: statuses = [] } = useStatuses(workspaceId, boardId);
+  const { data: statuses = [], isLoading: statusesLoading } = useStatuses(workspaceId, boardId);
   const perms = useBoardPermissions(workspaceId, boardId);
   const { can, isOwner: isWsOwner } = usePermission();
 
@@ -533,7 +533,9 @@ export default function KanbanPage() {
         </div>
 
         {/* Board */}
-        {view === "kanban" && (
+        {view === "kanban" && (statusesLoading || tasksLoading) && <KanbanSkeleton />}
+
+        {view === "kanban" && !statusesLoading && !tasksLoading && (
           <DragDropContext
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
