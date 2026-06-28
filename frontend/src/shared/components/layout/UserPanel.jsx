@@ -23,6 +23,7 @@ import { cn } from "@/shared/lib/utils";
 import NotificationBell from "@/shared/components/layout/NotificationBell";
 import { FOCUS_DURATIONS } from "@/shared/lib/constants";
 import { useWorkspaces } from "@/shared/hooks/useWorkspace";
+import { ShortcutTooltip } from "../ui/ShortcutTooltip";
 
 const THEMES = [
   { key: "light", label: "Light", icon: Sun },
@@ -264,6 +265,13 @@ export default function UserPanel({
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
+  // Open the profile menu from the global "u" shortcut.
+  useEffect(() => {
+    const handler = () => setOpen((v) => !v);
+    window.addEventListener("jcn:open-profile", handler);
+    return () => window.removeEventListener("jcn:open-profile", handler);
+  }, []);
+
   const action = (fn) => () => {
     fn();
     setOpen(false);
@@ -274,6 +282,7 @@ export default function UserPanel({
       icon: UserCircle,
       label: "Account settings",
       onClick: () => onOpenSettings("me"),
+      shortcut: ",",
     },
     {
       icon: SlidersHorizontal,
@@ -374,15 +383,22 @@ export default function UserPanel({
         ref={ref}
         className="border-t border-border/60 py-3 flex justify-center relative"
       >
-        <button
-          onClick={() => setOpen((v) => !v)}
-          className="relative"
-          title={name}
-          aria-label="Account menu"
+        <ShortcutTooltip
+          label={name}
+          shortcut="u"
+          side="right"
+          delayDuration={200}
         >
-          <Avatar user={user} name={name} size="md" />
-          <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-[hsl(var(--sidebar-bg))]" />
-        </button>
+          <button
+            onClick={() => setOpen((v) => !v)}
+            className="relative"
+            // title={name}
+            aria-label="Account menu"
+          >
+            <Avatar user={user} name={name} size="md" />
+            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-[hsl(var(--sidebar-bg))]" />
+          </button>
+        </ShortcutTooltip>
 
         {open && (
           <div className="absolute left-full bottom-0 ml-2 z-50 w-64 bg-popover border border-border rounded-md shadow-popover py-1 animate-scale-in origin-bottom-left">

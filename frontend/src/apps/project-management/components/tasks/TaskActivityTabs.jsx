@@ -91,7 +91,13 @@ function CommentsPanel({
       // Comment not rendered yet — load the next page and retry on next render.
       fetchNextPage();
     }
-  }, [focusCommentId, comments, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [
+    focusCommentId,
+    comments,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  ]);
 
   return (
     <div className="space-y-4">
@@ -179,7 +185,11 @@ function CommentComposer({
     if (!body.trim()) return;
     const mentioned_user_ids = editorRef.current?.getMentionedIds() ?? [];
     createComment.mutate(
-      { body: body.trim(), mentioned_user_ids, ...(parentId && { parent_id: parentId }) },
+      {
+        body: body.trim(),
+        mentioned_user_ids,
+        ...(parentId && { parent_id: parentId }),
+      },
       {
         onSuccess: () => {
           editorRef.current?.clear();
@@ -215,7 +225,9 @@ function CommentComposer({
         <div
           className={cn(
             "rounded-md border transition-all",
-            showActions ? "border-primary ring-2 ring-primary/15" : "border-border",
+            showActions
+              ? "border-primary ring-2 ring-primary/15"
+              : "border-border",
           )}
         >
           <CommentEditor
@@ -224,7 +236,9 @@ function CommentComposer({
             onSubmit={handleSubmit}
             onFocus={() => setFocused(true)}
             onChange={setBody}
-            placeholder={placeholder ?? (isReply ? "Write a reply…" : "Write a comment…")}
+            placeholder={
+              placeholder ?? (isReply ? "Write a reply…" : "Write a comment…")
+            }
           />
           {showActions && (
             <div className="flex items-center justify-end gap-2 px-3 pb-2.5">
@@ -240,7 +254,11 @@ function CommentComposer({
                 size="sm"
                 disabled={!body.trim() || createComment.isPending}
               >
-                {createComment.isPending ? "Sending…" : isReply ? "Reply" : "Send"}
+                {createComment.isPending
+                  ? "Sending…"
+                  : isReply
+                    ? "Reply"
+                    : "Send"}
               </Button>
             </div>
           )}
@@ -266,7 +284,9 @@ function CommentThread({
       <CommentBubble
         comment={c}
         user={user}
-        onDelete={() => deleteComment.mutate({ commentId: c.id, parentId: null })}
+        onDelete={() =>
+          deleteComment.mutate({ commentId: c.id, parentId: null })
+        }
         onReply={() => setReplyOpen((v) => !v)}
         toggleReaction={toggleReaction}
         emojiPickerFor={emojiPickerFor}
@@ -286,7 +306,10 @@ function CommentThread({
                   comment={reply}
                   user={user}
                   onDelete={() =>
-                    deleteComment.mutate({ commentId: reply.id, parentId: c.id })
+                    deleteComment.mutate({
+                      commentId: reply.id,
+                      parentId: c.id,
+                    })
                   }
                   toggleReaction={toggleReaction}
                   emojiPickerFor={emojiPickerFor}
@@ -418,7 +441,6 @@ function CommentBubble({
   );
 }
 
-
 // ── Activity ──────────────────────────────────────────────────────────────────
 function ActivityTab({ workspaceId, boardId, taskId }) {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
@@ -529,13 +551,31 @@ function ApprovalsPanel({ approvals, user, workspaceId, boardId, taskId }) {
   );
 }
 
-function ApprovalCard({ approval, currentUserId, workspaceId, boardId, taskId }) {
+function ApprovalCard({
+  approval,
+  currentUserId,
+  workspaceId,
+  boardId,
+  taskId,
+}) {
   const [reviewComment, setReviewComment] = useState("");
   const [showReviewForm, setShowReviewForm] = useState(false);
-  const submitReview = useSubmitReview(workspaceId, boardId, taskId, approval.id);
-  const resubmit = useResubmitApproval(workspaceId, boardId, taskId, approval.id);
+  const submitReview = useSubmitReview(
+    workspaceId,
+    boardId,
+    taskId,
+    approval.id,
+  );
+  const resubmit = useResubmitApproval(
+    workspaceId,
+    boardId,
+    taskId,
+    approval.id,
+  );
 
-  const myReviewer = approval.reviewers?.find((r) => r.user?.id === currentUserId);
+  const myReviewer = approval.reviewers?.find(
+    (r) => r.user?.id === currentUserId,
+  );
   const isMyTurn = myReviewer && myReviewer.status === "pending";
   const isRequester = approval.requested_by?.id === currentUserId;
   const canResubmit =
@@ -582,19 +622,27 @@ function ApprovalCard({ approval, currentUserId, workspaceId, boardId, taskId })
 
       <div className="space-y-2">
         {approval.reviewers?.map((r) => {
-          const cfg = REVIEWER_STATUS_CONFIG[r.status] || REVIEWER_STATUS_CONFIG.pending;
+          const cfg =
+            REVIEWER_STATUS_CONFIG[r.status] || REVIEWER_STATUS_CONFIG.pending;
           return (
             <div key={r.id} className="space-y-1">
               <div className="flex items-center gap-2">
                 <Avatar
-                  name={r.user?.display_name || r.user?.full_name || r.user?.email}
+                  name={
+                    r.user?.display_name || r.user?.full_name || r.user?.email
+                  }
                   src={r.user?.avatar}
                   size="xs"
                 />
                 <span className="text-xs font-medium flex-1">
                   {r.user?.full_name || r.user?.email}
                 </span>
-                <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded-full", cfg.cls)}>
+                <span
+                  className={cn(
+                    "text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
+                    cfg.cls,
+                  )}
+                >
                   {cfg.label}
                 </span>
               </div>
@@ -657,7 +705,9 @@ function ApprovalCard({ approval, currentUserId, workspaceId, boardId, taskId })
                 <button
                   onClick={() =>
                     handleSubmit(
-                      showReviewForm === "changes" ? "changes_requested" : "rejected",
+                      showReviewForm === "changes"
+                        ? "changes_requested"
+                        : "rejected",
                     )
                   }
                   disabled={submitReview.isPending}
@@ -707,9 +757,18 @@ export function ActivityTabsSection({
   useEffect(() => {
     const handler = (ev) => {
       const { action } = ev.detail ?? {};
-      if (action === "tab-comments") { setTab("comments"); return; }
-      if (action === "tab-activity") { setTab("activity"); return; }
-      if (action === "tab-approvals") { setTab("approvals"); return; }
+      if (action === "tab-comments") {
+        setTab("comments");
+        return;
+      }
+      if (action === "tab-activity") {
+        setTab("activity");
+        return;
+      }
+      if (action === "tab-approvals") {
+        setTab("approvals");
+        return;
+      }
       if (action === "focus-comment") {
         setTab("comments");
         setFocusCommentTick((n) => n + 1);
@@ -723,14 +782,33 @@ export function ActivityTabsSection({
     <div className="space-y-4">
       <Tabs value={tab} onChange={setTab}>
         <TabsList>
-          <TabsTrigger value="comments" icon={MessageSquare} badge={commentCount} className="group">
-            Comments <kbd className="font-mono normal-case tracking-normal bg-muted/60 border border-border/60 rounded px-1 py-px leading-none text-[9px] opacity-0 group-hover:opacity-100 transition-opacity">{getShortcutDisplay("panel:tab-comments")}</kbd>
+          <TabsTrigger
+            value="comments"
+            icon={MessageSquare}
+            badge={commentCount}
+            className="group"
+          >
+            Comments{" "}
+            <kbd className="font-mono normal-case tracking-normal bg-muted/60 border border-border/60 rounded px-1 py-px leading-none text-[9px] opacity-0 group-hover:opacity-100 transition-opacity">
+              {getShortcutDisplay("panel:tab-comments")}
+            </kbd>
           </TabsTrigger>
           <TabsTrigger value="activity" icon={History} className="group">
-            Activity <kbd className="font-mono normal-case tracking-normal bg-muted/60 border border-border/60 rounded px-1 py-px leading-none text-[9px] opacity-0 group-hover:opacity-100 transition-opacity">{getShortcutDisplay("panel:tab-activity")}</kbd>
+            Activity{" "}
+            <kbd className="font-mono normal-case tracking-normal bg-muted/60 border border-border/60 rounded px-1 py-px leading-none text-[9px] opacity-0 group-hover:opacity-100 transition-opacity">
+              {getShortcutDisplay("panel:tab-activity")}
+            </kbd>
           </TabsTrigger>
-          <TabsTrigger value="approvals" icon={ShieldCheck} badge={approvals.length || null} className="group">
-            Approvals <kbd className="font-mono normal-case tracking-normal bg-muted/60 border border-border/60 rounded px-1 py-px leading-none text-[9px] opacity-0 group-hover:opacity-100 transition-opacity">{getShortcutDisplay("panel:tab-approvals")}</kbd>
+          <TabsTrigger
+            value="approvals"
+            icon={ShieldCheck}
+            badge={approvals.length || null}
+            className="group"
+          >
+            Approvals{" "}
+            <kbd className="font-mono normal-case tracking-normal bg-muted/60 border border-border/60 rounded px-1 py-px leading-none text-[9px] opacity-0 group-hover:opacity-100 transition-opacity">
+              {getShortcutDisplay("panel:tab-approvals")}
+            </kbd>
           </TabsTrigger>
         </TabsList>
       </Tabs>

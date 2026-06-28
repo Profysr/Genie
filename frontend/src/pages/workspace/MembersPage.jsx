@@ -48,8 +48,8 @@ import { usePermission } from "@/contexts/PermissionsContext";
 import InviteModal from "@/shared/components/workspace/InviteModal";
 import {
   Tabs,
-  TabsUnderlineList,
-  TabsUnderlineTrigger,
+  TabsList,
+  TabsTrigger,
 } from "@/shared/components/ui/Tabs";
 import { ConfirmModal } from "@/shared/components/ui/ConfirmModal";
 import RolesSection from "@/shared/components/workspace/RolesSection";
@@ -1080,13 +1080,13 @@ export default function MembersPage() {
             setSelectedMemberId(null);
           }}
         >
-          <TabsUnderlineList>
-            <TabsUnderlineTrigger value="members">Members</TabsUnderlineTrigger>
-            <TabsUnderlineTrigger value="app-access">App Access</TabsUnderlineTrigger>
-            <TabsUnderlineTrigger value="roles" icon={Shield}>
+          <TabsList>
+            <TabsTrigger value="members">Members</TabsTrigger>
+            <TabsTrigger value="app-access">App Access</TabsTrigger>
+            <TabsTrigger value="roles" icon={Shield}>
               Roles & Permissions
-            </TabsUnderlineTrigger>
-          </TabsUnderlineList>
+            </TabsTrigger>
+          </TabsList>
         </Tabs>
 
         {/* ── Members tab ── */}

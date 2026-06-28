@@ -55,6 +55,8 @@ export function useKeyboardShortcuts({
   onOpenPermissions,
   onOpenFilters,
   onFocusSearch,
+  onOpenProfile,
+  onOpenSettings,
 } = {}) {
   const navigate = useNavigate();
   const { workspaceId } = useParams();
@@ -147,6 +149,16 @@ export function useKeyboardShortcuts({
           onFocusSearch?.();
           break;
 
+        case "u":
+          e.preventDefault();
+          onOpenProfile?.();
+          break;
+
+        case ",":
+          e.preventDefault();
+          onOpenSettings?.();
+          break;
+
         default:
           break;
       }
@@ -166,5 +178,7 @@ export function useKeyboardShortcuts({
     onToggleSidebar,
     onOpenFilters,
     onFocusSearch,
+    onOpenProfile,
+    onOpenSettings,
   ]);
 }

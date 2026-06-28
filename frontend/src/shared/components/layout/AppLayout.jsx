@@ -76,6 +76,13 @@ export default function AppLayout() {
     onFocusSearch: () => {
       window.dispatchEvent(new CustomEvent("jcn:focus-search"));
     },
+    onOpenProfile: () => {
+      window.dispatchEvent(new CustomEvent("jcn:open-profile"));
+    },
+    onOpenSettings: () => {
+      setSettingsTab("me");
+      setSettingsOpen(true);
+    },
   });
 
   return (

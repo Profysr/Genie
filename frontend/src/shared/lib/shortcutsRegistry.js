@@ -275,10 +275,34 @@ export const SHORTCUT_GROUPS = [
     label: "Global",
     shortcuts: [
       {
+        id: "global:close",
+        keys: ["Escape"],
+        display: ["Esc"],
+        description: "Close modal / overlay",
+      },
+      {
         id: "global:shortcuts-overlay",
         keys: ["?"],
         display: ["?"],
         description: "Show keyboard shortcuts",
+      },
+      {
+        id: "global:open-profile",
+        keys: ["u"],
+        display: ["u"],
+        description: "Open profile menu",
+      },
+      {
+        id: "global:open-settings",
+        keys: [","],
+        display: [","],
+        description: "Open account settings",
+      },
+      {
+        id: "global:open-permissions",
+        keys: ["r"],
+        display: ["r"],
+        description: "Open permissions manager",
       },
     ],
   },

@@ -472,7 +472,7 @@ export default function Select({
                     onMouseEnter={() => setActiveIndex(i)}
                     style={{ paddingLeft: 12 + row.depth * 12 }}
                     className={cn(
-                      "flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors",
+                      "flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors",
                       row.option.disabled && "opacity-40 cursor-not-allowed",
                       activeIndex === i && "bg-accent/70",
                       isSelected(row.option.value) && "font-semibold",

@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Keyboard } from "lucide-react";
 import { SHORTCUT_GROUPS } from "@/shared/lib/shortcutsRegistry";
 import { cn } from "@/shared/lib/utils";
@@ -38,14 +37,6 @@ function ShortcutRow({ shortcut }) {
 }
 
 export default function ShortcutOverlay({ onClose }) {
-  useEffect(() => {
-    const handler = (e) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
-
   return (
     <Modal
       isOpen

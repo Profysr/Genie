@@ -1,4 +1,4 @@
-import React, { Suspense } from "react";
+import React, { Suspense, useEffect } from "react";
 import {
   X,
   AlertTriangle,
@@ -64,6 +64,15 @@ const BaseModal = ({
   icon: Icon,
   iconColor = "text-primary",
 }) => {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return createPortal(
@@ -109,7 +118,9 @@ const BaseModal = ({
         <div
           className={cn(
             padding,
-            flexBody && "flex-1 min-h-0 overflow-hidden flex flex-col",
+            flexBody
+              ? "flex-1 min-h-0 overflow-hidden flex flex-col"
+              : "flex-1 min-h-0 overflow-y-auto",
           )}
         >
           <Suspense fallback={<ModalSkeleton />}>{children}</Suspense>

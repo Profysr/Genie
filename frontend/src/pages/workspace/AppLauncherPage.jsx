@@ -6,7 +6,7 @@ import {
 } from "@/shared/lib/navLinks";
 import { usePermissions } from "@/shared/hooks/usePermissions";
 import { usePermission } from "@/contexts/PermissionsContext";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Sparkles } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
 const _defByKey = Object.fromEntries(APP_DEFS.map((a) => [a.key, a]));
@@ -48,7 +48,16 @@ export default function AppLauncherPage() {
         </div>
 
         {/* App cards */}
-        <div className="grid grid-cols-2 gap-3 mb-10">
+        <div
+          className={cn(
+            "grid gap-3 mb-10",
+            isLoading || apps.length > 2
+              ? "grid-cols-2"
+              : apps.length === 1
+              ? "grid-cols-1 max-w-sm"
+              : "grid-cols-2",
+          )}
+        >
           {isLoading
             ? Array.from({ length: 4 }).map((_, i) => (
                 <div
@@ -62,7 +71,7 @@ export default function AppLauncherPage() {
                   <button
                     key={app.key}
                     onClick={() => navigate(workspaceUrl(workspaceId, app.landing))}
-                    className="relative group text-left p-5 rounded-xl border transition-all duration-150 cursor-pointer border-border/50 bg-card hover:shadow-md hover:-translate-y-0.5 hover:border-border"
+                    className="relative group text-left p-5 rounded-md border transition-all duration-150 cursor-pointer border-border/50 bg-card hover:shadow-md hover:-translate-y-0.5 hover:border-border"
                   >
                     <div
                       className={cn(
@@ -87,6 +96,20 @@ export default function AppLauncherPage() {
                   </button>
                 );
               })}
+
+          {!isLoading && apps.length > 1 && apps.length % 2 !== 0 && (
+            <div className="relative text-left p-5 rounded-md border border-dashed border-border/40 bg-gradient-to-br from-muted/20 to-transparent flex flex-col justify-between select-none">
+              <div className="w-11 h-11 rounded-xl bg-muted/40 flex items-center justify-center mb-4">
+                <Sparkles className="w-5 h-5 text-muted-foreground/30" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-muted-foreground/40 mb-1">More on the way</p>
+                <p className="text-xs text-muted-foreground/30 leading-relaxed">
+                  We're actively expanding the platform. Stay tuned.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Workspace utility pages */}
