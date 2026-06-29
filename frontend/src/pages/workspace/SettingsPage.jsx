@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { DeleteWorkspaceModal } from "@/shared/components/ui/ConfirmModal";
 import { useToast } from "@/shared/components/ui/toast";
@@ -20,10 +20,9 @@ import {
   Key,
   Webhook,
   Upload,
-  ImagePlus,
-  X,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import ImageUpload from "@/shared/components/ui/ImageUpload";
 
 export default function SettingsPage() {
   const { workspaceId } = useParams();
@@ -38,10 +37,8 @@ export default function SettingsPage() {
 
   const [form, setForm] = useState({ name: "", description: "" });
   const [logoFile, setLogoFile] = useState(null);
-  const [logoPreview, setLogoPreview] = useState(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (workspace)
@@ -51,19 +48,6 @@ export default function SettingsPage() {
       });
   }, [workspace]);
 
-  const handleLogoChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setLogoFile(file);
-    setLogoPreview(URL.createObjectURL(file));
-  };
-
-  const handleRemoveLogo = () => {
-    setLogoFile(null);
-    setLogoPreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
   const handleSave = (e) => {
     e.preventDefault();
     setSaveSuccess(false);
@@ -72,7 +56,6 @@ export default function SettingsPage() {
       onSuccess: () => {
         setSaveSuccess(true);
         setLogoFile(null);
-        setLogoPreview(null);
       },
     });
   };
@@ -137,49 +120,16 @@ export default function SettingsPage() {
             {/* Logo */}
             <div className="space-y-1.5">
               <Label>Workspace logo</Label>
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-md bg-primary flex items-center justify-center text-primary-foreground font-bold text-lg flex-shrink-0 overflow-hidden">
-                  {logoPreview ? (
-                    <img src={logoPreview} className="w-full h-full object-cover" alt="" />
-                  ) : workspace?.logo ? (
-                    <img src={workspace.logo} className="w-full h-full object-cover" alt="" />
-                  ) : (
-                    workspace?.name?.[0]?.toUpperCase() ?? "W"
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleLogoChange}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-8 gap-1.5"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <ImagePlus className="w-3.5 h-3.5" />
-                    {logoPreview ? "Change" : "Upload logo"}
-                  </Button>
-                  {logoPreview && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 gap-1.5 text-muted-foreground"
-                      onClick={handleRemoveLogo}
-                    >
-                      <X className="w-3.5 h-3.5" />
-                      Remove
-                    </Button>
-                  )}
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">PNG, JPG or GIF. Recommended 128×128px or larger.</p>
+              <ImageUpload
+                value={workspace?.logo ?? null}
+                onChange={setLogoFile}
+                aspectRatio="1/1"
+                displayWidth={56}
+                shape="rounded"
+                placeholder={workspace?.name?.[0]?.toUpperCase() ?? "W"}
+                uploadLabel="Upload logo"
+                hint="PNG, JPG or GIF. Recommended 128×128px or larger."
+              />
             </div>
 
             <div className="space-y-1.5">

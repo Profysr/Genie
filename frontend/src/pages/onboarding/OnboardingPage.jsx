@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCreateWorkspace } from "@/shared/hooks/useWorkspace";
 import { Button } from "@/shared/components/ui/button";
@@ -12,49 +12,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/shared/components/ui/card";
-import { ImagePlus, X } from "lucide-react";
+import ImageUpload from "@/shared/components/ui/ImageUpload";
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [logoFile, setLogoFile] = useState(null);
-  const [logoPreview, setLogoPreview] = useState(null);
-  const fileInputRef = useRef(null);
 
   const { mutate, isPending } = useCreateWorkspace({
     onSuccess: (workspace) => navigate(`/w/${workspace.id}/setup`),
     onError: (err) =>
       setError(err.response?.data?.name?.[0] || "Something went wrong."),
   });
-
-  const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
-  const MAX_SIZE_MB = 2;
-
-  const handleLogoChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    if (!ACCEPTED_TYPES.includes(file.type)) {
-      setError("Logo must be a JPEG, PNG, GIF, or WebP image.");
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      return;
-    }
-    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-      setError(`Logo must be smaller than ${MAX_SIZE_MB} MB.`);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      return;
-    }
-    setError("");
-    setLogoFile(file);
-    setLogoPreview(URL.createObjectURL(file));
-  };
-
-  const removeLogo = (e) => {
-    e.stopPropagation();
-    setLogoFile(null);
-    setLogoPreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -78,45 +48,26 @@ export default function OnboardingPage() {
             {error && <p className="text-sm text-destructive">{error}</p>}
 
             {/* Logo upload */}
-            <div className="flex flex-col items-center gap-2">
-              <div className="relative group">
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-20 h-20 rounded-2xl border-2 border-dashed border-border group-hover:border-primary transition-colors flex items-center justify-center bg-muted/50 overflow-hidden focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                >
-                  {logoPreview ? (
-                    <img
-                      src={logoPreview}
-                      alt="Workspace logo"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center gap-1 text-muted-foreground group-hover:text-primary transition-colors">
-                      <ImagePlus className="w-6 h-6" />
-                      <span className="text-[10px] font-medium">Logo</span>
-                    </div>
-                  )}
-                </button>
-                {logoPreview && (
-                  <button
-                    type="button"
-                    onClick={removeLogo}
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center hover:bg-destructive/90 transition-colors"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Click to upload a logo (optional)
-              </p>
-              <input
-                ref={fileInputRef}
-                type="file"
+            <div className="flex justify-center">
+              <ImageUpload
+                onChange={(file) => {
+                  setLogoFile(file);
+                  setError("");
+                }}
+                onError={setError}
+                aspectRatio="1/1"
+                displayWidth={80}
+                shape="rounded"
+                uploadLabel="Upload logo"
+                hint="Optional · JPEG, PNG, GIF or WebP · max 2 MB"
                 accept="image/jpeg,image/png,image/gif,image/webp"
-                className="sr-only"
-                onChange={handleLogoChange}
+                allowedTypes={[
+                  "image/jpeg",
+                  "image/png",
+                  "image/gif",
+                  "image/webp",
+                ]}
+                maxSizeMB={2}
               />
             </div>
 
