@@ -1,14 +1,14 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import {
-  Plus, Pencil, Trash2, Users, Crown, X, Search, ArrowLeft,
+  Plus, Pencil, Trash2, Users, Crown, X, Search,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import Select from "@/shared/components/ui/Select";
 import { EmptyState } from "@/shared/components/ui/empty-state";
 import { Loader } from "@/shared/components/ui/Loader";
-import { Avatar, AvatarGroup } from "@/shared/components/ui/avatar";
+import { Avatar } from "@/shared/components/ui/avatar";
 import { useToast } from "@/shared/components/ui/toast";
 import Modal from "@/shared/components/ui/Modal";
 import { cn } from "@/shared/lib/utils";
@@ -38,7 +38,7 @@ function generateIdentifier(name) {
 
 // ── Team card ─────────────────────────────────────────────────────────────────
 function TeamCard({ team, isSelected, onClick }) {
-  const memberUsers = [];
+  const _memberUsers = [];
 
   return (
     <button

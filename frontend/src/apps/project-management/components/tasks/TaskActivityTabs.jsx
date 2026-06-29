@@ -15,7 +15,6 @@ import {
   Tabs,
   TabsList,
   TabsTrigger,
-  TabsContent,
 } from "@/shared/components/ui/Tabs";
 import {
   Timeline,
@@ -56,7 +55,7 @@ function CommentsPanel({
   members,
   // typingUsers,   // typing indicators — disabled
   focusCommentId = null,
-  commentCount = 0,
+  commentCount: _commentCount = 0,
   focusCommentTick = 0,
 }) {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
@@ -646,7 +645,7 @@ function ApprovalCard({
               </div>
               {r.comment && (
                 <div className="ml-6 px-2.5 py-1.5 rounded-md bg-muted/60 border-l-2 border-amber-400 text-xs text-muted-foreground italic">
-                  "{r.comment}"
+                  &quot;{r.comment}&quot;
                 </div>
               )}
             </div>

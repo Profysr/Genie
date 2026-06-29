@@ -599,7 +599,7 @@ export default function IntegrationsPage() {
             <Plug className="w-5 h-5 text-primary" /> Integrations
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Connect JCN to your team's communication tools. Get task
+            Connect JCN to your team&apos;s communication tools. Get task
             notifications and manage work without leaving your chat app.
           </p>
         </div>

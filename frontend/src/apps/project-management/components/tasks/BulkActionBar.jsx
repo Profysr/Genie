@@ -1,4 +1,4 @@
-import { X, Trash2, Tag, User, ChevronDown } from "lucide-react";
+import { X, Trash2, User, ChevronDown } from "lucide-react";
 import { Avatar } from "@/shared/components/ui/avatar";
 import { useState } from "react";
 import { cn } from "@/shared/lib/utils";

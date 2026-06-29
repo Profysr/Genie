@@ -6,7 +6,6 @@ import {
   Users,
   Zap,
   CheckCircle2,
-  AlertTriangle,
   Play,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
@@ -159,7 +158,7 @@ export default function SprintPlanningView({
   sprint,
   members,
   onTaskClick,
-  labelsById,
+  labelsById: _labelsById,
   workspaceId,
   boardId,
 }) {

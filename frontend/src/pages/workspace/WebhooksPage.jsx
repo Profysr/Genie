@@ -324,7 +324,8 @@ function WebhookRow({ hook, workspaceId, allEvents }) {
             <p className="text-[10px] text-muted-foreground mt-1">
               Verify:{" "}
               <code className="font-mono">
-                X-JCN-Signature: sha256=hmac(secret, timestamp + "." + body)
+                X-JCN-Signature: sha256=hmac(secret, timestamp + &quot;.&quot; +
+                body)
               </code>
             </p>
           </div>
@@ -528,7 +529,7 @@ function SecretReveal({ secret, onClose }) {
           onClick={onClose}
           className="w-full py-2.5 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
         >
-          I've saved the secret
+          I&apos;ve saved the secret
         </button>
       </div>
     </Modal>
@@ -584,7 +585,7 @@ export default function WebhooksPage() {
           <p>
             Compute{" "}
             <code className="font-mono">
-              HMAC-SHA256(secret, timestamp + "." + body)
+              HMAC-SHA256(secret, timestamp + &quot;.&quot; + body)
             </code>{" "}
             and compare.
           </p>
@@ -601,16 +602,24 @@ export default function WebhooksPage() {
         ) : (
           <div className="space-y-4">
             {hooks.map((h) => (
-              <WebhookRow key={h.id} hook={h} workspaceId={workspaceId} allEvents={allEvents} />
+              <WebhookRow
+                key={h.id}
+                hook={h}
+                workspaceId={workspaceId}
+                allEvents={allEvents}
+              />
             ))}
           </div>
         )}
 
         {/* Use cases */}
         <div className="pt-4 border-t border-border">
-          <h2 className="text-sm font-semibold text-foreground mb-1">When are Webhooks useful?</h2>
+          <h2 className="text-sm font-semibold text-foreground mb-1">
+            When are Webhooks useful?
+          </h2>
           <p className="text-xs text-muted-foreground mb-4">
-            Webhooks are most impactful when you need to react to events the moment they happen — without polling the API.
+            Webhooks are most impactful when you need to react to events the
+            moment they happen — without polling the API.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {[
@@ -653,8 +662,12 @@ export default function WebhooksPage() {
                   <Icon className="w-3.5 h-3.5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-foreground">{title}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{desc}</p>
+                  <p className="text-xs font-semibold text-foreground">
+                    {title}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                    {desc}
+                  </p>
                 </div>
               </div>
             ))}

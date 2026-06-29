@@ -154,7 +154,7 @@ function NotificationItem({ item, onClick }) {
         <p className="text-xs leading-snug break-words">
           <span className="font-semibold">{item.actor_name}</span>{" "}
           <span className="text-muted-foreground">{meta.label}</span>{" "}
-          <span className="font-medium">"{item.resource_name}"</span>
+          <span className="font-medium">&quot;{item.resource_name}&quot;</span>
         </p>
         <p className="text-[10px] text-muted-foreground mt-0.5">
           {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}

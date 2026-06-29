@@ -216,7 +216,7 @@ function RequestFormModal({ workspaceId, open, onClose }) {
 
         {days > 0 && (
           <p className="text-xs text-muted-foreground -mt-1">
-            That's <span className="font-medium text-foreground">{days} working day{days !== 1 ? "s" : ""}</span>
+            That&apos;s <span className="font-medium text-foreground">{days} working day{days !== 1 ? "s" : ""}</span>
           </p>
         )}
 
@@ -413,7 +413,7 @@ function PolicyFormModal({ workspaceId, open, onClose, existing }) {
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   // Reset form when modal opens
-  const handleOpen = () => setForm(existing ?? EMPTY_POLICY);
+  const _handleOpen = () => setForm(existing ?? EMPTY_POLICY);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -643,7 +643,7 @@ export default function LeavePage() {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
         <Users className="w-10 h-10" />
-        <p className="text-sm">You don't have access to HR Management.</p>
+        <p className="text-sm">You don&apos;t have access to HR Management.</p>
       </div>
     );
   }

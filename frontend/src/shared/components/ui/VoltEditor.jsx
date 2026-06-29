@@ -33,17 +33,11 @@ import {
   Quote,
   Minus,
   Link as LinkIcon,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-  Highlighter,
   Undo,
   Redo,
   Table as TableIcon,
   Plus,
-  Trash2,
-  ChevronDown,
-  ChevronRight,
+  Trash2
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import {
@@ -51,7 +45,6 @@ import {
   useCallback,
   useState,
   useRef,
-  useLayoutEffect,
   useImperativeHandle,
   forwardRef,
 } from "react";

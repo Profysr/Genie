@@ -7,7 +7,6 @@ import {
   Zap,
   ChevronDown,
   Calendar,
-  TrendingDown,
   LayoutGrid,
   Rows3,
 } from "lucide-react";
@@ -18,7 +17,6 @@ import {
   useCreateSprint,
   useUpdateSprint,
   useDeleteSprint,
-  useSprintBurndown,
 } from "@/apps/project-management/hooks/useSprints";
 import BurndownChart from "@/apps/project-management/components/projects/BurndownChart";
 import { Button } from "@/shared/components/ui/button";
@@ -238,9 +236,9 @@ function SprintDetails({
   activeSprint,
   sprintView,
   onSprintViewChange,
-  burndown,
-  showBurndown,
-  setShowBurndown,
+  burndown: _burndown,
+  showBurndown: _showBurndown,
+  setShowBurndown: _setShowBurndown,
   updateSprint,
   deleteSprint,
   onSelectSprint,
@@ -438,7 +436,7 @@ function SprintDetails({
 }
 
 // ── SUB-COMPONENT: BURNDOWN CHART SECTION ──
-function BurndownSection({ showBurndown, burndown }) {
+function _BurndownSection({ showBurndown, burndown }) {
   if (!showBurndown || !burndown) return null;
   return (
     <div className="border-t px-6 py-4 bg-muted/20">

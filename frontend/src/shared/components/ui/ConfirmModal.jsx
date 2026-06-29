@@ -127,14 +127,19 @@ export function DeleteBoardModal({ board, isPending, onConfirm, onClose }) {
         <TriangleAlert className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
         <p className="text-sm text-destructive">
           You are about to permanently delete{" "}
-          <strong className="font-semibold">"{board?.name}"</strong>. This cannot be reversed.
+          <strong className="font-semibold">&quot;{board?.name}&quot;</strong>.
+          This cannot be reversed.
         </p>
       </div>
 
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
         Confirm you understand
       </p>
-      <CheckList checks={BOARD_DELETE_CHECKS} ticked={ticked} onToggle={toggle} />
+      <CheckList
+        checks={BOARD_DELETE_CHECKS}
+        ticked={ticked}
+        onToggle={toggle}
+      />
 
       <NameConfirmInput
         targetName={board?.name}
@@ -191,15 +196,21 @@ export function DeleteWorkspaceModal({ workspace, isPending, onConfirm, onClose 
         <TriangleAlert className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
         <p className="text-sm text-destructive">
           You are about to permanently delete{" "}
-          <strong className="font-semibold">"{workspace?.name}"</strong> and everything inside it.
-          This cannot be reversed.
+          <strong className="font-semibold">
+            &quot;{workspace?.name}&quot;
+          </strong>{" "}
+          and everything inside it. This cannot be reversed.
         </p>
       </div>
 
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
         Confirm you understand
       </p>
-      <CheckList checks={WORKSPACE_DELETE_CHECKS} ticked={ticked} onToggle={toggle} />
+      <CheckList
+        checks={WORKSPACE_DELETE_CHECKS}
+        ticked={ticked}
+        onToggle={toggle}
+      />
 
       <NameConfirmInput
         targetName={workspace?.name}

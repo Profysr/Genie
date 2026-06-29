@@ -131,7 +131,7 @@ export function LabelPicker({
                 type="submit"
                 className="w-full text-xs bg-primary text-primary-foreground rounded py-1.5 font-medium hover:bg-primary/90 transition-colors"
               >
-                Create "{newName.trim()}"
+                Create &quot;{newName.trim()}&quot;
               </button>
             )}
           </form>

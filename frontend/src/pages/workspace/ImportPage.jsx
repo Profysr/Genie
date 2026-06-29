@@ -7,13 +7,12 @@ import {
   ArrowRight,
   ArrowLeft,
   CheckCircle2,
-  XCircle,
   RotateCcw,
-  FileText,
   Loader2,
   ChevronRight,
   RefreshCw,
   Trash2,
+  FileSpreadsheet,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import {
@@ -32,7 +31,6 @@ import { useToast } from "@/shared/components/ui/toast";
 // ── Source icons ──────────────────────────────────────────────────────────────
 import { SiJira, SiClickup, SiAsana, SiGithub, SiNotion } from "react-icons/si";
 import { CgMonday } from "react-icons/cg";
-import { FileSpreadsheet } from "lucide-react";
 
 // Brand colour + icon component for each supported import source.
 // Adding a new source = one entry here, nothing else to change.

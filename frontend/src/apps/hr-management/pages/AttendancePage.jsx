@@ -17,7 +17,6 @@ import {
   useClockIn,
   useClockOut,
   useMyAttendance,
-  useAttendanceSummary,
   useAttendanceList,
   useAttendanceQR,
 } from "@/apps/hr-management/hooks/useAttendance";
@@ -170,7 +169,7 @@ function AttendanceCalendar({ records }) {
     return m;
   }, [records]);
 
-  const { from, to } = monthRange(year, month);
+  const { from: _from, to: _to } = monthRange(year, month);
 
   const firstDay = isoWeekday(startOfMonth(year, month));
   const totalDays = daysInMonth(year, month);
@@ -642,7 +641,7 @@ export default function AttendancePage() {
         <div>
           <p className="text-lg font-semibold">No access to HR Management</p>
           <p className="text-sm text-muted-foreground mt-1">
-            Your role doesn't grant access to attendance tracking.
+            Your role doesn&apos;t grant access to attendance tracking.
           </p>
         </div>
       </div>

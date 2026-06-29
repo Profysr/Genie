@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { DeleteWorkspaceModal } from "@/shared/components/ui/ConfirmModal";
 import { useToast } from "@/shared/components/ui/toast";
 import { Loader } from "@/shared/components/ui/Loader";
@@ -21,7 +21,6 @@ import {
   Webhook,
   Upload,
 } from "lucide-react";
-import { Link } from "react-router-dom";
 import ImageUpload from "@/shared/components/ui/ImageUpload";
 
 export default function SettingsPage() {

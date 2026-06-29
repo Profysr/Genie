@@ -6,10 +6,8 @@ import {
   Maximize2,
   ChevronDown,
   ChevronRight,
-  LayoutDashboard,
   Building2,
   X,
-  Users,
   GitBranch,
 } from "lucide-react";
 import { Loader } from "@/shared/components/ui/Loader";
@@ -82,7 +80,7 @@ function layoutTree(nodes, collapsed) {
     let childX = x - totalW / 2 + computeSubtreeWidth(children[0], collapsed) / 2;
     const childY = y + NODE_H + V_GAP;
 
-    children.forEach((child, i) => {
+    children.forEach((child, _i) => {
       const cw = computeSubtreeWidth(child, collapsed);
       layout(child, childX, childY);
       edges.push({ from: node.id, to: child.id });
@@ -90,7 +88,7 @@ function layoutTree(nodes, collapsed) {
     });
   }
 
-  nodes.forEach((root, i) => {
+  nodes.forEach((root, _i) => {
     layout(root, i * (NODE_W + H_GAP), 0);
   });
 
@@ -240,7 +238,7 @@ function Edge({ fromPos, toPos }) {
 }
 
 // ── Profile popover ───────────────────────────────────────────────────────────
-function NodePopover({ node, onClose, isAdmin, workspaceId, members }) {
+function NodePopover({ node, onClose, _isAdmin, _workspaceId, _members }) {
   // const member = members.find((m) => m.id === node.id);
 
   return (
@@ -389,7 +387,7 @@ export default function OrgChartPage() {
     setPan({ x: e.clientX - panRef.current.startX, y: e.clientY - panRef.current.startY });
   }, [drag]);
 
-  const onMouseUp = useCallback(async (e) => {
+  const onMouseUp = useCallback(async (_e) => {
     panRef.current = null;
     if (drag && dragOver && dragOver !== drag.node.id && isAdmin) {
       // Reparent: set reporting line

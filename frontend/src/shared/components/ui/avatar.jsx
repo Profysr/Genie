@@ -43,7 +43,7 @@ const sizeMap = {
 export function Avatar({
   name,
   src,
-  icon,
+  icon: _icon,
   user,
   size = "md",
   className,

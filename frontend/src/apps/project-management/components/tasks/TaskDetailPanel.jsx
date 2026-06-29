@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
@@ -104,14 +104,14 @@ export default function TaskDetailPanel({
   const cloneTask = useCloneTask(workspaceId, boardId);
   const { toast } = useToast();
 
-  const handleClone = () => {
+  const handleClone = useCallback(() => {
     cloneTask.mutate(taskId, {
       onSuccess: (data) => {
         toast.success("Task cloned");
         navigate(`?task=${data.id}`, { replace: true });
       },
     });
-  };
+  }, [cloneTask, taskId, toast, navigate]);
   const qc = useQueryClient();
 
   const [layoutPrefs, setLayoutPrefs] = useState(getLayoutPrefs);

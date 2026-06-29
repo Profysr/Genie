@@ -238,7 +238,7 @@ export default function MyWorkPage() {
               🎉
             </div>
             <p className="font-semibold text-foreground">
-              You're all caught up!
+              You&apos;re all caught up!
             </p>
             <p className="text-sm text-muted-foreground mt-1">
               No tasks assigned to you right now.

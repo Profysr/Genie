@@ -68,7 +68,7 @@ const TABS = [
 ];
 
 // ── Avatar picker ─────────────────────────────────────────────────────────────
-const AVATAR_ICONS = [
+const _AVATAR_ICONS = [
   "🦊", "🐻", "🐼", "🐨", "🐯", "🦁", "🦄", "🐸",
   "🦋", "🐬", "🦜", "🐺", "🌟", "🚀", "⚡", "🔥",
   "🌊", "🌈", "🍀", "🎯", "🎸", "🎭", "🌺", "🐝",
@@ -90,7 +90,7 @@ function AvatarPicker({ user }) {
     // if (m === "icon") setMode("icon");
   };
 
-  const selectIcon = (emoji) => {
+  const _selectIcon = (emoji) => {
     applyAvatar({ avatar_type: "icon", avatar_icon: emoji });
   };
 
@@ -309,7 +309,7 @@ function PasswordTab() {
       <div>
         <SectionLabel>Change password</SectionLabel>
         <p className="text-xs text-muted-foreground -mt-1 mb-4">
-          Choose a strong password you don't use elsewhere.
+          Choose a strong password you don&apos;t use elsewhere.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -320,7 +320,9 @@ function PasswordTab() {
                 id={field.id}
                 label={field.label}
                 value={form[field.name]}
-                onChange={(val) => setForm((prev) => ({ ...prev, [field.name]: val }))}
+                onChange={(val) =>
+                  setForm((prev) => ({ ...prev, [field.name]: val }))
+                }
               />
             ))}
           </div>
@@ -333,7 +335,12 @@ function PasswordTab() {
           )}
 
           <div className="flex items-center gap-3">
-            <Button type="submit" size="sm" disabled={change.isPending} className="h-8 px-4">
+            <Button
+              type="submit"
+              size="sm"
+              disabled={change.isPending}
+              className="h-8 px-4"
+            >
               {change.isPending ? "Updating…" : "Update password"}
             </Button>
             {success && (
@@ -354,7 +361,7 @@ function PasswordTab() {
             Forgot your current password?
           </p>
           <p className="text-xs text-muted-foreground">
-            We'll send a reset link to{" "}
+            We&apos;ll send a reset link to{" "}
             <span className="font-medium text-foreground">{user?.email}</span>.
           </p>
         </div>
@@ -546,7 +553,7 @@ function ShortcutsTab() {
   return (
     <div className="space-y-5">
       <p className="text-xs text-muted-foreground leading-relaxed">
-        Shortcuts are active globally when you're not typing in an input.
+        Shortcuts are active globally when you&apos;re not typing in an input.
         Press <Key label="?" /> anywhere to see this as an overlay.
       </p>
 

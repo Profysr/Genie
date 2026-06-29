@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useAuthStore } from "@/store/authStore";
 import { formatDistanceToNow } from "date-fns";
 import {

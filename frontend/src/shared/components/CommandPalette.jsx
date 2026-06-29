@@ -438,7 +438,7 @@ export default function CommandPalette({ open, onClose, workspaceId }) {
               <p className="text-sm text-muted-foreground">
                 No results for{" "}
                 <span className="font-medium text-foreground">
-                  "{cleanQuery}"
+                  &quot;{cleanQuery}&quot;
                 </span>
               </p>
               <p className="text-xs text-muted-foreground mt-1">

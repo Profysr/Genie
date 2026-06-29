@@ -13,10 +13,12 @@ const Timeline = React.forwardRef(({ className, children, ...props }, ref) => (
     <div className="space-y-0">{children}</div>
   </div>
 ));
+Timeline.displayName = "Timeline";
 
 const TimelineItem = React.forwardRef(({ className, ...props }, ref) => (
   <div ref={ref} className={cn("flex items-start relative py-2", className)} {...props} />
 ));
+TimelineItem.displayName = "TimelineItem";
 
 const TimelineSeparator = React.forwardRef(({ className, ...props }, ref) => (
   <div
@@ -25,6 +27,7 @@ const TimelineSeparator = React.forwardRef(({ className, ...props }, ref) => (
     {...props}
   />
 ));
+TimelineSeparator.displayName = "TimelineSeparator";
 
 const TimelineDot = React.forwardRef(
   ({ className, dotClassName, ...props }, ref) => (
@@ -40,9 +43,11 @@ const TimelineDot = React.forwardRef(
     </div>
   ),
 );
+TimelineDot.displayName = "TimelineDot";
 
 const TimelineContent = React.forwardRef(({ className, ...props }, ref) => (
   <div ref={ref} className={cn("flex-1 min-w-0", className)} {...props} />
 ));
+TimelineContent.displayName = "TimelineContent";
 
 export { Timeline, TimelineItem, TimelineSeparator, TimelineDot, TimelineContent };

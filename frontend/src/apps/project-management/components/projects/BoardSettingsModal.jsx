@@ -133,7 +133,7 @@ export default function BoardSettingsModal({
         <p className="text-xs text-muted-foreground mb-3">
           Mark a column as{" "}
           <span className="font-semibold text-indigo-600">Started</span> to
-          automatically set a task's start date when it's moved into that
+          automatically set a task&apos;s start date when it&apos;s moved into that
           column. Only one column can be Started or Done at a time, and a column
           cannot be both.
         </p>

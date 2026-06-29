@@ -208,7 +208,7 @@ function TeamTypeStep({ teamType, onSelectTeam, onNext }) {
         What kind of team are you?
       </h1>
       <p className="text-muted-foreground text-center text-sm mb-8">
-        We'll configure your workspace with the right defaults.
+        We&apos;ll configure your workspace with the right defaults.
       </p>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {TEAM_TYPES.map((t) => (

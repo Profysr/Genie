@@ -9,7 +9,6 @@ import {
   Upload,
   X,
   FileText,
-  Image,
   Download,
   Loader2,
 } from "lucide-react";

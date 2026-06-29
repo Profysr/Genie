@@ -186,7 +186,7 @@ export default function Sidebar({
             <div className="flex flex-col items-center justify-center h-full gap-1.5 py-8 select-none">
               <span className="text-xs font-medium text-muted-foreground">No access</span>
               <span className="text-[11px] text-muted-foreground/50 text-center px-4 leading-relaxed">
-                You don't have access to any section in this app.
+                You don&apos;t have access to any section in this app.
               </span>
             </div>
           ) :

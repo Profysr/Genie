@@ -25,7 +25,7 @@ export function useImportJobs(workspaceId) {
   });
 }
 
-function useImportJob(workspaceId, jobId) {
+function _useImportJob(workspaceId, jobId) {
   return useQuery({
     queryKey: ["import", workspaceId, "jobs", jobId],
     queryFn: () =>

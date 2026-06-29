@@ -559,7 +559,7 @@ function TaskRow({
 export default function ListView({
   tasks = [],
   statuses = [],
-  members = [],
+  members: _members = [],
   labelsById = {},
   sprintsById = {},
   onTaskClick,

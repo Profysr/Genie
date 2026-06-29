@@ -133,7 +133,7 @@ export default function InviteModal({
             {successCount} invite{successCount > 1 ? "s" : ""} sent!
           </p>
           <p className="text-sm text-muted-foreground">
-            They'll receive an email shortly.
+            They&apos;ll receive an email shortly.
           </p>
         </div>
       ) : (
