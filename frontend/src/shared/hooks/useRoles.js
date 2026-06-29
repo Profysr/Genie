@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/lib/api";
-import { useInvalidatingMutation } from "@/shared/hooks/useInvalidatingMutation";
 
 const rolesKey = (workspaceId) => ["workspace-roles", workspaceId];
 const membersKey = (workspaceId) => ["workspace-members", workspaceId];
@@ -57,25 +56,43 @@ export const useDeleteRole = (workspaceId) => {
   });
 };
 
-export const useAssignRole = (workspaceId) =>
-  useInvalidatingMutation(
-    ({ memberId, roleId }) =>
+export const useAssignRole = (workspaceId) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ memberId, roleId }) =>
       api
         .post(`/api/workspaces/${workspaceId}/members/${memberId}/assign-role/`, {
           role: roleId,
         })
         .then((r) => r.data),
-    membersKey(workspaceId),
-  );
+    onSuccess: (assignment, { memberId }) => {
+      const roleName = assignment.role_name;
+      if (!roleName) return;
+      qc.setQueryData(membersKey(workspaceId), (old = []) =>
+        old.map((m) => (m.id === memberId ? { ...m, role: roleName } : m)),
+      );
+    },
+  });
+};
 
-export const useBulkAssignRole = (workspaceId) =>
-  useInvalidatingMutation(
-    ({ roleId, memberIds }) =>
+export const useBulkAssignRole = (workspaceId) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ roleId, memberIds }) =>
       api
         .post(`/api/workspaces/${workspaceId}/members/bulk-assign-role/`, {
           role: roleId,
           member_ids: memberIds,
         })
         .then((r) => r.data),
-    membersKey(workspaceId),
-  );
+    onSuccess: (_, { roleId, memberIds }) => {
+      const roles = qc.getQueryData(rolesKey(workspaceId)) ?? [];
+      const role = roles.find((r) => r.id === roleId);
+      if (!role) return;
+      const idSet = new Set(memberIds);
+      qc.setQueryData(membersKey(workspaceId), (old = []) =>
+        old.map((m) => (idSet.has(m.id) ? { ...m, role: role.name } : m)),
+      );
+    },
+  });
+};

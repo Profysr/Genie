@@ -1,13 +1,11 @@
 import axios from "axios";
 import { BACKEND_URL } from "@/shared/lib/env";
 
-// Instead of typing your complete backend URL (like https://api.myapp.com/api/...) every time you make a request, you create a custom instance called api. Now, you can just write api.get('/users'), and Axios automatically prepends your BACKEND_URL
 const api = axios.create({
   baseURL: BACKEND_URL,
   headers: { "Content-Type": "application/json" },
 });
 
-// validating token existence on every request and attaching it to the Authorization header if found. This way, you don't have to manually add the token to each request — it's handled globally by the interceptor.
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("access_token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -18,10 +16,28 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+/**
+ * Normalize a DRF error body into a single human-readable string.
+ * Handles: { detail }, { non_field_errors }, { field: [msg] }, plain strings.
+ */
+function extractApiMessage(data) {
+  if (!data) return "Something went wrong. Please try again.";
+  if (typeof data === "string") return data;
+  if (data.detail) return typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
+  if (Array.isArray(data.non_field_errors) && data.non_field_errors.length)
+    return data.non_field_errors[0];
+  // Field-level errors — return the first message found
+  for (const val of Object.values(data)) {
+    if (Array.isArray(val) && val.length) return val[0];
+  }
+  return "Something went wrong. Please try again.";
+}
+
 api.interceptors.response.use(
-  (res) => res, // if the response is successful, just return it
+  (res) => res,
   async (error) => {
     const original = error.config;
+
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true;
       const refresh = localStorage.getItem("refresh_token");
@@ -35,7 +51,6 @@ api.interceptors.response.use(
           original.headers.Authorization = `Bearer ${data.access}`;
           return api(original);
         } catch {
-          // Wipe all token storage variants before forcing re-login
           [
             "access_token",
             "refresh_token",
@@ -47,6 +62,9 @@ api.interceptors.response.use(
         }
       }
     }
+
+    // Attach a normalized message so every onError handler can use err.message
+    error.message = extractApiMessage(error.response?.data);
     return Promise.reject(error);
   },
 );

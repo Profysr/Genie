@@ -102,11 +102,7 @@ export default function InviteModal({
         onOpenChange(false);
       }, 1800);
     } catch (err) {
-      setError(
-        err.response?.data?.email?.[0] ||
-          err.response?.data?.non_field_errors?.[0] ||
-          "One or more invites failed. Check the emails and try again.",
-      );
+      setError(err.message);
     }
   };
 

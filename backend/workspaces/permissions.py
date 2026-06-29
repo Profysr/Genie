@@ -69,7 +69,10 @@ def has_permission(user, workspace, app_key: str, perm_key: str) -> bool:
     """Return True if the user has a specific permission within an app."""
     if workspace.owner_id == user.pk:
         return True
-    if not has_app_access(user, workspace, app_key):
+    # "workspace" is a special pseudo-group (invite, settings, api_keys) that is
+    # never listed in APP_REGISTRY and therefore never present in role.app_access.
+    # Skip the app-access gate for it so workspace-level permissions can resolve.
+    if app_key != "workspace" and not has_app_access(user, workspace, app_key):
         return False
     role = _get_role(user, workspace)
     if role is None:
@@ -90,17 +93,28 @@ def resolve_permission(user, workspace, perm_key: str) -> bool:
     return has_permission(user, workspace, app_key, perm_key)
 
 
-def get_enabled_permissions(workspace=None):
+def get_enabled_apps(workspace, user):
+    """Return APP_REGISTRY filtered to apps the user can access.
+    Admins and owners get the full registry.
     """
-    Return the full PERMISSIONS registry.
-    workspace param reserved for future per-workspace app toggles.
-    """
-    return PERMISSIONS
+    if resolve_permission(user, workspace, "settings.manage"):
+        return APP_REGISTRY
+    return {
+        app_key: app_def
+        for app_key, app_def in APP_REGISTRY.items()
+        if has_app_access(user, workspace, app_key)
+    }
 
 
-def get_enabled_apps(workspace=None):
+def get_enabled_permissions(workspace, user):
+    """Return PERMISSIONS filtered to apps the user can access.
+    Admins and owners get the full registry.
+    The 'workspace' group is always included (never app-gated).
     """
-    Return the full APP_REGISTRY.
-    workspace param reserved for future per-workspace app toggles.
-    """
-    return APP_REGISTRY
+    if resolve_permission(user, workspace, "settings.manage"):
+        return PERMISSIONS
+    return {
+        app_key: perms
+        for app_key, perms in PERMISSIONS.items()
+        if app_key == "workspace" or has_app_access(user, workspace, app_key)
+    }

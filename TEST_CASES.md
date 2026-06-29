@@ -90,8 +90,8 @@
 | ID | Type | Scenario | Steps | Expected result |
 |----|------|----------|-------|-----------------|
 | MEM-01 | API | List members | GET `/api/workspaces/{ws}/members/` | All members with roles |
-| MEM-02 | API | Change member role (admin) | PATCH `/api/workspaces/{ws}/members/{id}/` `{role}` as admin | 200 |
-| MEM-03 | API | Change role (non-admin) | PATCH member role as non-admin | 403 |
+| MEM-02 | API | Change member role (admin) | PATCH `/api/workspaces/{ws}/members/{id}/` as admin | **405 Method Not Allowed** — PATCH is disabled; use `POST /members/{id}/assign-role/` `{role:<uuid>}` instead |
+| MEM-03 | API | Change role (non-admin) | PATCH `/api/workspaces/{ws}/members/{id}/` as non-admin | **405 Method Not Allowed** — method disabled entirely |
 | MEM-04 | API | Remove member | DELETE `/api/workspaces/{ws}/members/{id}/` as admin | 204; member loses access |
 | MEM-05 | UI | Members list stale | Load MembersPage | `["workspace-members", ws]` `staleTime: Infinity`; mutations invalidate it |
 | MEM-06 | UI | Cannot remove self / owner badge | Open MembersPage as admin | Remove control hidden for self and workspace owner |
@@ -100,9 +100,11 @@
 
 | ID | Type | Scenario | Steps | Expected result |
 |----|------|----------|-------|-----------------|
-| INV-01 | API | Create invite | POST `/api/workspaces/{ws}/invites/` `{email, role}` | Invite row created; `send_invite_email.delay()` fires (Resend) async |
-| INV-02 | API | Duplicate invite | Invite same email twice | Blocked by unique(workspace+email) |
-| INV-03 | API | List pending invites | GET `/api/workspaces/{ws}/invites/pending/` | Pending invites only |
+| INV-01 | API | Create invite (admin) | POST `/api/workspaces/{ws}/invites/` `{email, role}` as admin | 201; invite row created; `send_invite_email.delay()` currently commented out — no email sent but token returned |
+| INV-01b | API | Create invite (non-admin) | POST invites as non-admin member | **403** — admin only |
+| INV-02 | API | Duplicate invite | Invite same email twice | 400; blocked by unique(workspace+email) |
+| INV-03 | API | List pending invites (admin) | GET `/api/workspaces/{ws}/invites/pending/` as admin | Pending invites only |
+| INV-03b | API | List pending invites (non-admin) | GET invites/pending/ as non-admin member | **403** — admin only |
 | INV-04 | API | Cancel invite | DELETE `/api/workspaces/{ws}/invites/{token}/` | Removed; disappears from pending list |
 | INV-05 | API | Public invite detail | GET `/api/invites/{token}/` (unauth) | Workspace name + inviter info (AllowAny) |
 | INV-06 | API | Accept invite | POST `/api/invites/{token}/accept/` | Joins workspace; auto-assigns matching system CustomRole |
@@ -115,16 +117,20 @@
 
 | ID | Type | Scenario | Steps | Expected result |
 |----|------|----------|-------|-----------------|
-| RBAC-01 | API | Permission schema | GET `/api/workspaces/{ws}/permissions/` | `{apps: APP_REGISTRY, permissions: PERMISSIONS}`; cache `staleTime: Infinity` |
+| RBAC-01 | API | Permission schema — admin | GET `/api/workspaces/{ws}/permissions/` as admin/owner | Full `{apps: APP_REGISTRY, permissions: PERMISSIONS}` returned; cache `staleTime: Infinity` |
+| RBAC-01b | API | Permission schema — non-admin | GET permissions as member with `projects` access only | `apps` and `permissions` filtered to `projects` + `workspace` group only; HR/Org/Analytics omitted |
 | RBAC-02 | API | List roles | GET `/api/workspaces/{ws}/roles/` | System + custom roles with `member_count`, `app_access`, nested `permissions` |
 | RBAC-03 | API | Create custom role (admin) | POST roles `{name, app_access, permissions}` | 201; `is_system=false` |
 | RBAC-04 | API | Update system role rejected | PATCH a system role (Admin/Member/Viewer) | 400 |
 | RBAC-05 | API | Delete system role rejected | DELETE a system role | 400 |
 | RBAC-06 | API | Delete role with assignments | DELETE a custom role that has members | 400 (active assignments) |
-| RBAC-07 | API | Assign role to member | POST `/members/{id}/assign-role/` `{role:<uuid>}` | Idempotent `update_or_create`; member's role changes |
+| RBAC-07 | API | Assign role to member | POST `/members/{id}/assign-role/` `{role:<uuid>}` as admin | 201 on first assignment, 200 on reassignment; member's effective permissions change immediately |
+| RBAC-07b | API | Get role UUIDs before assigning | GET `/api/workspaces/{ws}/roles/` | Returns all roles with `id`, `name`, `app_access`, `permissions`, `member_count`; use `id` in assign-role body |
 | RBAC-08 | API | Assign role from another workspace | assign-role with role uuid not in this workspace | Rejected |
 | RBAC-09 | API | Bulk assign role | POST `/members/bulk-assign-role/` `{role, member_ids:[]}` | All assigned; **max 200** members enforced |
 | RBAC-10 | API | app_access gate | User whose role has `app_access.projects=false` hits a board endpoint | 403 (`require_app_access`) |
+| RBAC-15 | API | Update app_access on custom role | PATCH `/api/workspaces/{ws}/roles/{id}/` `{app_access:{projects:true, hr:false}}` as admin | 200; all members assigned this role immediately lose/gain access accordingly |
+| RBAC-16 | API | Update app_access on system role | PATCH a system role (Admin/Member/Viewer) `{app_access:…}` | 400 — system roles cannot be modified |
 | RBAC-11 | API | Owner bypass | Workspace owner performs any gated action | Always allowed |
 | RBAC-12 | UI | Role builder | Settings → Roles & Permissions | Per-permission toggles grouped by category; dependency rules auto-enable required perms (e.g. enabling a dependent perm enables its prerequisite) |
 | RBAC-13 | UI | Nav gating | User without a nav item's `permission` | Sidebar hides that item; owner always sees all; items without `permission` always visible |

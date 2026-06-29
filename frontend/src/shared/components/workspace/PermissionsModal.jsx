@@ -7,7 +7,7 @@ import { Loader } from "../ui/Loader";
 
 const _appDefByKey = Object.fromEntries(APP_DEFS.map((a) => [a.key, a]));
 
-export default function PermissionsReferenceModal({ workspaceId, onClose }) {
+export default function PermissionsModal({ workspaceId, onClose }) {
   const { data: registry, isLoading } = usePermissions(workspaceId);
   const [search, setSearch] = useState("");
 

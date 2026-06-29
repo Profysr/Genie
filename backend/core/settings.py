@@ -179,10 +179,10 @@ REST_FRAMEWORK = {
 # JWT token lifetimes
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(
-        hours=1
+        minutes=15
     ),  # short-lived — sent with every request
     "REFRESH_TOKEN_LIFETIME": timedelta(
-        days=30
+        days=7
     ),  # long-lived — used to get a new access token silently
     "ROTATE_REFRESH_TOKENS": True,  # issue a new refresh token on every refresh (rolling sessions)
 }

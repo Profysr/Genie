@@ -153,16 +153,21 @@ class WorkspaceMemberDetailView(APIView):
         )
         return member, workspace
 
-    def patch(self, request, workspace_id, member_id):
-        member, workspace = self._get_member_and_workspace(
-            workspace_id, member_id, request.user
-        )
-        _require_admin(workspace, request.user)
-
-        serializer = WorkspaceMemberSerializer(member, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data)
+    # patch is disabled — role changes are handled by MemberAssignRoleView
+    # (POST /members/{id}/assign-role/). The WorkspaceMemberSerializer.role field
+    # is a read-only SerializerMethodField so this method silently ignores role
+    # updates and saves nothing useful.
+    #
+    # def patch(self, request, workspace_id, member_id):
+    #     member, workspace = self._get_member_and_workspace(
+    #         workspace_id, member_id, request.user
+    #     )
+    #     _require_admin(workspace, request.user)
+    #
+    #     serializer = WorkspaceMemberSerializer(member, data=request.data, partial=True)
+    #     serializer.is_valid(raise_exception=True)
+    #     serializer.save()
+    #     return Response(serializer.data)
 
     def delete(self, request, workspace_id, member_id):
         member, workspace = self._get_member_and_workspace(
@@ -806,10 +811,10 @@ class WorkspacePermissionsView(APIView):
     def get(self, request, workspace_id):
         from .permissions import get_enabled_apps, get_enabled_permissions
 
-        _get_workspace(workspace_id, request.user)  # membership check
+        workspace = _get_workspace(workspace_id, request.user)
         return Response({
-            "apps": get_enabled_apps(),
-            "permissions": get_enabled_permissions(),
+            "apps": get_enabled_apps(workspace, request.user),
+            "permissions": get_enabled_permissions(workspace, request.user),
         })
 
 
@@ -946,7 +951,7 @@ class MemberAssignRoleView(APIView):
         except RoleAssignment.DoesNotExist:
             pass
 
-        assignment, created = RoleAssignment.objects.update_or_create(
+        _, created = RoleAssignment.objects.update_or_create(
             workspace_member=member,
             defaults={"role": role, "assigned_by": request.user},
         )
@@ -959,7 +964,7 @@ class MemberAssignRoleView(APIView):
         )
 
         return Response(
-            RoleAssignmentSerializer(assignment, context={"workspace": workspace}).data,
+            {"role_name": role.name},
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
 

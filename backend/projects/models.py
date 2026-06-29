@@ -7,10 +7,49 @@ from workspaces.models import Workspace
 from core.constants import DEFAULT_TASK_STATUSES  # noqa: F401 — re-exported for existing imports
 from core.fields import UUIDv7Field
 
-
 class BoardQuerySet(models.QuerySet):
     def for_user(self, workspace, user):
+        """
+        Returns boards visible to the given user, fully loaded for list views.
 
+        WHAT IT DOES
+        ------------
+        Combines three concerns into a single query:
+          1. Eager-loads related data (created_by, statuses) to avoid N+1 queries
+             when serializing a list of boards.
+          2. Annotates each board with task_count and done_task_count so the
+             progress bar on the board card works without extra queries.
+          3. Enforces visibility — admins see every board; regular members only
+             see public boards or private boards they were explicitly added to.
+
+        WHY A CUSTOM QUERYSET (not a view-level filter)
+        ------------------------------------------------
+        Centralizing this in the model layer means every view that lists boards
+        (board list, sidebar, search, etc.) gets identical, consistent behaviour
+        by calling Board.objects.for_user(ws, user) instead of duplicating the
+        visibility filter and annotations across multiple views.
+
+        DB LOAD REDUCTION
+        -----------------
+        Without this method, a naive implementation would:
+          - Fire 1 query per board to fetch its creator (N+1 on created_by)
+          - Fire 1 query per board to fetch its statuses (N+1 on statuses)
+          - Fire 1 query per board to count tasks and done tasks (2N extra queries)
+        This method collapses all of that into 3 queries total regardless of how
+        many boards are returned:
+          - 1 main SELECT with COUNT annotations (task_count, done_task_count
+            computed in DB, not Python)
+          - 1 SELECT for created_by via select_related (JOIN, not extra query)
+          - 1 SELECT for statuses via prefetch_related (single batched query)
+
+        VISIBILITY RULES
+        ----------------
+        - Workspace owner and board.admin → unrestricted, see all boards.
+        - Everyone else → public boards + private boards where they are a member.
+          The Q(is_private=False) | Q(...board_members__user=user) OR condition
+          can produce duplicate rows when a user is in board_members, so
+          .distinct() is appended to deduplicate at the DB level.
+        """
         qs = (
             self
             .select_related('created_by')
