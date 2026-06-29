@@ -273,12 +273,12 @@ function RoleEditor({ role, workspaceId, isDraft, onCreated }) {
     if (isDraft) {
       createRole.mutate(payload, {
         onSuccess: (r) => onCreated?.(r),
-        onError: (err) => setSaveMsg(err?.response?.data?.detail ?? "Save failed."),
+        onError: (err) => setSaveMsg(err.message),
       });
     } else {
       updateRole.mutate({ roleId: role.id, ...payload }, {
         onSuccess: () => setSaveMsg("Saved!"),
-        onError: (err) => setSaveMsg(err?.response?.data?.detail ?? "Save failed."),
+        onError: (err) => setSaveMsg(err.message),
       });
     }
   };
@@ -471,7 +471,7 @@ export default function RolesSection({ workspaceId, isAdmin, onOpenPermissionsRe
     deleteRole.mutate(role.id, {
       onSuccess: () => setSelectedId(null),
       onError: (err) =>
-        setDeleteError(err?.response?.data?.detail ?? "Delete failed."),
+        setDeleteError(err.message),
     });
   };
 

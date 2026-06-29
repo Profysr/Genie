@@ -294,14 +294,7 @@ function PasswordTab() {
         setTimeout(() => setSuccess(false), 4000);
       },
       onError: (err) => {
-        const data = err?.response?.data || {};
-        const msg =
-          data.new_password1?.[0] ||
-          data.new_password2?.[0] ||
-          data.detail ||
-          data.non_field_errors?.[0] ||
-          "Failed to change password.";
-        setError(msg);
+        setError(err.message);
       },
     });
   };

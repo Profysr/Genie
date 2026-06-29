@@ -417,11 +417,9 @@ export default function SetupWizard() {
 
         if (failed.length === results.length) {
           // All failed — show error and stay on this step
-          const msg = failed[0]?.reason?.response?.data;
-          const detail = msg?.email?.[0] ?? msg?.role?.[0] ?? msg?.non_field_errors?.[0];
           toast({
             title: "Invites could not be sent",
-            description: detail ?? "Something went wrong. Please try again.",
+            description: failed[0]?.reason?.message ?? "Something went wrong. Please try again.",
             variant: "destructive",
           });
           return;

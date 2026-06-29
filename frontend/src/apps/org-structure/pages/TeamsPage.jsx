@@ -516,7 +516,7 @@ export default function TeamsPage() {
     } catch (err) {
       toast.error(
         "Couldn't delete team",
-        err?.response?.data?.detail ?? "Please try again.",
+        err.message,
       );
     }
   };

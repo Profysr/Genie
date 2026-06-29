@@ -23,7 +23,7 @@ export default function OnboardingPage() {
   const { mutate, isPending } = useCreateWorkspace({
     onSuccess: (workspace) => navigate(`/w/${workspace.id}/setup`),
     onError: (err) =>
-      setError(err.response?.data?.name?.[0] || "Something went wrong."),
+      setError(err.message),
   });
 
   const handleSubmit = (e) => {

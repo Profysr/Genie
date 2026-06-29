@@ -63,8 +63,11 @@ api.interceptors.response.use(
       }
     }
 
-    // Attach a normalized message so every onError handler can use err.message
+    // Normalize error surface — use these instead of reaching into response.data manually:
+    //   err.message → human-readable string (handles all DRF error shapes)
+    //   err.data    → raw response body (for field-level form validation)
     error.message = extractApiMessage(error.response?.data);
+    error.data = error.response?.data ?? {};
     return Promise.reject(error);
   },
 );

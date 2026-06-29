@@ -50,7 +50,7 @@ export default function AcceptInvitePage() {
           setTimeout(() => navigate(`/w/${workspace.id}`), 1800);
         },
         onError: (err) =>
-          setError(err.response?.data?.detail || "Failed to accept invite."),
+          setError(err.message),
       });
     }
   }, [invite, accessToken]);

@@ -436,7 +436,7 @@ function WebhookCard({
     test.mutate(undefined, {
       onSuccess: () => toast.success(`Test message sent to ${name} ✅`),
       onError: (e) =>
-        toast.error("Test failed: " + (e.response?.data?.error || e.message)),
+        toast.error("Test failed: " + e.message),
     });
 
   const handleDisconnect = () =>

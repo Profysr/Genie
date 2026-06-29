@@ -768,12 +768,12 @@ export default function AttendancePage() {
 
               {clockIn.error && (
                 <p className="text-xs text-rose-500 mt-3">
-                  {clockIn.error.response?.data?.non_field_errors?.[0] ?? "Failed to clock in."}
+                  {clockIn.error.message}
                 </p>
               )}
               {clockOut.error && (
                 <p className="text-xs text-rose-500 mt-3">
-                  {clockOut.error.response?.data?.non_field_errors?.[0] ?? "Failed to clock out."}
+                  {clockOut.error.message}
                 </p>
               )}
             </div>

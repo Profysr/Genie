@@ -38,10 +38,8 @@ export default function LoginPage() {
       await login(form.email, form.password);
       navigate(next);
     } catch (err) {
-      const msg =
-        err.response?.data?.non_field_errors?.[0] || "Invalid email or password.";
-      setError(msg);
-      toast.error("Sign in failed", msg);
+      setError(err.message);
+      toast.error("Sign in failed", err.message);
     } finally {
       setLoading(false);
     }

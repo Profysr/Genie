@@ -179,10 +179,7 @@ function RequestFormModal({ workspaceId, open, onClose }) {
       onClose();
       setPolicyId(""); setStartDate(""); setEndDate(""); setReason("");
     } catch (err) {
-      const data = err?.response?.data;
-      if (data?.non_field_errors) setError(data.non_field_errors[0]);
-      else if (data?.end_date) setError(data.end_date[0]);
-      else setError("Something went wrong.");
+      setError(err.message);
     }
   };
 
@@ -527,7 +524,7 @@ function PoliciesTab({ workspaceId }) {
     } catch (err) {
       toast.error(
         "Couldn't delete policy",
-        err?.response?.data?.detail ?? "Please try again.",
+        err.message,
       );
     }
   };

@@ -513,9 +513,7 @@ export default function ImportPage() {
             setStep(2);
           },
           onError: (e) =>
-            toast.error(
-              "Parse failed: " + (e.response?.data?.error || e.message),
-            ),
+            toast.error("Parse failed: " + e.message),
         },
       );
     },
@@ -566,7 +564,7 @@ export default function ImportPage() {
     });
     runImport.mutate(jobData.id, {
       onError: (e) =>
-        toast.error("Import failed: " + (e.response?.data?.error || e.message)),
+        toast.error("Import failed: " + e.message),
     });
   };
 
@@ -654,8 +652,7 @@ export default function ImportPage() {
 
               {upload.isError && (
                 <p className="text-xs text-destructive mt-2">
-                  {upload.error?.response?.data?.error ||
-                    "Parse failed. Check your file format."}
+                  {upload.error?.message || "Parse failed. Check your file format."}
                 </p>
               )}
             </div>

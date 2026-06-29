@@ -30,13 +30,8 @@ export default function ForgotPasswordPage() {
       await api.post("/api/auth/password/reset/", { email });
       setSent(true);
     } catch (err) {
-      const data = err?.response?.data || {};
-      const msg =
-        data.email?.[0] ||
-        data.detail ||
-        "Something went wrong. Please try again.";
-      setError(msg);
-      toast.error("Failed to send reset link", msg);
+      setError(err.message);
+      toast.error("Failed to send reset link", err.message);
     } finally {
       setLoading(false);
     }

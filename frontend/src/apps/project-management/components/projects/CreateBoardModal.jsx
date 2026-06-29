@@ -138,10 +138,7 @@ export default function CreateBoardModal({ workspaceId, open, onClose }) {
           <div className="px-5 pt-4 pb-5 space-y-4">
             {error && (
               <p className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-md px-3 py-2">
-                {error.response?.data?.name?.[0] ||
-                  error.response?.data?.detail ||
-                  error.response?.data?.non_field_errors?.[0] ||
-                  "Something went wrong. Please try again."}
+                {error.message}
               </p>
             )}
 

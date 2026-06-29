@@ -32,12 +32,7 @@ export default function EmailVerifyConfirmPage() {
         }
         setStatus("success");
       } catch (err) {
-        const data = err?.response?.data || {};
-        setErrorMsg(
-          data.detail ||
-            data.key?.[0] ||
-            "This link is invalid or has already been used.",
-        );
+        setErrorMsg(err.message);
         setStatus("error");
       }
     }

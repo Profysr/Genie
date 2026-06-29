@@ -22,11 +22,7 @@ export default function GoogleButton({ next = "/", onSuccess, onError }) {
           navigate(next);
         }
       } catch (err) {
-        const msg =
-          err.response?.data?.non_field_errors?.[0] ||
-          err.response?.data?.detail ||
-          "Google sign-in failed. Please try again.";
-        onError?.(msg);
+        onError?.(err.message);
       } finally {
         setLoading(false);
       }

@@ -51,17 +51,8 @@ export default function ResetPasswordConfirmPage() {
       });
       setSuccess(true);
     } catch (err) {
-      const data = err?.response?.data || {};
-      const msg =
-        data.new_password1?.[0] ||
-        data.new_password2?.[0] ||
-        data.token?.[0] ||
-        data.uid?.[0] ||
-        data.detail ||
-        data.non_field_errors?.[0] ||
-        "Reset failed. The link may have expired.";
-      setError(msg);
-      toast.error("Password reset failed", msg);
+      setError(err.message);
+      toast.error("Password reset failed", err.message);
     } finally {
       setLoading(false);
     }

@@ -46,11 +46,8 @@ export default function VerifyEmailSentPage() {
       await api.post("/api/auth/registration/resend-email/", { email });
       setResent(true);
     } catch (err) {
-      const msg =
-        err?.response?.data?.detail ||
-        "Could not resend. Please try registering again.";
-      setError(msg);
-      toast.error("Failed to resend email", msg);
+      setError(err.message);
+      toast.error("Failed to resend email", err.message);
     } finally {
       setResending(false);
     }

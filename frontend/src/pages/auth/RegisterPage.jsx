@@ -108,14 +108,8 @@ export default function RegisterPage() {
       }
       await handlePostAuth(null);
     } catch (err) {
-      const data = err.response?.data || {};
-      setErrors(data);
-      const msg =
-        data.non_field_errors?.[0] ||
-        data.email?.[0] ||
-        data.detail ||
-        "Registration failed. Please check the form.";
-      toast.error("Registration failed", msg);
+      setErrors(err.data);
+      toast.error("Registration failed", err.message);
     } finally {
       setLoading(false);
     }

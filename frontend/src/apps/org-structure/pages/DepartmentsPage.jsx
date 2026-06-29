@@ -347,7 +347,7 @@ export default function DepartmentsPage() {
     } catch (err) {
       toast.error(
         "Couldn't delete department",
-        err?.response?.data?.detail ?? "Please try again.",
+        err.message,
       );
     }
   };
