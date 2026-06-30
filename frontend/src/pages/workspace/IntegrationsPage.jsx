@@ -173,7 +173,7 @@ function MappingRow({ mapping, workspaceId, onDelete }) {
     is_active: mapping.is_active,
   });
   const update = useUpdateChannelMapping(workspaceId);
-  const toast = useToast();
+  const { toast } = useToast();
 
   const patch = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
@@ -354,7 +354,7 @@ function MappingsSection({
   });
   const deleteMapping = useDeleteChannelMapping(workspaceId);
   const create = useCreateChannelMapping(workspaceId);
-  const toast = useToast();
+  const { toast } = useToast();
 
   const handleAdd = (boardId) =>
     create.mutate(
@@ -419,7 +419,7 @@ function WebhookCard({
   secondary, // { key, label, placeholder }
   sectionLabel,
 }) {
-  const toast = useToast();
+  const { toast } = useToast();
   const { data: projects = [] } = useBoards(workspaceId);
   const [webhookUrl, setWebhookUrl] = useState(config?.webhook_url || "");
   const [secondaryVal, setSecondaryVal] = useState(

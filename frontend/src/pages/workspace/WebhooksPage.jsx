@@ -143,7 +143,7 @@ function WebhookRow({ hook, workspaceId, allEvents }) {
   const update = useUpdateWebhook(workspaceId);
   const remove = useDeleteWebhook(workspaceId);
   const test = useTestWebhook(workspaceId);
-  const toast = useToast();
+  const { toast } = useToast();
 
   const [form, setForm] = useState({
     name: hook.name,

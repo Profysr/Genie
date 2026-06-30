@@ -322,7 +322,7 @@ export default function APIKeysPage() {
   const { workspaceId } = useParams();
   const { data: keys = [], isLoading } = useAPIKeys(workspaceId);
   const revoke = useRevokeAPIKey(workspaceId);
-  const toast = useToast();
+  const { toast } = useToast();
   const [showCreate, setShowCreate] = useState(false);
   const [newRawKey, setNewRawKey] = useState(null);
 

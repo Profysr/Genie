@@ -41,7 +41,7 @@ export default function BoardAccessModal({
 }) {
   const [tab, setTab] = useState("members");
   const [pickerOpen, setPickerOpen] = useState(false);
-  const toast = useToast();
+  const { toast } = useToast();
 
   const { data: boardMembers = [] } = useBoardMembers(workspaceId, boardId, {
     enabled: open,

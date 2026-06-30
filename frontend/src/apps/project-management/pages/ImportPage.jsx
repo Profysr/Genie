@@ -382,7 +382,7 @@ function StepBar({ current }) {
 function JobHistoryRow({ job, workspaceId, onResume }) {
   const rollback = useRollbackImport(workspaceId);
   const deleteJob = useDeleteImportJob(workspaceId);
-  const toast = useToast();
+  const { toast } = useToast();
 
   const statusColor =
     {
@@ -458,7 +458,7 @@ function JobHistoryRow({ job, workspaceId, onResume }) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function ImportPage() {
   const { workspaceId } = useParams();
-  const toast = useToast();
+  const { toast } = useToast();
 
   const { data: sources = [] } = useImportSources(workspaceId);
   const { data: jobs = [], refetch: refetchJobs } = useImportJobs(workspaceId);
