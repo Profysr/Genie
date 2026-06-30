@@ -38,6 +38,8 @@ import BulkActionBar from "@/apps/project-management/components/tasks/BulkAction
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
 import { Tooltip } from "@/shared/components/ui/tooltip";
+import { ShortcutTooltip } from "@/shared/components/ui/ShortcutTooltip";
+import { getShortcutDisplay } from "@/shared/lib/shortcutsRegistry";
 import { OnlineUsersIndicator } from "@/shared/components/ui/OnlineUsersIndicator";
 import {
   Plus,
@@ -416,17 +418,19 @@ export default function KanbanPage() {
               ))}
 
             {(canEdit || can("task.create")) && (
-              <Button
-                size="sm"
-                onClick={() =>
-                  setCreateModal({
-                    open: true,
-                    statusId: statuses?.[0]?.id,
-                  })
-                }
-              >
-                <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Task
-              </Button>
+              <ShortcutTooltip label="Create task" shortcut={getShortcutDisplay("board:create-task")} side="bottom">
+                <Button
+                  size="sm"
+                  onClick={() =>
+                    setCreateModal({
+                      open: true,
+                      statusId: statuses?.[0]?.id,
+                    })
+                  }
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Task
+                </Button>
+              </ShortcutTooltip>
             )}
           </div>
         </div>
@@ -623,6 +627,7 @@ export default function KanbanPage() {
             onCreateLabel={(data, opts) => createLabel.mutate(data, opts)}
             onClose={closeTask}
             canEdit={perms.canEdit}
+            canDelete={perms.canDelete}
           />
         </Suspense>
       )}

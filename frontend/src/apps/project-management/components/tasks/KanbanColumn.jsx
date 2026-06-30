@@ -11,6 +11,8 @@ import {
 import TaskCard from "./TaskCard";
 import { cn } from "@/shared/lib/utils";
 import { Loader } from "@/shared/components/ui/Loader";
+import { ShortcutTooltip } from "@/shared/components/ui/ShortcutTooltip";
+import { getShortcutDisplay } from "@/shared/lib/shortcutsRegistry";
 
 export default function KanbanColumn({
   column,
@@ -144,13 +146,14 @@ export default function KanbanColumn({
                     </button>
 
                     {canEdit && (
-                      <button
-                        onClick={() => onAddTask(column.id)}
-                        className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors"
-                        title={`Add task to ${column.name}`}
-                      >
-                        <Plus size={16} />
-                      </button>
+                      <ShortcutTooltip label={`Add task to ${column.name}`} shortcut={getShortcutDisplay("board:create-task")} side="top">
+                        <button
+                          onClick={() => onAddTask(column.id)}
+                          className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors"
+                        >
+                          <Plus size={16} />
+                        </button>
+                      </ShortcutTooltip>
                     )}
                   </div>
                 )}

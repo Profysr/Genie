@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import Modal from "@/shared/components/ui/Modal";
-import { ConfirmModal } from "@/shared/components/ui/ConfirmModal";
 import { Plus, Trash2, Check, GripVertical, Settings2 } from "lucide-react";
 import { useBatchSaveStatuses } from "@/apps/project-management/hooks/useStatusManagement";
+import { useToast } from "@/shared/components/ui/toast";
 import { Button } from "@/shared/components/ui/button";
 import { cn } from "@/shared/lib/utils";
 
@@ -33,6 +33,7 @@ export default function BoardSettingsModal({
   statuses = [],
 }) {
   const batchSave = useBatchSaveStatuses(workspaceId, boardId);
+  const { toast } = useToast();
 
   // Full local copy — all edits live here until Save
   const [local, setLocal] = useState([]);
@@ -108,7 +109,16 @@ export default function BoardSettingsModal({
     const payload = local.map(({ _isNew, id, ...rest }) =>
       _isNew ? rest : { id, ...rest },
     );
-    batchSave.mutate(payload, { onSuccess: onClose });
+    batchSave.mutate(payload, {
+      onSuccess: () => {
+        toast.success("Columns saved");
+        onClose();
+      },
+      onError: (err) => {
+        const msg = err?.response?.data?.error || "Failed to save columns";
+        toast.error(msg);
+      },
+    });
   };
 
   const isDirty =
@@ -215,11 +225,7 @@ export default function BoardSettingsModal({
                           {s.is_done ? "Done" : "Mark done"}
                         </button>
 
-                        <DeleteButton
-                          statusName={s.name}
-                          hasTasksWarning={!s._isNew}
-                          onDelete={() => remove(s.id)}
-                        />
+                        <DeleteButton onDelete={() => remove(s.id)} />
                       </div>
                     )}
                   </Draggable>
@@ -327,35 +333,15 @@ function StatusName({ name, onRename }) {
   );
 }
 
-function DeleteButton({ statusName, hasTasksWarning, onDelete }) {
-  const [confirming, setConfirming] = useState(false);
-
+function DeleteButton({ onDelete }) {
   return (
-    <>
-      <button
-        onClick={() => setConfirming(true)}
-        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive p-1 rounded hover:bg-destructive/10 transition-all flex-shrink-0"
-        title="Remove column"
-      >
-        <Trash2 className="w-3.5 h-3.5" />
-      </button>
-
-      {confirming && (
-        <ConfirmModal
-          title="Remove column?"
-          message={
-            hasTasksWarning
-              ? `"${statusName}" will be deleted on Save. Make sure to move its tasks out first.`
-              : `"${statusName}" will be removed.`
-          }
-          onConfirm={() => {
-            onDelete();
-            setConfirming(false);
-          }}
-          onCancel={() => setConfirming(false)}
-        />
-      )}
-    </>
+    <button
+      onClick={onDelete}
+      className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive p-1 rounded hover:bg-destructive/10 transition-all flex-shrink-0"
+      title="Remove column"
+    >
+      <Trash2 className="w-3.5 h-3.5" />
+    </button>
   );
 }
 

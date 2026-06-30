@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { ShortcutTooltip } from "@/shared/components/ui/ShortcutTooltip";
+import { getShortcutDisplay } from "@/shared/lib/shortcutsRegistry";
 import {
   Search,
   X,
@@ -332,25 +334,27 @@ function AdvancedFilters({ filters = {}, onChange, labels = [], currentUserId })
 
   return (
     <div className="relative">
-      <button
-        ref={btnRef}
-        onClick={handleToggle}
-        className={cn(
-          "flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border transition-colors",
-          activeCount > 0 || open
-            ? "border-primary/40 bg-primary/5 text-primary"
-            : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground",
-        )}
-      >
-        <SlidersHorizontal className="w-3.5 h-3.5" />
-        <span>Filters</span>
-        {activeCount > 0 && (
-          <span className="w-4 h-4 rounded-full bg-primary text-white text-[9px] font-bold flex items-center justify-center">
-            {activeCount}
-          </span>
-        )}
-        <ChevronDown className={cn("w-3 h-3 transition-transform duration-150", open && "rotate-180")} />
-      </button>
+      <ShortcutTooltip label="Filters" shortcut={getShortcutDisplay("board:open-filters")} side="bottom">
+        <button
+          ref={btnRef}
+          onClick={handleToggle}
+          className={cn(
+            "flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border transition-colors",
+            activeCount > 0 || open
+              ? "border-primary/40 bg-primary/5 text-primary"
+              : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground",
+          )}
+        >
+          <SlidersHorizontal className="w-3.5 h-3.5" />
+          <span>Filters</span>
+          {activeCount > 0 && (
+            <span className="w-4 h-4 rounded-full bg-primary text-white text-[9px] font-bold flex items-center justify-center">
+              {activeCount}
+            </span>
+          )}
+          <ChevronDown className={cn("w-3 h-3 transition-transform duration-150", open && "rotate-180")} />
+        </button>
+      </ShortcutTooltip>
 
       {open && createPortal(
         <div
@@ -533,16 +537,18 @@ export default function FilterBar({
       {/* Search */}
       {!hideSearch && (
         <>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-            <input
-              ref={searchRef}
-              className="pl-8 pr-3 py-1.5 text-xs border rounded-md bg-background outline-none focus:ring-1 focus:ring-ring w-44 placeholder:text-muted-foreground"
-              placeholder="Search tasks…"
-              value={filters.search}
-              onChange={(e) => onChange({ ...filters, search: e.target.value })}
-            />
-          </div>
+          <ShortcutTooltip label="Search tasks" shortcut={getShortcutDisplay("board:focus-search")} side="bottom">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+              <input
+                ref={searchRef}
+                className="pl-8 pr-3 py-1.5 text-xs border rounded-md bg-background outline-none focus:ring-1 focus:ring-ring w-44 placeholder:text-muted-foreground"
+                placeholder="Search tasks…"
+                value={filters.search}
+                onChange={(e) => onChange({ ...filters, search: e.target.value })}
+              />
+            </div>
+          </ShortcutTooltip>
 
           <div className="w-px h-4 bg-border" />
         </>

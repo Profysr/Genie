@@ -83,6 +83,7 @@ export default function TaskDetailPanel({
   onCreateLabel,
   onClose,
   canEdit = true,
+  canDelete = false,
 }) {
   const { workspaceId, boardId } = useParams();
   const navigate = useNavigate();
@@ -263,6 +264,7 @@ export default function TaskDetailPanel({
         workspaceId={workspaceId}
         boardId={boardId}
         canEdit={canEdit}
+        canDelete={canDelete}
         approvals={approvals}
         approvalDropdown={approvalDropdown}
         setApprovalDropdown={setApprovalDropdown}
@@ -458,6 +460,7 @@ function PanelHeader({
   workspaceId,
   boardId,
   canEdit,
+  canDelete,
   approvals,
   approvalDropdown,
   setApprovalDropdown,
@@ -573,7 +576,7 @@ function PanelHeader({
           </div>
         )}
 
-        {canEdit && (
+        {canDelete && (
           <Tooltip content={<TooltipLabel label="Delete task" id="task:delete" />}>
             <button
               onClick={() =>
