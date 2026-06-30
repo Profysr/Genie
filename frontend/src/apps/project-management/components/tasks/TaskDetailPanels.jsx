@@ -473,6 +473,7 @@ export function PropertiesPanel({
             {task.created_by ? (
               <>
                 <Avatar
+                  user={task.created_by}
                   name={task.created_by.full_name || task.created_by.email}
                   size="xs"
                 />
@@ -600,12 +601,12 @@ export function PropertiesPanel({
                   .map((x) => x.id);
                 update.mutate({ label_ids: newIds });
               }}
-              className="group flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold transition-all hover:opacity-80 active:scale-95"
+              className="relative group flex items-center gap-1 px-2.5 py-0.5 rounded text-xs font-semibold transition-all hover:opacity-80 active:scale-95"
               style={{ backgroundColor: l.color + "30", color: l.color }}
               title="Click to remove"
             >
               {l.name}
-              <X className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <X className="absolute -top-1 -right-1 w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
             </button>
           ))}
           {canEdit && (
