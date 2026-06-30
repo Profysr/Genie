@@ -2,10 +2,12 @@ import { lazy, Suspense } from "react";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { Loader } from "@/shared/components/ui/Loader";
+import NotFoundPage from "@/pages/NotFoundPage";
 
 // ── Shell components — always needed, load eagerly ───────────────────────────
 import ProtectedRoute from "@/shared/components/layout/ProtectedRoute";
 import AppLayout from "@/shared/components/layout/AppLayout";
+import AppGuard from "@/shared/components/layout/PermissionRoute";
 import WorkspaceRedirect from "@/pages/workspace/WorkspaceRedirect";
 
 // ── Public pages ──────────────────────────────────────────────────────────────
@@ -63,22 +65,36 @@ const MemberDetailPage = lazy(
   () => import("@/apps/hr-management/pages/MemberDetailPage"),
 );
 
+// ── Project Management — workspace-level pages ────────────────────────────────
+const DashboardsPage = lazy(
+  () => import("@/apps/project-management/pages/DashboardsPage"),
+);
+const AnalyticsPage = lazy(
+  () => import("@/apps/project-management/pages/AnalyticsPage"),
+);
+const GoalsPage = lazy(
+  () => import("@/apps/project-management/pages/GoalsPage"),
+);
+const MyWorkPage = lazy(
+  () => import("@/apps/project-management/pages/MyWorkPage"),
+);
+
 // ── Workspace pages ───────────────────────────────────────────────────────────
-const DashboardsPage = lazy(() => import("@/pages/workspace/DashboardsPage"));
-const AnalyticsPage = lazy(() => import("@/pages/workspace/AnalyticsPage"));
-const GoalsPage = lazy(() => import("@/pages/workspace/GoalsPage"));
-const MyWorkPage = lazy(() => import("@/pages/workspace/MyWorkPage"));
 const AppLauncherPage = lazy(() => import("@/pages/workspace/AppLauncherPage"));
 const MembersPage = lazy(() => import("@/pages/workspace/MembersPage"));
 const SettingsPage = lazy(() => import("@/pages/workspace/SettingsPage"));
 
-// ── Settings / developer pages ────────────────────────────────────────────────
+// ── Project Management — import ───────────────────────────────────────────────
+const ImportPage = lazy(
+  () => import("@/apps/project-management/pages/ImportPage"),
+);
+
+// ── Workspace — settings & developer pages ────────────────────────────────────
 const IntegrationsPage = lazy(
   () => import("@/pages/workspace/IntegrationsPage"),
 );
 const APIKeysPage = lazy(() => import("@/pages/workspace/APIKeysPage"));
 const WebhooksPage = lazy(() => import("@/pages/workspace/WebhooksPage"));
-const ImportPage = lazy(() => import("@/pages/workspace/ImportPage"));
 
 // ── Fallback UIs ──────────────────────────────────────────────────────────────
 
@@ -142,137 +158,51 @@ export default function App() {
           <Route path="/w/:workspaceId" element={<AppLayout />}>
             <Route element={<SuspenseOutlet />}>
               <Route index element={<Navigate to="apps" replace />} />
-              <Route
-                path="apps"
-                element={<AppLauncherPage />}
-                handle={{ app: "launcher" }}
-              />
+              <Route path="apps" element={<AppLauncherPage />} handle={{ app: "launcher" }} />
 
-              {/* Boards */}
-              <Route
-                path="boards"
-                element={<BoardsPage />}
-                handle={{ app: "projects" }}
-              />
-              <Route
-                path="boards/:boardId"
-                element={<KanbanPage />}
-                handle={{ app: "projects" }}
-              />
-              <Route
-                path="boards/:boardId/wiki"
-                element={<WikiPage />}
-                handle={{ app: "projects" }}
-              />
-              <Route
-                path="boards/:boardId/wiki/:pageId"
-                element={<WikiPage />}
-                handle={{ app: "projects" }}
-              />
-              <Route
-                path="boards/:boardId/forms"
-                element={<FormsPage />}
-                handle={{ app: "projects" }}
-              />
+              {/* ── Project Management ──────────────────────────────────── */}
+              <Route element={<AppGuard app="projects" />}>
+                <Route path="boards" element={<BoardsPage />} />
+                <Route path="boards/:boardId" element={<KanbanPage />} />
+                <Route path="boards/:boardId/wiki" element={<WikiPage />} />
+                <Route path="boards/:boardId/wiki/:pageId" element={<WikiPage />} />
+                <Route path="boards/:boardId/forms" element={<FormsPage />} />
+                <Route path="dashboards" element={<DashboardsPage />} />
+                <Route path="analytics" element={<AnalyticsPage />} />
+                <Route path="goals" element={<GoalsPage />} />
+                <Route path="my-work" element={<MyWorkPage />} />
+                <Route path="import" element={<ImportPage />} />
+              </Route>
 
-              {/* Org Structure */}
-              <Route
-                path="departments"
-                element={<DepartmentsPage />}
-                handle={{ app: "org" }}
-              />
-              <Route
-                path="teams"
-                element={<TeamsPage />}
-                handle={{ app: "org" }}
-              />
-              <Route
-                path="org-chart"
-                element={<OrgChartPage />}
-                handle={{ app: "org" }}
-              />
+              {/* ── Org Structure ───────────────────────────────────────── */}
+              <Route element={<AppGuard app="org" />}>
+                <Route path="departments" element={<DepartmentsPage />} />
+                <Route path="teams" element={<TeamsPage />} />
+                <Route path="org-chart" element={<OrgChartPage />} />
+              </Route>
 
-              {/* HR Management */}
-              <Route
-                path="hr"
-                element={<HRDashboardPage />}
-                handle={{ app: "hr" }}
-              />
-              <Route
-                path="hr/leave"
-                element={<LeavePage />}
-                handle={{ app: "hr" }}
-              />
-              <Route
-                path="hr/attendance"
-                element={<AttendancePage />}
-                handle={{ app: "hr" }}
-              />
-              <Route
-                path="members/:memberId"
-                element={<MemberDetailPage />}
-                handle={{ app: "hr" }}
-              />
+              {/* ── HR Management ───────────────────────────────────────── */}
+              <Route element={<AppGuard app="hr" />}>
+                <Route path="hr" element={<HRDashboardPage />} />
+                <Route path="hr/leave" element={<LeavePage />} />
+                <Route path="hr/attendance" element={<AttendancePage />} />
+                <Route path="members/:memberId" element={<MemberDetailPage />} />
+              </Route>
 
-              {/* Workspace */}
-              <Route
-                path="dashboards"
-                element={<DashboardsPage />}
-                handle={{ app: "projects" }}
-              />
-              <Route
-                path="analytics"
-                element={<AnalyticsPage />}
-                handle={{ app: "analytics" }}
-              />
-              <Route
-                path="goals"
-                element={<GoalsPage />}
-                handle={{ app: "projects" }}
-              />
-              <Route
-                path="my-work"
-                element={<MyWorkPage />}
-                handle={{ app: "projects" }}
-              />
-              <Route
-                path="import"
-                element={<ImportPage />}
-                handle={{ app: "projects" }}
-              />
-              <Route
-                path="members"
-                element={<MembersPage />}
-                handle={{ app: "workspace", permission: "settings.manage" }}
-              />
-
-              {/* Settings */}
-              <Route
-                path="settings"
-                element={<SettingsPage />}
-                handle={{ app: "workspace", permission: "settings.manage" }}
-              />
-              <Route
-                path="settings/integrations"
-                element={<IntegrationsPage />}
-                handle={{ app: "workspace", permission: "settings.manage" }}
-              />
-              <Route
-                path="settings/api"
-                element={<APIKeysPage />}
-                handle={{ app: "workspace", permission: "settings.manage" }}
-              />
-              <Route
-                path="settings/webhooks"
-                element={<WebhooksPage />}
-                handle={{ app: "workspace", permission: "settings.manage" }}
-              />
- 
+              {/* ── Workspace & Settings (requires settings.manage) ──────── */}
+              <Route element={<AppGuard permission="settings.manage" />}>
+                <Route path="members" element={<MembersPage />} />
+                <Route path="settings" element={<SettingsPage />} />
+                <Route path="settings/integrations" element={<IntegrationsPage />} />
+                <Route path="settings/api" element={<APIKeysPage />} />
+                <Route path="settings/webhooks" element={<WebhooksPage />} />
+              </Route>
             </Route>
           </Route>
         </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="/not-found" element={<NotFoundPage />} />
+        <Route path="*" element={<Navigate to="/not-found" replace />} />
       </Routes>
     </GoogleOAuthProvider>
   );
